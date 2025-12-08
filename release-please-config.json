@@ -1,0 +1,14 @@
+{
+  "release-type": "go",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease-type": "alpha",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "deps", "section": "Dependencies" },
+    { "type": "chore", "section": "Miscellaneous", "hidden": true }
+  ],
+  "pull-request-title-pattern": "chore: release ${version}"
+}
