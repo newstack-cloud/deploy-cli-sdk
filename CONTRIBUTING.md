@@ -24,6 +24,65 @@ Install dependencies from the root directory by simply running:
 yarn
 ```
 
+## Running Tests
+
+Run all tests with race detection and coverage:
+
+```bash
+bash scripts/run-tests.sh
+```
+
+This will:
+- Run all tests with race detection enabled
+- Generate `coverage.txt` with coverage data
+- Generate `coverage.html` for visual coverage inspection (on dev machines)
+
+To update test snapshots (if any):
+
+```bash
+bash scripts/run-tests.sh --update-snapshots
+```
+
+To run tests for a specific package:
+
+```bash
+go test -v ./styles/...
+go test -v ./config/...
+```
+
+## Linting
+
+Run static analysis and vet checks:
+
+```bash
+bash scripts/lint.sh
+```
+
+This runs:
+- `staticcheck` - static analysis tool for Go
+- `go vet` - reports suspicious constructs
+
+### Prerequisites
+
+Install staticcheck if not already installed:
+
+```bash
+go install honnef.co/go/tools/cmd/staticcheck@latest
+```
+
+### Running Individual Checks
+
+```bash
+# Run staticcheck on all packages
+staticcheck ./...
+
+# Run go vet on all packages
+go vet ./...
+
+# Format code
+go fmt ./...
+```
+
 ## Further documentation
 
 - [Commit Guidelines](./COMMIT_GUIDELINES.md)
