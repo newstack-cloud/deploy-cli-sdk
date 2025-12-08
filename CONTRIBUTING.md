@@ -11,9 +11,9 @@ git config core.hooksPath .githooks
 
 ### Requirements
 
-- [Go](https://go.dev/doc/install)
-- [Node.js](https://nodejs.org/en/download/)
-- [Yarn](https://yarnpkg.com/getting-started/install)
+- [Go](https://go.dev/doc/install) >= 1.24.4
+- [Node.js](https://nodejs.org/en/download/) >= 22.20.0
+- [Yarn](https://yarnpkg.com/getting-started/install) >= 4.3.1
 
 ### NPM dependencies
 
