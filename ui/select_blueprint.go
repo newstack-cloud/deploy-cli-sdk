@@ -1,4 +1,4 @@
-package sharedui
+package ui
 
 import (
 	"fmt"

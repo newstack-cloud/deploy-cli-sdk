@@ -1,4 +1,4 @@
-package sharedui
+package ui
 
 import (
 	"github.com/charmbracelet/bubbles/list"
