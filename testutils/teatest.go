@@ -93,3 +93,86 @@ func KeyQ(model *teatest.TestModel) {
 		},
 	)
 }
+
+// KeyTab is a helper function to send a tab key message to the model.
+func KeyTab(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyTab,
+		},
+	)
+}
+
+// KeyEscape is a helper function to send an escape key message to the model.
+func KeyEscape(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyEscape,
+		},
+	)
+}
+
+// KeyBackspace is a helper function to send a backspace key message to the model.
+func KeyBackspace(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyBackspace,
+		},
+	)
+}
+
+// KeyHome is a helper function to send a home key message to the model.
+func KeyHome(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyHome,
+		},
+	)
+}
+
+// KeyEnd is a helper function to send an end key message to the model.
+func KeyEnd(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyEnd,
+		},
+	)
+}
+
+// KeyPageUp is a helper function to send a page up key message to the model.
+func KeyPageUp(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyPgUp,
+		},
+	)
+}
+
+// KeyPageDown is a helper function to send a page down key message to the model.
+func KeyPageDown(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type: tea.KeyPgDown,
+		},
+	)
+}
+
+// KeyJ is a helper function to send a 'j' key message to the model (vim down).
+func KeyJ(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type:  tea.KeyRunes,
+			Runes: []rune("j"),
+		},
+	)
+}
+
+// KeyK is a helper function to send a 'k' key message to the model (vim up).
+func KeyK(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type:  tea.KeyRunes,
+			Runes: []rune("k"),
+		},
+	)
+}

@@ -12,12 +12,31 @@ import (
 
 type testDeployEngine struct {
 	validationEvents []*types.BlueprintValidationEvent
+	stagingEvents    []*types.ChangeStagingEvent
+	changesetID      string
+	createError      error
 }
 
 func NewTestDeployEngine(stubValidationEvents []*types.BlueprintValidationEvent) engine.DeployEngine {
 	return &testDeployEngine{
 		validationEvents: stubValidationEvents,
 	}
+}
+
+// NewTestDeployEngineWithStaging creates a test deploy engine with staging event support.
+func NewTestDeployEngineWithStaging(
+	stubStagingEvents []*types.ChangeStagingEvent,
+	changesetID string,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		stagingEvents: stubStagingEvents,
+		changesetID:   changesetID,
+	}
+}
+
+// NewTestDeployEngineWithStagingError creates a test deploy engine that returns an error on CreateChangeset.
+func NewTestDeployEngineWithStagingError(err error) engine.DeployEngine {
+	return &testDeployEngine{createError: err}
 }
 
 func (d *testDeployEngine) CreateBlueprintValidation(
@@ -81,7 +100,15 @@ func (d *testDeployEngine) CreateChangeset(
 	ctx context.Context,
 	payload *types.CreateChangesetPayload,
 ) (*manage.Changeset, error) {
-	return nil, nil
+	if d.createError != nil {
+		return nil, d.createError
+	}
+	return &manage.Changeset{
+		ID:                d.changesetID,
+		Status:            manage.ChangesetStatusStagingChanges,
+		BlueprintLocation: payload.BlueprintFile,
+		Created:           time.Now().Unix(),
+	}, nil
 }
 
 func (d *testDeployEngine) GetChangeset(
@@ -97,6 +124,11 @@ func (d *testDeployEngine) StreamChangeStagingEvents(
 	streamTo chan<- types.ChangeStagingEvent,
 	errChan chan<- error,
 ) error {
+	go func() {
+		for _, event := range d.stagingEvents {
+			streamTo <- *event
+		}
+	}()
 	return nil
 }
 
