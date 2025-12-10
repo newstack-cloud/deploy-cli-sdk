@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.2](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.1...v0.1.2) (2025-12-10)
+
+
+### Features
+
+* add helper functions for strings used in cli outputs ([9caa305](https://github.com/newstack-cloud/deploy-cli-sdk/commit/9caa305bcbf2faae32d6837cbf07aeece8b6943c))
+* add shared helpers for headless (non-interactive) output ([6f23be6](https://github.com/newstack-cloud/deploy-cli-sdk/commit/6f23be682203d346b83f6fa0469026570c4ed7da))
+* expand styles to include elements used in the split pane tui ([b201066](https://github.com/newstack-cloud/deploy-cli-sdk/commit/b201066816703e5cafcb3695e2b55b7cbd077781))
+* expand test utils ([280ed31](https://github.com/newstack-cloud/deploy-cli-sdk/commit/280ed3196766f6b051de4f7080681e5bab7b7644))
+
+
+### Dependencies
+
+* bump the go-deps group across 1 directory with 3 updates ([5fdc924](https://github.com/newstack-cloud/deploy-cli-sdk/commit/5fdc9242cb1d154a4d517fde452b655a4e19d8f7))
+
 ## [0.1.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.0...v0.1.1) (2025-12-08)
 
 
