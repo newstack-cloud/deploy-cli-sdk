@@ -176,3 +176,50 @@ func KeyK(model *teatest.TestModel) {
 		},
 	)
 }
+
+// KeyS is a helper function to send a 's' key message to the model.
+func KeyS(model *teatest.TestModel) {
+	model.Send(
+		tea.KeyMsg{
+			Type:  tea.KeyRunes,
+			Runes: []rune("s"),
+		},
+	)
+}
+
+// Key is a generic helper function to send any single key message to the model.
+func Key(model *teatest.TestModel, key string) {
+	switch key {
+	case "esc", "escape":
+		KeyEscape(model)
+	case "enter":
+		KeyEnter(model)
+	case "tab":
+		KeyTab(model)
+	case "backspace":
+		KeyBackspace(model)
+	case "up":
+		KeyUp(model)
+	case "down":
+		KeyDown(model)
+	case "left":
+		KeyLeft(model)
+	case "right":
+		KeyRight(model)
+	case "home":
+		KeyHome(model)
+	case "end":
+		KeyEnd(model)
+	case "pgup":
+		KeyPageUp(model)
+	case "pgdown":
+		KeyPageDown(model)
+	default:
+		model.Send(
+			tea.KeyMsg{
+				Type:  tea.KeyRunes,
+				Runes: []rune(key),
+			},
+		)
+	}
+}

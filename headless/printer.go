@@ -42,9 +42,13 @@ func (p *Printer) ProgressItem(icon, itemType, name, action, suffix string) {
 }
 
 // ItemHeader prints an item header with type, name, and action.
+// Format: itemType (padded to 10 chars) + space + name + padding + action
+// The action is right-aligned to column 60.
 func (p *Printer) ItemHeader(itemType, name, action string) {
-	p.w.Printf("%-10s %s", itemType, name)
-	padding := 60 - len(itemType) - len(name)
+	const typeWidth = 10
+	p.w.Printf("%-*s %s", typeWidth, itemType, name)
+	// Calculate padding: 60 total - typeWidth (fixed) - 1 (space after type) - name length
+	padding := 60 - typeWidth - 1 - len(name)
 	if padding > 0 {
 		fmt.Fprint(p.w.Writer(), strings.Repeat(" ", padding))
 	}

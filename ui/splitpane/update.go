@@ -238,6 +238,11 @@ func (m *Model) handleBack() tea.Cmd {
 		frame := m.navigationStack[len(m.navigationStack)-1]
 		m.navigationStack = m.navigationStack[:len(m.navigationStack)-1]
 		m.items = frame.Items
+
+		// Reset expansion state - resolveSelectedIndex will re-expand
+		// parents as needed to make the selected item visible
+		m.expandedItems = make(map[string]bool)
+
 		// Restore selection from when we drilled down
 		if frame.SelectedID != "" {
 			m.selectedID = frame.SelectedID
@@ -248,7 +253,6 @@ func (m *Model) handleBack() tea.Cmd {
 				m.selectedID = m.items[0].GetID()
 			}
 		}
-		m.expandedItems = make(map[string]bool)
 		m.updateViewportsAndResetRight()
 		return nil
 	}

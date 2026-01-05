@@ -64,9 +64,11 @@ func (m *Model) SetItems(items []Item) {
 	m.expandedItems = make(map[string]bool)
 	m.navigationStack = nil
 
-	// Set initial selection
-	if len(items) > 0 {
-		m.selectedID = items[0].GetID()
+	// Set initial selection based on visible items (after grouping/sorting)
+	// This ensures the first visible item is selected, not just the first input item
+	visItems := m.visibleItems()
+	if len(visItems) > 0 {
+		m.selectedID = visItems[0].GetID()
 		m.selectedIndex = 0
 	} else {
 		m.selectedID = ""
@@ -191,7 +193,9 @@ func (m Model) RootItems() []Item {
 
 // resolveSelectedIndex updates selectedIndex from selectedID.
 // This should be called after items are updated to keep the index cache in sync.
+// If the selected item is a child of an expandable item, expands the parent first.
 func (m *Model) resolveSelectedIndex() {
+	// First, try to find the item in currently visible items
 	items := m.visibleItems()
 	for i, item := range items {
 		if item.GetID() == m.selectedID {
@@ -199,7 +203,21 @@ func (m *Model) resolveSelectedIndex() {
 			return
 		}
 	}
-	// Selected item no longer exists - select first item
+
+	// Item not visible - check if it's a child of an expandable item
+	// and expand the parent to make it visible
+	if m.expandParentOfItem(m.selectedID) {
+		// Parent was expanded, try again with updated visible items
+		items = m.visibleItems()
+		for i, item := range items {
+			if item.GetID() == m.selectedID {
+				m.selectedIndex = i
+				return
+			}
+		}
+	}
+
+	// Selected item still not found - select first visible item
 	if len(items) > 0 {
 		m.selectedID = items[0].GetID()
 		m.selectedIndex = 0
@@ -207,6 +225,37 @@ func (m *Model) resolveSelectedIndex() {
 		m.selectedID = ""
 		m.selectedIndex = 0
 	}
+}
+
+// expandParentOfItem searches for an item by ID in children of expandable items.
+// If found, expands the parent and returns true.
+func (m *Model) expandParentOfItem(targetID string) bool {
+	for _, item := range m.items {
+		if !item.IsExpandable() {
+			continue
+		}
+		if m.findInChildren(item, targetID) {
+			m.expandedItems[item.GetID()] = true
+			return true
+		}
+	}
+	return false
+}
+
+// findInChildren recursively searches for an item ID in children.
+func (m *Model) findInChildren(parent Item, targetID string) bool {
+	for _, child := range parent.GetChildren() {
+		if child.GetID() == targetID {
+			return true
+		}
+		// Check nested children recursively
+		if child.IsExpandable() && m.findInChildren(child, targetID) {
+			// Also expand this intermediate parent
+			m.expandedItems[child.GetID()] = true
+			return true
+		}
+	}
+	return false
 }
 
 // UpdateItems replaces items while preserving user state where possible.

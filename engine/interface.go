@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint-state/manage"
+	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 )
@@ -14,13 +15,13 @@ type DeployEngine interface {
 
 	// CreateBlueprintValidation creates a new blueprint validation
 	// for the provided blueprint document and starts the validation process.
-	// This will return an ID that can be used to stream the validation events
-	// as they occur.
+	// Returns a response containing the validation resource and a LastEventID
+	// that should be passed to StreamBlueprintValidationEvents to avoid stale events.
 	CreateBlueprintValidation(
 		ctx context.Context,
 		payload *types.CreateBlueprintValidationPayload,
 		query *types.CreateBlueprintValidationQuery,
-	) (*manage.BlueprintValidation, error)
+	) (*types.BlueprintValidationResponse, error)
 
 	// GetBlueprintValidation retrieves metadata and status information
 	// about a blueprint validation.
@@ -37,9 +38,14 @@ type DeployEngine interface {
 	// recently occurred.
 	// Any HTTP errors that occur when estabilishing a connection will be sent
 	// to the provided error channel.
+	//
+	// The lastEventID parameter follows SSE Last-Event-ID semantics - it is exclusive,
+	// meaning the event with this ID will NOT be included, only events after it.
+	// Use the LastEventID from CreateBlueprintValidation to avoid stale events.
 	StreamBlueprintValidationEvents(
 		ctx context.Context,
 		validationID string,
+		lastEventID string,
 		streamTo chan<- types.BlueprintValidationEvent,
 		errChan chan<- error,
 	) error
@@ -61,10 +67,13 @@ type DeployEngine interface {
 	//
 	// Creating a change set should be carried out in preparation for deploying new blueprint
 	// instances or updating existing blueprint instances.
+	//
+	// Returns a response containing the changeset and a LastEventID
+	// that should be passed to StreamChangeStagingEvents to avoid stale events.
 	CreateChangeset(
 		ctx context.Context,
 		payload *types.CreateChangesetPayload,
-	) (*manage.Changeset, error)
+	) (*types.ChangesetResponse, error)
 
 	// GetChangeset retrieves a change set for a blueprint deployment.
 	// This will return the current status of the change staging process.
@@ -80,9 +89,14 @@ type DeployEngine interface {
 	// This will produce a stream of events as they occur or that have recently occurred.
 	// Any HTTP errors that occur when estabilishing a connection will be sent
 	// to the provided error channel.
+	//
+	// The lastEventID parameter follows SSE Last-Event-ID semantics - it is exclusive,
+	// meaning the event with this ID will NOT be included, only events after it.
+	// Use the LastEventID from CreateChangeset to avoid stale events from previous operations.
 	StreamChangeStagingEvents(
 		ctx context.Context,
 		changesetID string,
+		lastEventID string,
 		streamTo chan<- types.ChangeStagingEvent,
 		errChan chan<- error,
 	) error
@@ -96,24 +110,24 @@ type DeployEngine interface {
 	// CreateBlueprintInstance (Deploy New) creates a new blueprint deployment instance.
 	// This will start the deployment process for the provided blueprint
 	// document and change set.
-	// It will return a blueprint instance resource containing an ID that
-	// can be used to stream deployment events as they occur.
+	// Returns a response containing the instance state and a LastEventID
+	// that should be passed to StreamBlueprintInstanceEvents to avoid stale events.
 	CreateBlueprintInstance(
 		ctx context.Context,
 		payload *types.BlueprintInstancePayload,
-	) (*state.InstanceState, error)
+	) (*types.BlueprintInstanceResponse, error)
 
 	// UpdateBlueprintInstance (Deploy Existing) updates an existing blueprint
 	// deployment instance.
 	// This will start the deployment process for the provided blueprint
 	// document and change set.
-	// It will return the current state of the blueprint instance,
-	// the same ID provided should be used to stream deployment events as they occur.
+	// Returns a response containing the instance state and a LastEventID
+	// that should be passed to StreamBlueprintInstanceEvents to avoid stale events.
 	UpdateBlueprintInstance(
 		ctx context.Context,
 		instanceID string,
 		payload *types.BlueprintInstancePayload,
-	) (*state.InstanceState, error)
+	) (*types.BlueprintInstanceResponse, error)
 
 	// GetBlueprintInstance retrieves a blueprint deployment instance.
 	// This will return the current status of the deployment along with
@@ -133,13 +147,13 @@ type DeployEngine interface {
 
 	// DestroyBlueprintInstance destroys a blueprint deployment instance.
 	// This will start the destroy process for the provided change set.
-	// It will return the current state of the blueprint instance,
-	// the same ID provided should be used to stream destroy events as they occur.
+	// Returns a response containing the instance state and a LastEventID
+	// that should be passed to StreamBlueprintInstanceEvents to avoid stale events.
 	DestroyBlueprintInstance(
 		ctx context.Context,
 		instanceID string,
 		payload *types.DestroyBlueprintInstancePayload,
-	) (*state.InstanceState, error)
+	) (*types.BlueprintInstanceResponse, error)
 
 	// StreamBlueprintInstanceEvents streams events from the current deployment
 	// process for the given blueprint instance ID.
@@ -154,9 +168,14 @@ type DeployEngine interface {
 	//
 	// Any HTTP errors that occur when estabilishing a connection or unexpected failures
 	// in the deployment process will be sent to the provided error channel.
+	//
+	// The lastEventID parameter follows SSE Last-Event-ID semantics - it is exclusive,
+	// meaning the event with this ID will NOT be included, only events after it.
+	// Use the LastEventID from Create/Update/DestroyBlueprintInstance to avoid stale events.
 	StreamBlueprintInstanceEvents(
 		ctx context.Context,
 		instanceID string,
+		lastEventID string,
 		streamTo chan<- types.BlueprintInstanceEvent,
 		errChan chan<- error,
 	) error
@@ -171,4 +190,15 @@ type DeployEngine interface {
 	CleanupEvents(
 		ctx context.Context,
 	) error
+
+	// ApplyReconciliation applies reconciliation actions to resolve drift or interrupted state.
+	// This is a synchronous operation that returns the result of applying the reconciliation actions.
+	//
+	// The instanceID parameter can be either the unique instance ID or
+	// the user-defined instance name.
+	ApplyReconciliation(
+		ctx context.Context,
+		instanceID string,
+		payload *types.ApplyReconciliationPayload,
+	) (*container.ApplyReconciliationResult, error)
 }

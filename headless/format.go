@@ -1,11 +1,22 @@
 package headless
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 )
+
+// FormatMappingNodeOptions configures how MappingNode values are formatted.
+type FormatMappingNodeOptions struct {
+	// PrettyPrint enables JSON pretty-printing for arrays and maps
+	// instead of the concise representation ({...}, [...]).
+	PrettyPrint bool
+	// Indent specifies the indentation string for pretty-printing.
+	// Defaults to "  " (two spaces) if empty.
+	Indent string
+}
 
 // FormatMappingNode formats a MappingNode for display.
 func FormatMappingNode(node *core.MappingNode) string {
@@ -48,6 +59,41 @@ func FormatMappingNode(node *core.MappingNode) string {
 	}
 
 	return "unknown"
+}
+
+// FormatMappingNodeWithOptions formats a MappingNode for display with configurable options.
+func FormatMappingNodeWithOptions(node *core.MappingNode, opts FormatMappingNodeOptions) string {
+	if node == nil {
+		return "null"
+	}
+
+	// If pretty-print is enabled, use JSON marshaling for complex types
+	if opts.PrettyPrint {
+		return formatMappingNodePretty(node, opts)
+	}
+
+	// Fall back to concise format
+	return FormatMappingNode(node)
+}
+
+// formatMappingNodePretty formats a MappingNode as pretty-printed JSON.
+func formatMappingNodePretty(node *core.MappingNode, opts FormatMappingNodeOptions) string {
+	if node == nil {
+		return "null"
+	}
+
+	indent := opts.Indent
+	if indent == "" {
+		indent = "  "
+	}
+
+	jsonBytes, err := json.MarshalIndent(node, "", indent)
+	if err != nil {
+		// Fall back to concise format on error
+		return FormatMappingNode(node)
+	}
+
+	return string(jsonBytes)
 }
 
 // FormatScalarValue formats a ScalarValue for display.
