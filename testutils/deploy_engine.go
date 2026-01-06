@@ -272,6 +272,16 @@ func (d *testDeployEngine) GetBlueprintInstance(
 	}, nil
 }
 
+func (d *testDeployEngine) ListBlueprintInstances(
+	ctx context.Context,
+	params state.ListInstancesParams,
+) (state.ListInstancesResult, error) {
+	return state.ListInstancesResult{
+		Instances:  []state.InstanceSummary{},
+		TotalCount: 0,
+	}, nil
+}
+
 func (d *testDeployEngine) GetBlueprintInstanceExports(
 	ctx context.Context,
 	instanceID string,
@@ -342,4 +352,38 @@ func NewTestDeployEngineForInspectNotFound() engine.DeployEngine {
 	return &testDeployEngine{
 		getInstanceStateErr: errInstanceNotFound,
 	}
+}
+
+// NewTestDeployEngineForList creates a test deploy engine for list scenarios.
+func NewTestDeployEngineForList(instances []state.InstanceSummary) engine.DeployEngine {
+	return &testDeployEngineForList{
+		instances: instances,
+	}
+}
+
+// NewTestDeployEngineForListError creates a test deploy engine that returns an error on list.
+func NewTestDeployEngineForListError() engine.DeployEngine {
+	return &testDeployEngineForList{
+		listErr: errInstanceNotFound,
+	}
+}
+
+// testDeployEngineForList is a test deploy engine specialized for list scenarios.
+type testDeployEngineForList struct {
+	testDeployEngine
+	instances []state.InstanceSummary
+	listErr   error
+}
+
+func (d *testDeployEngineForList) ListBlueprintInstances(
+	ctx context.Context,
+	params state.ListInstancesParams,
+) (state.ListInstancesResult, error) {
+	if d.listErr != nil {
+		return state.ListInstancesResult{}, d.listErr
+	}
+	return state.ListInstancesResult{
+		Instances:  d.instances,
+		TotalCount: len(d.instances),
+	}, nil
 }

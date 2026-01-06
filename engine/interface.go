@@ -137,6 +137,13 @@ type DeployEngine interface {
 		instanceID string,
 	) (*state.InstanceState, error)
 
+	// ListBlueprintInstances retrieves blueprint instances with pagination and optional filtering.
+	// The params allow filtering by name and paginating results.
+	ListBlueprintInstances(
+		ctx context.Context,
+		params state.ListInstancesParams,
+	) (state.ListInstancesResult, error)
+
 	// GetBlueprintInstanceExports retrieves the exports from a blueprint
 	// deployment instance.
 	// This will return the exported fields from the blueprint instance.
