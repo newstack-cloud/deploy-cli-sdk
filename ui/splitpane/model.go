@@ -279,6 +279,15 @@ func (m *Model) UpdateItems(items []Item) {
 	}
 }
 
+// RefreshViewports forces a re-render of both viewport contents.
+// Use this when item data has changed but items themselves haven't been replaced,
+// or when you need to ensure the displayed content is up-to-date.
+func (m *Model) RefreshViewports() {
+	if m.initialized {
+		m.updateViewports()
+	}
+}
+
 // updateItemsAtCurrentLevel updates items while preserving selection and expansion.
 func (m *Model) updateItemsAtCurrentLevel(items []Item) {
 	// Build lookup of new items by ID
