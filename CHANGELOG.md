@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.3](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.2...v0.1.3) (2026-01-06)
+
+
+### Features
+
+* add support for manually refreshing splitpane viewports ([5a95fcb](https://github.com/newstack-cloud/deploy-cli-sdk/commit/5a95fcbeb15f0ccade123c633b294295d9e499e4))
+* add support for more deploy engine methods in stub engine ([03b5fc5](https://github.com/newstack-cloud/deploy-cli-sdk/commit/03b5fc53714b43076dcac97be30a4a8ce6d2ab0e))
+* **deploy-cli-sdk:** add helpers and enhance shared functionality for deploy clis ([2f007b8](https://github.com/newstack-cloud/deploy-cli-sdk/commit/2f007b85dffc673da62f344fc999aa04d06d0190))
+* update deploy engine interface to include listing blueprint instances ([575ffbc](https://github.com/newstack-cloud/deploy-cli-sdk/commit/575ffbc3d8cb5ed9f9d27e805c53e972dcff0c7e))
+
+
+### Dependencies
+
+* update bluelink libs ([e154ae2](https://github.com/newstack-cloud/deploy-cli-sdk/commit/e154ae2fd48f72b017f10e3818b81e8842254920))
+
 ## [0.1.2](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.1...v0.1.2) (2025-12-10)
 
 
