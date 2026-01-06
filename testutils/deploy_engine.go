@@ -321,3 +321,25 @@ func (d *testDeployEngine) ApplyReconciliation(
 ) (*container.ApplyReconciliationResult, error) {
 	return nil, nil
 }
+
+// NewTestDeployEngineForInspect creates a test deploy engine for inspect scenarios.
+// If deploymentEvents is nil, no streaming will occur (static view mode).
+// If deploymentEvents is non-nil, events will be streamed (in-progress mode).
+func NewTestDeployEngineForInspect(
+	instanceState *state.InstanceState,
+	deploymentEvents []*types.BlueprintInstanceEvent,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		instanceState:    instanceState,
+		instanceID:       instanceState.InstanceID,
+		deploymentEvents: deploymentEvents,
+	}
+}
+
+// NewTestDeployEngineForInspectNotFound creates a test deploy engine for inspect scenarios
+// where the instance is not found.
+func NewTestDeployEngineForInspectNotFound() engine.DeployEngine {
+	return &testDeployEngine{
+		getInstanceStateErr: errInstanceNotFound,
+	}
+}
