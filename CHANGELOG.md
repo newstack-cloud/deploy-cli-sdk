@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.3...v0.1.4) (2026-01-07)
+
+
+### Features
+
+* add general purpose file selector component supporting both remote and local file sources ([2a6128c](https://github.com/newstack-cloud/deploy-cli-sdk/commit/2a6128cd7fdf1a39cabb13cc69730b3e92d50069))
+
 ## [0.1.3](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.2...v0.1.3) (2026-01-06)
 
 
