@@ -1,9 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/filepicker"
@@ -12,48 +9,10 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 )
 
+// SelectBlueprintModel wraps SelectFileModel with blueprint-specific configuration.
 type SelectBlueprintModel struct {
-	start           tea.Model
-	source          tea.Model
-	selectLocalFile tea.Model
-	inputRemoteFile tea.Model
-	selectedSource  string
-	selectedFile    string
-	autoSelect      bool
-	stage           selectBlueprintStage
-	quitting        bool
-	err             error
+	fileSelector *SelectFileModel
 }
-
-type selectBlueprintStage int
-
-const (
-	// Stage where the user starts the select blueprint process.
-	// The user will be able to select from options to use the default blueprint file
-	// or to choose a file from a local or remote file.
-	selectBlueprintStageStart selectBlueprintStage = iota
-
-	// Stage where the user selects the source of the blueprint file.
-	// Can be one of the following:
-	// - "file" (local file)
-	// - "https" (public URL)
-	// - "s3" (AWS S3)
-	// - "gcs" (Google Cloud Storage)
-	// - "azureblob" (Azure Blob Storage)
-	selectBlueprintStageSelectSource
-
-	// Stage where the user inputs the location of the file
-	// relative to a remote source scheme.
-	selectBlueprintStageInputFileLocation
-
-	// Stage where the user selects a local file.
-	selectBlueprintStageSelectLocalFile
-
-	// Stage where the user has selected a blueprint file.
-	selectBlueprintStageSelected
-)
-
-const listHeight = 14
 
 type clearErrorMsg struct{}
 
@@ -64,114 +23,85 @@ func clearErrorAfter(t time.Duration) tea.Cmd {
 }
 
 func (m SelectBlueprintModel) Init() tea.Cmd {
-	cmds := []tea.Cmd{}
-
-	fcmd := m.selectLocalFile.Init()
-	rcmd := m.inputRemoteFile.Init()
-	cmds = append(cmds, fcmd, rcmd)
-
-	if m.autoSelect {
-		// Dispatch command to select the blueprint file
-		// so the validation model can trigger the validation process.
-		cmds = append(cmds, selectBlueprintCmd(m.selectedFile, m.selectedSource))
-	}
-
-	return tea.Batch(cmds...)
+	cmd := m.fileSelector.Init()
+	return wrapFileCmdForBlueprint(cmd)
 }
 
 func (m SelectBlueprintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	cmds := []tea.Cmd{}
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.stage == selectBlueprintStageSelectLocalFile {
-			var selectLocalFileCmd tea.Cmd
-			m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
-			cmds = append(cmds, selectLocalFileCmd)
-		}
+	// Translate blueprint-specific messages to generic file messages
+	switch typedMsg := msg.(type) {
 	case SelectBlueprintStartMsg:
-		m.stage = stageFromStartSelection(msg.Selection)
-		if m.stage == selectBlueprintStageSelected {
-			cmds = append(cmds, selectBlueprintCmd(m.selectedFile, m.selectedSource))
-		}
+		msg = SelectFileStartMsg(typedMsg)
 	case SelectBlueprintSourceMsg:
-		m.stage = stageFromSource(msg.Source)
-		m.selectedSource = msg.Source
-		// Ensure the remote file input form is updated to guide the user to input the location
-		// based on the source.
-		var inputRemoteFileCmd tea.Cmd
-		m.inputRemoteFile, inputRemoteFileCmd = m.inputRemoteFile.Update(msg)
-		cmds = append(cmds, inputRemoteFileCmd)
+		msg = SelectFileSourceMsg(typedMsg)
 	case SelectBlueprintMsg:
-		m.selectedFile = msg.BlueprintFile
-		m.stage = selectBlueprintStageSelected
-	case clearErrorMsg:
-		m.err = nil
-	case tea.WindowSizeMsg:
-		// Ensure all models are updated
-		// when the window size changes so they fit the new window size when displayed.
-		var startCmd tea.Cmd
-		m.start, startCmd = m.start.Update(msg)
-		cmds = append(cmds, startCmd)
-
-		var sourceCmd tea.Cmd
-		m.source, sourceCmd = m.source.Update(msg)
-		cmds = append(cmds, sourceCmd)
-
-		var selectLocalFileCmd tea.Cmd
-		m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
-		cmds = append(cmds, selectLocalFileCmd)
-	default:
-		// Ensure the local file selection model is updated for other messages to make sure it picks
-		// up the message dispatched from initialising the file picker.
-		var selectLocalFileCmd tea.Cmd
-		m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
-		cmds = append(cmds, selectLocalFileCmd)
+		msg = SelectFileMsg{File: typedMsg.BlueprintFile, Source: typedMsg.Source}
+	case ClearSelectedBlueprintMsg:
+		msg = ClearSelectedFileMsg{}
+	case SelectBlueprintFileErrorMsg:
+		msg = SelectFileErrorMsg(typedMsg)
 	}
 
-	switch m.stage {
-	case selectBlueprintStageStart:
-		var startCmd tea.Cmd
-		m.start, startCmd = m.start.Update(msg)
-		cmds = append(cmds, startCmd)
-	case selectBlueprintStageSelectSource:
-		var sourceCmd tea.Cmd
-		m.source, sourceCmd = m.source.Update(msg)
-		cmds = append(cmds, sourceCmd)
-	case selectBlueprintStageInputFileLocation:
-		var inputRemoteFileCmd tea.Cmd
-		m.inputRemoteFile, inputRemoteFileCmd = m.inputRemoteFile.Update(msg)
-		cmds = append(cmds, inputRemoteFileCmd)
-	}
+	// Forward to the file selector
+	newModel, cmd := m.fileSelector.Update(msg)
+	fileModel := newModel.(SelectFileModel)
+	m.fileSelector = &fileModel
 
-	return m, tea.Batch(cmds...)
+	// Wrap the command to translate file messages back to blueprint messages
+	wrappedCmd := wrapFileCmdForBlueprint(cmd)
+
+	return m, wrappedCmd
+}
+
+// wrapFileCmdForBlueprint wraps a command to translate SelectFileMsg to SelectBlueprintMsg.
+func wrapFileCmdForBlueprint(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		msg := cmd()
+		return translateFileMsg(msg)
+	}
+}
+
+// translateFileMsg converts file messages to blueprint messages.
+func translateFileMsg(msg tea.Msg) tea.Msg {
+	switch m := msg.(type) {
+	case tea.BatchMsg:
+		translated := make([]tea.Cmd, len(m))
+		for i, cmd := range m {
+			translated[i] = wrapFileCmdForBlueprint(cmd)
+		}
+		return tea.BatchMsg(translated)
+	case SelectFileMsg:
+		return SelectBlueprintMsg{BlueprintFile: m.File, Source: m.Source}
+	case SelectFileSourceMsg:
+		return SelectBlueprintSourceMsg(m)
+	case SelectFileStartMsg:
+		return SelectBlueprintStartMsg(m)
+	case ClearSelectedFileMsg:
+		return ClearSelectedBlueprintMsg{}
+	case SelectFileErrorMsg:
+		return SelectBlueprintFileErrorMsg(m)
+	}
+	return msg
 }
 
 func (m SelectBlueprintModel) View() string {
-	if m.quitting {
-		return ""
-	}
-
-	var s strings.Builder
-
-	switch m.stage {
-	case selectBlueprintStageStart:
-		s.WriteString("\n\n")
-		s.WriteString(fmt.Sprintf("    The default blueprint file is: %s \n\n", m.selectedFile))
-		s.WriteString(m.start.View() + "\n")
-	case selectBlueprintStageSelectSource:
-		s.WriteString("\n\n" + m.source.View() + "\n")
-	case selectBlueprintStageSelectLocalFile:
-		s.WriteString("\n\n" + m.selectLocalFile.View() + "\n")
-	case selectBlueprintStageInputFileLocation:
-		s.WriteString("\n\n" + m.inputRemoteFile.View() + "\n")
-	case selectBlueprintStageSelected:
-		fullBlueprintPath := ToFullBlueprintPath(m.selectedFile, m.selectedSource)
-		s.WriteString("\n\nBlueprint file selected: " + fullBlueprintPath + "\n")
-	}
-
-	return s.String()
+	return m.fileSelector.View()
 }
 
+// SelectedFile returns the currently selected blueprint file path.
+func (m SelectBlueprintModel) SelectedFile() string {
+	return m.fileSelector.SelectedFile()
+}
+
+// SelectedSource returns the source type of the selected blueprint file.
+func (m SelectBlueprintModel) SelectedSource() string {
+	return m.fileSelector.SelectedSource()
+}
+
+// NewSelectBlueprint creates a new blueprint selection model.
 func NewSelectBlueprint(
 	blueprintFile string,
 	autoSelect bool,
@@ -179,105 +109,41 @@ func NewSelectBlueprint(
 	styles *stylespkg.Styles,
 	fp *filepicker.Model,
 ) (*SelectBlueprintModel, error) {
-	selectLocalFile, err := NewSelectBlueprintLocalFile(fp, styles)
+	fileSelector, err := NewSelectFile(
+		SelectFileConfig{
+			InitialFile:  blueprintFile,
+			AutoSelect:   autoSelect,
+			Action:       action,
+			Styles:       styles,
+			FilePicker:   fp,
+			FileTypeName: "blueprint file",
+			RemoteFileConfig: &SelectRemoteFileConfig{
+				URLTitle:       "HTTPS resource URL blueprint file location",
+				URLDescription: "The public URL of the blueprint to download.",
+				URLPlaceholder: "https://assets.example.com/project.blueprint.yml",
+				BucketNameDescription: map[string]string{
+					consts.FileSourceS3:        "The name of the S3 bucket containing the blueprint file.",
+					consts.FileSourceGCS:       "The name of the GCS bucket containing the blueprint file.",
+					consts.FileSourceAzureBlob: "The name of the Azure Blob Storage container containing the blueprint file.",
+				},
+				ObjectPathDescription: map[string]string{
+					consts.FileSourceS3:        "The path of the blueprint file in the S3 bucket.",
+					consts.FileSourceGCS:       "The path of the blueprint file in the GCS bucket.",
+					consts.FileSourceAzureBlob: "The path of the blueprint file in the Azure Blob Storage container.",
+				},
+			},
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	start := NewSelect(
-		"Get started by choosing a blueprint file",
-		selectBlueprintStartListItems(),
-		styles,
-		selectBlueprintStartCmd,
-		false, // enableFiltering
-	)
-	source := NewSelect(
-		fmt.Sprintf("Where is the blueprint that you want to %s stored?", action),
-		blueprintSourceListItems(),
-		styles,
-		selectBlueprintSourceCmd,
-		false, // enableFiltering
-	)
-	inputRemoteFile := NewSelectBlueprintRemoteFile(blueprintFile, styles)
-
-	defaultFile, defaultSource := initialFileAndSourceFromBlueprintFile(blueprintFile)
-	// Only join with current directory for local file sources.
-	// Remote sources (S3, GCS, Azure Blob, HTTPS) should keep their path as-is.
-	selectedFile := defaultFile
-	if defaultSource == consts.BlueprintSourceFile {
-		selectedFile = filepath.Join(fp.CurrentDirectory, defaultFile)
-	}
-
 	return &SelectBlueprintModel{
-		selectLocalFile: selectLocalFile,
-		inputRemoteFile: inputRemoteFile,
-		autoSelect:      autoSelect,
-		start:           start,
-		source:          source,
-		selectedSource:  defaultSource,
-		selectedFile:    selectedFile,
-		stage:           selectBlueprintStageStart,
+		fileSelector: fileSelector,
 	}, nil
-}
-
-func initialFileAndSourceFromBlueprintFile(blueprintFile string) (string, string) {
-	if strings.HasPrefix(blueprintFile, "https://") {
-		return blueprintFile, consts.BlueprintSourceHTTPS
-	}
-
-	if withoutScheme, ok := strings.CutPrefix(blueprintFile, "s3://"); ok {
-		return withoutScheme, consts.BlueprintSourceS3
-	}
-
-	if withoutScheme, ok := strings.CutPrefix(blueprintFile, "gcs://"); ok {
-		return withoutScheme, consts.BlueprintSourceGCS
-	}
-
-	if withoutScheme, ok := strings.CutPrefix(blueprintFile, "azureblob://"); ok {
-		return withoutScheme, consts.BlueprintSourceAzureBlob
-	}
-
-	return blueprintFile, consts.BlueprintSourceFile
-}
-
-func stageFromSource(source string) selectBlueprintStage {
-	switch source {
-	case consts.BlueprintSourceFile:
-		return selectBlueprintStageSelectLocalFile
-	case consts.BlueprintSourceS3:
-		return selectBlueprintStageInputFileLocation
-	case consts.BlueprintSourceGCS:
-		return selectBlueprintStageInputFileLocation
-	case consts.BlueprintSourceAzureBlob:
-		return selectBlueprintStageInputFileLocation
-	case consts.BlueprintSourceHTTPS:
-		return selectBlueprintStageInputFileLocation
-	}
-
-	return selectBlueprintStageSelectSource
-}
-
-func stageFromStartSelection(selection string) selectBlueprintStage {
-	switch selection {
-	case "default":
-		return selectBlueprintStageSelected
-	case "select":
-		return selectBlueprintStageSelectSource
-	}
-
-	return selectBlueprintStageStart
 }
 
 // ToFullBlueprintPath returns the full path to the blueprint file based on the source.
 func ToFullBlueprintPath(blueprintFile, source string) string {
-	switch source {
-	case consts.BlueprintSourceS3:
-		return "s3://" + blueprintFile
-	case consts.BlueprintSourceGCS:
-		return "gcs://" + blueprintFile
-	case consts.BlueprintSourceAzureBlob:
-		return "azureblob://" + blueprintFile
-	}
-
-	return blueprintFile
+	return ToFullFilePath(blueprintFile, source)
 }

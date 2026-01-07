@@ -1,63 +1,25 @@
 package ui
 
-import (
-	tea "github.com/charmbracelet/bubbletea"
-)
-
+// SelectBlueprintMsg is sent when a blueprint file has been selected.
 type SelectBlueprintMsg struct {
 	BlueprintFile string
 	Source        string
 }
 
-func selectBlueprintCmd(blueprintFile string, source string) tea.Cmd {
-	return func() tea.Msg {
-		return SelectBlueprintMsg{
-			BlueprintFile: blueprintFile,
-			Source:        source,
-		}
-	}
-}
-
+// SelectBlueprintSourceMsg is sent when a blueprint source has been selected.
 type SelectBlueprintSourceMsg struct {
 	Source string
 }
 
-func selectBlueprintSourceCmd(source string) tea.Cmd {
-	return func() tea.Msg {
-		return SelectBlueprintSourceMsg{
-			Source: source,
-		}
-	}
-}
-
+// ClearSelectedBlueprintMsg is sent to clear the current blueprint selection.
 type ClearSelectedBlueprintMsg struct{}
 
-func clearSelectedBlueprintCmd() tea.Cmd {
-	return func() tea.Msg {
-		return ClearSelectedBlueprintMsg{}
-	}
-}
-
+// SelectBlueprintFileErrorMsg is sent when there's an error during blueprint selection.
 type SelectBlueprintFileErrorMsg struct {
 	Err error
 }
 
-func selectBlueprintFileErrorCmd(err error) tea.Cmd {
-	return func() tea.Msg {
-		return SelectBlueprintFileErrorMsg{
-			Err: err,
-		}
-	}
-}
-
+// SelectBlueprintStartMsg is sent when the user makes a selection at the start screen.
 type SelectBlueprintStartMsg struct {
 	Selection string
-}
-
-func selectBlueprintStartCmd(selection string) tea.Cmd {
-	return func() tea.Msg {
-		return SelectBlueprintStartMsg{
-			Selection: selection,
-		}
-	}
 }

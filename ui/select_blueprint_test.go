@@ -64,7 +64,7 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_local_file() {
 	testutils.WaitForContains(
 		s.T(),
 		testModel.Output(),
-		"Where is the blueprint that you want to validate stored?",
+		"Where is the blueprint file that you want to validate stored?",
 	)
 
 	// Select the first option that is for picking a local file.
@@ -101,8 +101,8 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_local_file() {
 
 	finalModel, isSelectBlueprintModel := testModel.FinalModel(s.T()).(SelectBlueprintModel)
 	s.Assert().True(isSelectBlueprintModel)
-	s.Assert().Equal(blueprintPath, finalModel.selectedFile)
-	s.Assert().Equal(consts.BlueprintSourceFile, finalModel.selectedSource)
+	s.Assert().Equal(blueprintPath, finalModel.SelectedFile())
+	s.Assert().Equal(consts.BlueprintSourceFile, finalModel.SelectedSource())
 }
 
 func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_s3_file() {
@@ -133,7 +133,7 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_s3_file() {
 	testutils.WaitForContains(
 		s.T(),
 		testModel.Output(),
-		"Where is the blueprint that you want to validate stored?",
+		"Where is the blueprint file that you want to validate stored?",
 	)
 
 	// Select the second option that is for picking a remote file from S3.
@@ -171,8 +171,8 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_s3_file() {
 
 	finalModel, isSelectBlueprintModel := testModel.FinalModel(s.T()).(SelectBlueprintModel)
 	s.Assert().True(isSelectBlueprintModel)
-	s.Assert().Equal(blueprintPath, finalModel.selectedFile)
-	s.Assert().Equal(consts.BlueprintSourceS3, finalModel.selectedSource)
+	s.Assert().Equal(blueprintPath, finalModel.SelectedFile())
+	s.Assert().Equal(consts.BlueprintSourceS3, finalModel.SelectedSource())
 }
 
 func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_gcs_file() {

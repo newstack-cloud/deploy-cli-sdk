@@ -6,6 +6,8 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 )
 
+const listHeight = 14
+
 type SelectModel struct {
 	list          list.Model
 	selected      string
