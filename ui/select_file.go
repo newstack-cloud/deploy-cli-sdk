@@ -176,7 +176,10 @@ func (m SelectFileModel) View() string {
 	switch m.stage {
 	case selectFileStageStart:
 		s.WriteString("\n\n")
-		s.WriteString(fmt.Sprintf("    The default %s is: %s \n\n", fileTypeName, m.selectedFile))
+		// Only show default file message if there's actually an initial file configured
+		if m.config.InitialFile != "" {
+			s.WriteString(fmt.Sprintf("    The default %s is: %s \n\n", fileTypeName, m.selectedFile))
+		}
 		s.WriteString(m.start.View() + "\n")
 	case selectFileStageSelectSource:
 		s.WriteString("\n\n" + m.source.View() + "\n")
@@ -221,7 +224,7 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 
 	start := NewSelect(
 		startPrompt,
-		selectFileStartListItems(),
+		selectFileStartListItems(config.InitialFile != ""),
 		config.Styles,
 		selectFileStartCmd,
 		false,
@@ -248,6 +251,12 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		selectedFile = filepath.Join(config.FilePicker.CurrentDirectory, defaultFile)
 	}
 
+	// If there's no initial file, skip the start screen and go directly to source selection
+	initialStage := selectFileStageStart
+	if config.InitialFile == "" {
+		initialStage = selectFileStageSelectSource
+	}
+
 	return &SelectFileModel{
 		selectLocalFile: selectLocalFile,
 		inputRemoteFile: inputRemoteFile,
@@ -256,7 +265,7 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		source:          source,
 		selectedSource:  defaultSource,
 		selectedFile:    selectedFile,
-		stage:           selectFileStageStart,
+		stage:           initialStage,
 		config:          config,
 	}, nil
 }
@@ -353,7 +362,14 @@ func selectFileStartCmd(selection string) tea.Cmd {
 	}
 }
 
-func selectFileStartListItems() []list.Item {
+func selectFileStartListItems(hasInitialFile bool) []list.Item {
+	if !hasInitialFile {
+		// When there's no initial file, skip the start screen entirely
+		// by returning items that will trigger source selection
+		return []list.Item{
+			BluelinkListItem{Key: "select", Label: "Select a file"},
+		}
+	}
 	return []list.Item{
 		BluelinkListItem{Key: "default", Label: "Use the default file"},
 		BluelinkListItem{Key: "select", Label: "Select a different file"},

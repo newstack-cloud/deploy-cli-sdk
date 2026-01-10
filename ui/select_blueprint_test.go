@@ -56,11 +56,8 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_local_file() {
 		teatest.WithInitialTermSize(300, 100),
 	)
 
-	// Select the second option that is for selecting a file instead of using the default
-	// blueprint file.
-	testutils.KeyDown(testModel)
-	testutils.KeyEnter(testModel)
-
+	// Since no initial file is provided, the UI should skip the start screen
+	// and go directly to source selection
 	testutils.WaitForContains(
 		s.T(),
 		testModel.Output(),
@@ -125,11 +122,8 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_s3_file() {
 		teatest.WithInitialTermSize(300, 100),
 	)
 
-	// Select the second option that is for selecting a file instead of using the default
-	// blueprint file.
-	testutils.KeyDown(testModel)
-	testutils.KeyEnter(testModel)
-
+	// Since no initial file is provided, the UI should skip the start screen
+	// and go directly to source selection
 	testutils.WaitForContains(
 		s.T(),
 		testModel.Output(),
@@ -173,6 +167,132 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_s3_file() {
 	s.Assert().True(isSelectBlueprintModel)
 	s.Assert().Equal(blueprintPath, finalModel.SelectedFile())
 	s.Assert().Equal(consts.BlueprintSourceS3, finalModel.SelectedSource())
+}
+
+func (s *SelectBlueprintSuite) Test_use_default_blueprint_file() {
+	styles := styles.NewStyles(lipgloss.NewRenderer(os.Stdout), styles.NewBluelinkPalette())
+	fp, err := BlueprintLocalFilePicker(styles)
+	s.NoError(err)
+
+	// Set the current directory to the temp directory
+	fp.CurrentDirectory = s.tempDir
+
+	// Set up with an initial/default file that exists in the temp directory
+	defaultBlueprintFile := "project.blueprint.yml"
+	selectModel, err := NewSelectBlueprint(
+		defaultBlueprintFile,
+		/* autoValidate */ false,
+		"deploy",
+		styles,
+		&fp,
+	)
+	s.NoError(err)
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		selectModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	// Verify the option to use the default file is shown
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		"Use the default file",
+	)
+
+	// Select the first option (Use the default file)
+	testutils.KeyEnter(testModel)
+
+	// Verify the default file was selected (will show absolute path)
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		"Blueprint file selected:",
+	)
+
+	err = testModel.Quit()
+	s.NoError(err)
+
+	finalModel, isSelectBlueprintModel := testModel.FinalModel(s.T()).(SelectBlueprintModel)
+	s.Assert().True(isSelectBlueprintModel)
+	// The selected file will be the absolute path
+	expectedPath := filepath.Join(s.tempDir, defaultBlueprintFile)
+	s.Assert().Equal(expectedPath, finalModel.SelectedFile())
+	s.Assert().Equal(consts.BlueprintSourceFile, finalModel.SelectedSource())
+}
+
+func (s *SelectBlueprintSuite) Test_select_different_file_when_default_exists() {
+	styles := styles.NewStyles(lipgloss.NewRenderer(os.Stdout), styles.NewBluelinkPalette())
+	fp, err := BlueprintLocalFilePicker(styles)
+	s.NoError(err)
+
+	// Make it so the file picker is in a temporary directory
+	fp.CurrentDirectory = s.tempDir
+	fp.DirAllowed = false
+
+	// Set up with an initial/default file (using a different name than what's in temp dir)
+	defaultBlueprintFile := "project.blueprint.yaml"
+	selectModel, err := NewSelectBlueprint(
+		defaultBlueprintFile,
+		/* autoSelect */ false,
+		"deploy",
+		styles,
+		&fp,
+	)
+	s.NoError(err)
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		selectModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	// Verify the start screen shows the default file (will be converted to absolute path)
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		"The default blueprint file is:",
+	)
+
+	// Select the second option (Select a different file)
+	testutils.KeyDown(testModel)
+	testutils.KeyEnter(testModel)
+
+	// Should now be at source selection
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		"Where is the blueprint file that you want to deploy stored?",
+	)
+
+	// Select local file
+	testutils.KeyEnter(testModel)
+
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		"Pick a blueprint file:",
+	)
+
+	// Select the valid blueprint file in the temp directory
+	testutils.KeyDown(testModel)
+	testutils.KeyEnter(testModel)
+
+	blueprintPath := filepath.Join(s.tempDir, "project.blueprint.yml")
+	testutils.WaitForContains(
+		s.T(),
+		testModel.Output(),
+		fmt.Sprintf("Blueprint file selected: %s", blueprintPath),
+	)
+
+	err = testModel.Quit()
+	s.NoError(err)
+
+	finalModel, isSelectBlueprintModel := testModel.FinalModel(s.T()).(SelectBlueprintModel)
+	s.Assert().True(isSelectBlueprintModel)
+	s.Assert().Equal(blueprintPath, finalModel.SelectedFile())
+	s.Assert().Equal(consts.BlueprintSourceFile, finalModel.SelectedSource())
 }
 
 func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_gcs_file() {
