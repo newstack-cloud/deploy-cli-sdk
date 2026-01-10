@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.4...v0.1.5) (2026-01-10)
+
+
+### Features
+
+* add behaviour to skip default or other file selection when a default file is not provided ([9915a56](https://github.com/newstack-cloud/deploy-cli-sdk/commit/9915a56eda52432403c4d12daf0bb0c4c11acaf5))
+
 ## [0.1.4](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.3...v0.1.4) (2026-01-07)
 
 
