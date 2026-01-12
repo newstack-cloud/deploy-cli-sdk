@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.5...v0.1.6) (2026-01-12)
+
+
+### Features
+
+* add support for new cleanup tracking behaviour ([326bd16](https://github.com/newstack-cloud/deploy-cli-sdk/commit/326bd16312547864a28a294eeba6feb0835d4e32))
+
 ## [0.1.5](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.4...v0.1.5) (2026-01-10)
 
 
