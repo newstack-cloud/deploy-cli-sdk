@@ -9,10 +9,10 @@ require (
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20251201173703-9f73bfd934ff
-	github.com/newstack-cloud/bluelink/libs/blueprint v0.37.0
-	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.5.0
+	github.com/newstack-cloud/bluelink/libs/blueprint v0.38.0
+	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.0
 	github.com/newstack-cloud/bluelink/libs/common v0.3.2
-	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.2.0
+	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.3.0
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1

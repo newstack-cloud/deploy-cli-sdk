@@ -156,20 +156,81 @@ func (d *testDeployEngine) StreamBlueprintValidationEvents(
 
 func (d *testDeployEngine) CleanupBlueprintValidations(
 	ctx context.Context,
-) error {
-	return nil
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           "test-cleanup-validations",
+		CleanupType:  manage.CleanupTypeValidations,
+		Status:       manage.CleanupOperationStatusRunning,
+		StartedAt:    time.Now().Unix(),
+		ItemsDeleted: 0,
+	}, nil
 }
 
 func (d *testDeployEngine) CleanupChangesets(
 	ctx context.Context,
-) error {
-	return nil
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           "test-cleanup-changesets",
+		CleanupType:  manage.CleanupTypeChangesets,
+		Status:       manage.CleanupOperationStatusRunning,
+		StartedAt:    time.Now().Unix(),
+		ItemsDeleted: 0,
+	}, nil
 }
 
 func (d *testDeployEngine) CleanupEvents(
 	ctx context.Context,
-) error {
-	return nil
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           "test-cleanup-events",
+		CleanupType:  manage.CleanupTypeEvents,
+		Status:       manage.CleanupOperationStatusRunning,
+		StartedAt:    time.Now().Unix(),
+		ItemsDeleted: 0,
+	}, nil
+}
+
+func (d *testDeployEngine) CleanupReconciliationResults(
+	ctx context.Context,
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           "test-cleanup-reconciliation-results",
+		CleanupType:  manage.CleanupTypeReconciliationResults,
+		Status:       manage.CleanupOperationStatusRunning,
+		StartedAt:    time.Now().Unix(),
+		ItemsDeleted: 0,
+	}, nil
+}
+
+func (d *testDeployEngine) GetCleanupOperation(
+	ctx context.Context,
+	cleanupType manage.CleanupType,
+	operationID string,
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           operationID,
+		CleanupType:  cleanupType,
+		Status:       manage.CleanupOperationStatusCompleted,
+		StartedAt:    time.Now().Unix() - 1,
+		EndedAt:      time.Now().Unix(),
+		ItemsDeleted: 5,
+	}, nil
+}
+
+func (d *testDeployEngine) WaitForCleanupCompletion(
+	ctx context.Context,
+	cleanupType manage.CleanupType,
+	operationID string,
+	pollInterval time.Duration,
+) (*manage.CleanupOperation, error) {
+	return &manage.CleanupOperation{
+		ID:           operationID,
+		CleanupType:  cleanupType,
+		Status:       manage.CleanupOperationStatusCompleted,
+		StartedAt:    time.Now().Unix() - 1,
+		EndedAt:      time.Now().Unix(),
+		ItemsDeleted: 5,
+	}, nil
 }
 
 func (d *testDeployEngine) CreateChangeset(

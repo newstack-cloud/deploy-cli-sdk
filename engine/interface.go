@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"time"
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint-state/manage"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
@@ -50,11 +51,12 @@ type DeployEngine interface {
 		errChan chan<- error,
 	) error
 
-	// CleanupBlueprintValidations cleans up blueprint validation that are
+	// CleanupBlueprintValidations cleans up blueprint validations that are
 	// older than the retention period configured for the Deploy Engine instance.
+	// Returns a CleanupOperation that can be polled for completion status.
 	CleanupBlueprintValidations(
 		ctx context.Context,
-	) error
+	) (*manage.CleanupOperation, error)
 
 	// CreateChangeset creates a change set for a blueprint deployment.
 	// This will start a change staging process for the provided blueprint
@@ -103,9 +105,10 @@ type DeployEngine interface {
 
 	// CleanupChangesets cleans up change sets that are older than the retention
 	// period configured for the Deploy Engine instance.
+	// Returns a CleanupOperation that can be polled for completion status.
 	CleanupChangesets(
 		ctx context.Context,
-	) error
+	) (*manage.CleanupOperation, error)
 
 	// CreateBlueprintInstance (Deploy New) creates a new blueprint deployment instance.
 	// This will start the deployment process for the provided blueprint
@@ -194,9 +197,32 @@ type DeployEngine interface {
 	// change staging and deployments. This will not clean up the resources themselves,
 	// only the events that are associated with them.
 	// You can clean up change sets and blueprint validations using the dedicated methods.
+	// Returns a CleanupOperation that can be polled for completion status.
 	CleanupEvents(
 		ctx context.Context,
-	) error
+	) (*manage.CleanupOperation, error)
+
+	// CleanupReconciliationResults cleans up reconciliation check results that are
+	// older than the retention period configured for the Deploy Engine instance.
+	// Returns a CleanupOperation that can be polled for completion status.
+	CleanupReconciliationResults(
+		ctx context.Context,
+	) (*manage.CleanupOperation, error)
+
+	// GetCleanupOperation retrieves the status of a cleanup operation by ID.
+	GetCleanupOperation(
+		ctx context.Context,
+		cleanupType manage.CleanupType,
+		operationID string,
+	) (*manage.CleanupOperation, error)
+
+	// WaitForCleanupCompletion polls until the cleanup operation completes or fails.
+	WaitForCleanupCompletion(
+		ctx context.Context,
+		cleanupType manage.CleanupType,
+		operationID string,
+		pollInterval time.Duration,
+	) (*manage.CleanupOperation, error)
 
 	// ApplyReconciliation applies reconciliation actions to resolve drift or interrupted state.
 	// This is a synchronous operation that returns the result of applying the reconciliation actions.
