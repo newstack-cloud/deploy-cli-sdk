@@ -27,6 +27,7 @@ type SelectFileModel struct {
 	quitting        bool
 	err             error
 	config          SelectFileConfig
+	width           int
 }
 
 // SelectFileConfig holds configuration for the file selector.
@@ -126,6 +127,7 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearErrorMsg:
 		m.err = nil
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
 		var startCmd tea.Cmd
 		m.start, startCmd = m.start.Update(msg)
 		cmds = append(cmds, startCmd)
@@ -178,7 +180,11 @@ func (m SelectFileModel) View() string {
 		s.WriteString("\n\n")
 		// Only show default file message if there's actually an initial file configured
 		if m.config.InitialFile != "" {
-			s.WriteString(fmt.Sprintf("    The default %s is: %s \n\n", fileTypeName, m.selectedFile))
+			prefix := fmt.Sprintf("    The default %s is: ", fileTypeName)
+			// Leave room for trailing space + newlines
+			maxPathLen := SafeWidth(m.width) - len(prefix) - 1
+			displayPath := TruncatePath(m.selectedFile, maxPathLen)
+			s.WriteString(fmt.Sprintf("%s%s \n\n", prefix, displayPath))
 		}
 		s.WriteString(m.start.View() + "\n")
 	case selectFileStageSelectSource:
@@ -190,7 +196,10 @@ func (m SelectFileModel) View() string {
 	case selectFileStageSelected:
 		fullPath := ToFullFilePath(m.selectedFile, m.selectedSource)
 		capitalizedTypeName := strings.ToUpper(fileTypeName[:1]) + fileTypeName[1:]
-		s.WriteString(fmt.Sprintf("\n\n%s selected: %s\n", capitalizedTypeName, fullPath))
+		prefix := fmt.Sprintf("%s selected: ", capitalizedTypeName)
+		maxPathLen := SafeWidth(m.width) - len(prefix)
+		displayPath := TruncatePath(fullPath, maxPathLen)
+		s.WriteString(fmt.Sprintf("\n\n%s%s\n", prefix, displayPath))
 	}
 
 	return s.String()
