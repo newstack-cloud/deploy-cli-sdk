@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.6...v0.1.7) (2026-02-01)
+
+
+### Bug Fixes
+
+* add behaviour to truncate long selected file paths ([4d85acd](https://github.com/newstack-cloud/deploy-cli-sdk/commit/4d85acd7e6021cc17f4c25e0b344e266841a6b23))
+
 ## [0.1.6](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.5...v0.1.6) (2026-01-12)
 
 
