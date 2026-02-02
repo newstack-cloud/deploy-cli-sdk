@@ -1,5 +1,5 @@
-github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
-github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
+github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
@@ -90,10 +90,10 @@ github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELU
 github.com/muesli/cancelreader v0.2.2/go.mod h1:3XuTXfFS2VjM+HTLZY9Ak0l6eUKfijIfMUZ4EgX0QYo=
 github.com/muesli/termenv v0.16.0 h1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc=
 github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3VfY/Cnk=
-github.com/newstack-cloud/bluelink/libs/blueprint v0.40.0 h1:JdQNUi4jUZ4RIUAZU+IalBPApi97JJzIw7iJVcAgXrY=
-github.com/newstack-cloud/bluelink/libs/blueprint v0.40.0/go.mod h1:tliJuuYMQSlQ2q8o/bowk8NePUx4V179fjfVhxpgobI=
-github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.0 h1:QDrh51UGvNmYg/uYSO4bOAcrdYeUakLzMgPTdqfKncg=
-github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.0/go.mod h1:SKTrmBLedeMIkhvI2vfYCANiNjf88ya6W19KvcxJ+fw=
+github.com/newstack-cloud/bluelink/libs/blueprint v0.41.0 h1:q+QGbTHu/RuaCsJaY7vVX1z7L1JNo9eFceef3Z1bnvY=
+github.com/newstack-cloud/bluelink/libs/blueprint v0.41.0/go.mod h1:qd3ABYYlUvwF6ZImUZyJax6h+bEJdzw7Rluns2fKmDI=
+github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.1 h1:8iH+9aOhrn11vy0qOzRb4RFyCNXexxQ+xwCrB4v5cnk=
+github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.1/go.mod h1:SKTrmBLedeMIkhvI2vfYCANiNjf88ya6W19KvcxJ+fw=
 github.com/newstack-cloud/bluelink/libs/common v0.4.0 h1:E72YAjex+VydpaYJXaAwlqeII7jVugEKsfVjHFLaJJY=
 github.com/newstack-cloud/bluelink/libs/common v0.4.0/go.mod h1:09jWAU7PMDJSW0zokebgDZCr59Gg4JpqgF0Yq6kQ8gY=
 github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.3.0 h1:P/Ka7W//Qj5euNXCq1KGzKrJ2JsBd8tmLJ+lETlmBVk=
@@ -152,10 +152,10 @@ golang.org/x/oauth2 v0.34.0/go.mod h1:lzm5WQJQwKZ3nwavOZ3IS5Aulzxi68dUSgRHujetwE
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.39.0 h1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=
-golang.org/x/sys v0.39.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
-golang.org/x/term v0.38.0 h1:PQ5pkm/rLO6HnxFR7N2lJHOZX6Kez5Y1gDSJla6jo7Q=
-golang.org/x/term v0.38.0/go.mod h1:bSEAKrOT1W+VSu9TSCMtoGEOUcKxOKgl3LE5QEF/xVg=
+golang.org/x/sys v0.40.0 h1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=
+golang.org/x/sys v0.40.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
+golang.org/x/term v0.39.0 h1:RclSuaJf32jOqZz74CkPA9qFuVTX7vhLlpfj/IGWlqY=
+golang.org/x/term v0.39.0/go.mod h1:yxzUCTP/U+FzoxfdKmLaA0RV1WgE0VY7hXBwKtY/4ww=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.28.0 h1:rhazDwis8INMIwQ4tpjLDzUhx6RlXqZNPEM0huQojng=
 golang.org/x/text v0.28.0/go.mod h1:U8nCwOR8jO/marOQ0QbDiOngZVEBB7MAiitBuMjXiNU=

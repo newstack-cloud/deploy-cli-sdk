@@ -3,20 +3,20 @@ module github.com/newstack-cloud/deploy-cli-sdk
 go 1.24.4
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20251201173703-9f73bfd934ff
-	github.com/newstack-cloud/bluelink/libs/blueprint v0.40.0
-	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.0
+	github.com/newstack-cloud/bluelink/libs/blueprint v0.41.0
+	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.1
 	github.com/newstack-cloud/bluelink/libs/common v0.4.0
 	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.3.0
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
-	golang.org/x/term v0.38.0
+	golang.org/x/term v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -63,7 +63,7 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
 )
