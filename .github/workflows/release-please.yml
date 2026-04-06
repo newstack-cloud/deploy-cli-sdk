@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs: {}
 
-permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+permissions: {}
 
 jobs:
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
@@ -30,7 +31,8 @@ jobs:
   publish-go-modules:
     needs: release-please
     if: ${{ needs.release-please.outputs.releases_created == 'true' }}
-    runs-on: ubuntu-latest    
+    permissions: {}
+    runs-on: ubuntu-latest
     steps:
       - name: Publish Go modules
         env:
