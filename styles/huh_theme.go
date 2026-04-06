@@ -53,9 +53,3 @@ func NewHuhTheme(palette ColorPalette) *huh.Theme {
 
 	return t
 }
-
-// NewBluelinkHuhTheme creates a huh form theme using the Bluelink color scheme.
-// Deprecated: Use NewHuhTheme with NewBluelinkPalette() instead.
-func NewBluelinkHuhTheme() *huh.Theme {
-	return NewHuhTheme(NewBluelinkPalette())
-}

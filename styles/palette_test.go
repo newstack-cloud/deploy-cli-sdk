@@ -119,7 +119,7 @@ func (s *PaletteSuite) Test_new_huh_theme_with_palette() {
 }
 
 func (s *PaletteSuite) Test_new_bluelink_huh_theme_backwards_compat() {
-	theme := NewBluelinkHuhTheme()
+	theme := NewHuhTheme(NewBluelinkPalette())
 
 	s.NotNil(theme)
 }

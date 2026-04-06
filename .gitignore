@@ -30,3 +30,6 @@ report.json
 
 # Any temporary documentation files that shouldn't be in version control.
 tmp-*.md
+
+# Postgres migrations pulled from blueprint-state module at test time.
+stateio/postgres/

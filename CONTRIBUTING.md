@@ -26,16 +26,23 @@ yarn
 
 ## Running Tests
 
-Run all tests with race detection and coverage:
+Run all tests with integration tests, race detection and coverage:
 
 ```bash
-bash scripts/run-tests.sh
+bash scripts/run-tests.sh --integration
 ```
 
 This will:
 - Run all tests with race detection enabled
+- Include integration tests
 - Generate `coverage.txt` with coverage data
 - Generate `coverage.html` for visual coverage inspection (on dev machines)
+
+To run unit tests only (without integration tests):
+
+```bash
+bash scripts/run-tests.sh
+```
 
 To update test snapshots (if any):
 
