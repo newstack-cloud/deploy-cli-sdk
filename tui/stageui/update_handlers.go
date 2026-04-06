@@ -49,12 +49,12 @@ func (m StageModel) handleSelectBlueprintMsg(msg sharedui.SelectBlueprintMsg) (S
 	}
 
 	m.streaming = true
-	return m, []tea.Cmd{startStagingCmd(m), waitForNextEventCmd(m), checkForErrCmd(m)}
+	return m, []tea.Cmd{startStagingCmd(m)}
 }
 
-func (m StageModel) handleStageStartedMsg(msg StageStartedMsg) StageModel {
+func (m StageModel) handleStageStartedMsg(msg StageStartedMsg) (StageModel, []tea.Cmd) {
 	if m.err != nil {
-		return m
+		return m, nil
 	}
 
 	m.changesetID = msg.ChangesetID
@@ -62,12 +62,12 @@ func (m StageModel) handleStageStartedMsg(msg StageStartedMsg) StageModel {
 	if m.headlessMode && !m.jsonMode {
 		m.printHeadlessHeader()
 	}
-	return m
+	return m, []tea.Cmd{waitForNextEventCmd(m), checkForErrCmd(m)}
 }
 
-func (m StageModel) handleStageStartedWithStateMsg(msg StageStartedWithStateMsg) StageModel {
+func (m StageModel) handleStageStartedWithStateMsg(msg StageStartedWithStateMsg) (StageModel, []tea.Cmd) {
 	if m.err != nil {
-		return m
+		return m, nil
 	}
 
 	m.changesetID = msg.ChangesetID
@@ -76,7 +76,7 @@ func (m StageModel) handleStageStartedWithStateMsg(msg StageStartedWithStateMsg)
 	if m.headlessMode && !m.jsonMode {
 		m.printHeadlessHeader()
 	}
-	return m
+	return m, []tea.Cmd{waitForNextEventCmd(m), checkForErrCmd(m)}
 }
 
 func (m StageModel) handleStageEventMsg(msg StageEventMsg) (StageModel, []tea.Cmd) {
@@ -228,7 +228,7 @@ func (m StageModel) handleReconciliationCompleteMsg() (StageModel, []tea.Cmd) {
 	m.linkChanges = make(map[string]*LinkChangeState)
 
 	m.streaming = true
-	return m, []tea.Cmd{startStagingCmd(m), waitForNextEventCmd(m), checkForErrCmd(m)}
+	return m, []tea.Cmd{startStagingCmd(m)}
 }
 
 func (m StageModel) handleReconciliationErrorMsg(msg driftui.ReconciliationErrorMsg) (StageModel, tea.Cmd) {

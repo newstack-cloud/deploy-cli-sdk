@@ -205,10 +205,14 @@ func (m StageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, selectCmds...)
 
 	case StageStartedMsg:
-		m = m.handleStageStartedMsg(msg)
+		var startedCmds []tea.Cmd
+		m, startedCmds = m.handleStageStartedMsg(msg)
+		cmds = append(cmds, startedCmds...)
 
 	case StageStartedWithStateMsg:
-		m = m.handleStageStartedWithStateMsg(msg)
+		var startedCmds []tea.Cmd
+		m, startedCmds = m.handleStageStartedWithStateMsg(msg)
+		cmds = append(cmds, startedCmds...)
 
 	case StageEventMsg:
 		var eventCmds []tea.Cmd
@@ -1256,7 +1260,7 @@ func (m *StageModel) StartStaging() tea.Cmd {
 		return nil
 	}
 	m.streaming = true
-	return tea.Batch(startStagingCmd(*m), waitForNextEventCmd(*m), checkForErrCmd(*m))
+	return startStagingCmd(*m)
 }
 
 // Test accessor methods - these provide read-only access for testing purposes.
