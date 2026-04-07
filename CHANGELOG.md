@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.6...v0.2.0) (2026-04-07)
+
+
+### Features
+
+* port bluelink cli commands and tuis for reuse in cli apps ([7a26112](https://github.com/newstack-cloud/deploy-cli-sdk/commit/7a26112bac323f87c2736b3ea4b58ab35d805ea5))
+
+
+### Bug Fixes
+
+* add behaviour to truncate long selected file paths ([4d85acd](https://github.com/newstack-cloud/deploy-cli-sdk/commit/4d85acd7e6021cc17f4c25e0b344e266841a6b23))
+* correct race between waiting for next event and start staging command ([d44422f](https://github.com/newstack-cloud/deploy-cli-sdk/commit/d44422ffe2627889cd8b4cd0bdce729aaae803cf))
+
 ## [0.1.6](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.5...v0.1.6) (2026-01-12)
 
 
