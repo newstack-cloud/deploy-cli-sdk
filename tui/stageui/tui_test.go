@@ -226,21 +226,16 @@ func intMappingNode(i int) *core.MappingNode {
 // --- Interactive Mode Tests ---
 
 func (s *StageTUISuite) Test_successful_staging_with_resource_create() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessCreate),
 			"test-changeset-123",
 		),
-		zap.NewNop(),
-		"",              // instanceID
-		"test-instance", // instanceName
-		false,           // destroy
-		false,           // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -273,21 +268,16 @@ func (s *StageTUISuite) Test_successful_staging_with_resource_create() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_resource_update() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessUpdate),
 			"test-changeset-456",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -315,21 +305,16 @@ func (s *StageTUISuite) Test_successful_staging_with_resource_update() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_resource_delete() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessDelete),
 			"test-changeset-789",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -357,21 +342,16 @@ func (s *StageTUISuite) Test_successful_staging_with_resource_delete() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_resource_recreate() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessRecreate),
 			"test-changeset-recreate",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -399,21 +379,16 @@ func (s *StageTUISuite) Test_successful_staging_with_resource_recreate() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_child_blueprint() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessChild),
 			"test-changeset-child",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -441,21 +416,16 @@ func (s *StageTUISuite) Test_successful_staging_with_child_blueprint() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_link() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessLink),
 			"test-changeset-link",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -483,21 +453,16 @@ func (s *StageTUISuite) Test_successful_staging_with_link() {
 }
 
 func (s *StageTUISuite) Test_successful_staging_with_mixed_items() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessMixed),
 			"test-changeset-mixed",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -534,21 +499,17 @@ func (s *StageTUISuite) Test_successful_staging_with_mixed_items() {
 
 func (s *StageTUISuite) Test_successful_staging_headless() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessCreate),
 			"test-changeset-headless",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true, // headless
-		headlessOutput,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -576,21 +537,17 @@ func (s *StageTUISuite) Test_successful_staging_headless() {
 
 func (s *StageTUISuite) Test_staging_headless_shows_progress() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessMixed),
 			"test-changeset-progress",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -617,21 +574,17 @@ func (s *StageTUISuite) Test_staging_headless_shows_progress() {
 
 func (s *StageTUISuite) Test_staging_headless_shows_summary() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessMixed),
 			"test-changeset-summary",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -658,21 +611,17 @@ func (s *StageTUISuite) Test_staging_headless_shows_summary() {
 
 func (s *StageTUISuite) Test_staging_headless_shows_field_changes() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessUpdate),
 			"test-changeset-fields",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -714,18 +663,13 @@ func (s *StageTUISuite) Test_staging_validation_error() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(validationErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -766,18 +710,14 @@ func (s *StageTUISuite) Test_staging_validation_error_headless() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(validationErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false, // jsonMode
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -807,18 +747,13 @@ func (s *StageTUISuite) Test_staging_generic_error() {
 		Message:    "Internal server error",
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(genericErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(genericErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -848,21 +783,17 @@ func (s *StageTUISuite) Test_staging_generic_error() {
 
 func (s *StageTUISuite) Test_staging_headless_with_existing_resource() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessUpdate),
 			"test-changeset-existing",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true, // headless
-		headlessOutput,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -908,18 +839,14 @@ func (s *StageTUISuite) Test_staging_headless_with_existing_link() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-existing"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-existing"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -962,18 +889,14 @@ func (s *StageTUISuite) Test_staging_headless_with_existing_child() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-existing"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-existing"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -999,21 +922,18 @@ func (s *StageTUISuite) Test_staging_headless_with_existing_child() {
 
 func (s *StageTUISuite) Test_staging_headless_destroy_hint() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessDelete),
 			"test-changeset-destroy",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		true, // destroy mode
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Destroy:        true,
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1038,21 +958,17 @@ func (s *StageTUISuite) Test_staging_headless_destroy_hint() {
 
 func (s *StageTUISuite) Test_staging_headless_with_instance_id() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessCreate),
 			"test-changeset-id",
 		),
-		zap.NewNop(),
-		"inst-456", // instanceID instead of instanceName
-		"",         // no instanceName
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		InstanceID:     "inst-456",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1076,21 +992,16 @@ func (s *StageTUISuite) Test_staging_headless_with_instance_id() {
 
 func (s *StageTUISuite) Test_staging_headless_placeholder_name() {
 	headlessOutput := testutils.NewSaveBuffer()
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessCreate),
 			"test-changeset-placeholder",
 		),
-		zap.NewNop(),
-		"", // no instanceID
-		"", // no instanceName
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1119,18 +1030,14 @@ func (s *StageTUISuite) Test_staging_headless_no_changes() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-no-changes"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-no-changes"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1163,18 +1070,14 @@ func (s *StageTUISuite) Test_staging_headless_stream_error() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(streamErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(streamErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1209,18 +1112,14 @@ func (s *StageTUISuite) Test_staging_headless_with_validation_errors() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(validationErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1251,18 +1150,14 @@ func (s *StageTUISuite) Test_staging_headless_generic_error() {
 		Message:    "Internal server error",
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(genericErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(genericErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1305,18 +1200,14 @@ func (s *StageTUISuite) Test_staging_headless_shows_link_field_changes() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-fields"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-fields"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1358,18 +1249,14 @@ func (s *StageTUISuite) Test_staging_headless_shows_child_change_counts() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-counts"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-counts"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1414,18 +1301,14 @@ func (s *StageTUISuite) Test_staging_headless_with_resource_outbound_links() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-outbound"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-outbound"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1463,18 +1346,14 @@ func (s *StageTUISuite) Test_staging_headless_with_export_changes() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1514,18 +1393,14 @@ func (s *StageTUISuite) Test_staging_headless_with_diagnostic_location() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(validationErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		headlessOutput,
-		false,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1551,21 +1426,16 @@ func (s *StageTUISuite) Test_staging_headless_with_diagnostic_location() {
 // --- Navigation Tests ---
 
 func (s *StageTUISuite) Test_quit_with_q() {
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			testStagingEvents(stagingSuccessCreate),
 			"test-changeset-quit",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false, // skipDriftCheck
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false,
-		os.Stdout,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),

@@ -51,6 +51,7 @@ Examples:
   # Run all tests including stateio integration (requires Docker)
   bash scripts/run-tests.sh --integration
 EOF
+  return 0
 }
 
 if [[ -n "$HELP" ]]; then
@@ -63,7 +64,9 @@ set -e
 cd "$SDK_DIR"
 
 get_docker_container_status() {
-  docker inspect -f "{{ .State.Status }} {{ .State.ExitCode }}" "$1"
+  local container_name="$1"
+  docker inspect -f "{{ .State.Status }} {{ .State.ExitCode }}" "$container_name"
+  return 0
 }
 
 if [[ -n "$INTEGRATION" ]]; then
@@ -90,14 +93,15 @@ if [[ -n "$INTEGRATION" ]]; then
     docker compose --env-file "$SDK_DIR/.env.test" \
       -f "$SDK_DIR/stateio/docker-compose.test-deps.yml" \
       --project-directory "$SDK_DIR/stateio" down
+    return 0
   }
   trap cleanup EXIT
 
   # Wait for postgres migrations to complete
   echo "Waiting for postgres migrations to complete..."
   status="$(get_docker_container_status stateio_sdk_test_postgres_migrate)"
-  while [ "$status" != "exited 0" ]; do
-    if [ "$status" == "exited 1" ]; then
+  while [[ "$status" != "exited 0" ]]; do
+    if [[ "$status" == "exited 1" ]]; then
       echo "Postgres migration failed, see logs below:"
       docker logs stateio_sdk_test_postgres_migrate
       exit 1
@@ -109,7 +113,7 @@ if [[ -n "$INTEGRATION" ]]; then
   echo "Waiting for LocalStack to be ready..."
   start=$EPOCHSECONDS
   completed="false"
-  while [ "$completed" != "true" ]; do
+  while [[ "$completed" != "true" ]]; do
     sleep 5
     completed=$(curl -s localhost:4580/_localstack/init/ready | jq .completed 2>/dev/null || echo "false")
     if (( EPOCHSECONDS - start > 60 )); then

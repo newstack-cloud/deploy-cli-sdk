@@ -981,35 +981,38 @@ func (m *DeployModel) SetPreDeployInstanceState(instanceState *state.InstanceSta
 	}
 }
 
+// DeployModelConfig holds the configuration for creating a new DeployModel.
+type DeployModelConfig struct {
+	DeployEngine     engine.DeployEngine
+	Logger           *zap.Logger
+	ChangesetID      string
+	InstanceID       string
+	InstanceName     string
+	BlueprintFile    string
+	BlueprintSource  string
+	AutoRollback     bool
+	Force            bool
+	Styles           *stylespkg.Styles
+	IsHeadless       bool
+	HeadlessWriter   io.Writer
+	ChangesetChanges *changes.BlueprintChanges
+	JSONMode         bool
+}
+
 // NewDeployModel creates a new deploy model.
-func NewDeployModel(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	changesetID string,
-	instanceID string,
-	instanceName string,
-	blueprintFile string,
-	blueprintSource string,
-	autoRollback bool,
-	force bool,
-	styles *stylespkg.Styles,
-	isHeadless bool,
-	headlessWriter io.Writer,
-	changesetChanges *changes.BlueprintChanges,
-	jsonMode bool,
-) DeployModel {
-	detailsRenderer, sectionGrouper, footerRenderer := createDeployRenderers(instanceID, instanceName, changesetID)
-	splitPaneConfig := createDeploySplitPaneConfig(styles, detailsRenderer, sectionGrouper, footerRenderer)
+func NewDeployModel(cfg DeployModelConfig) DeployModel {
+	detailsRenderer, sectionGrouper, footerRenderer := createDeployRenderers(cfg.InstanceID, cfg.InstanceName, cfg.ChangesetID)
+	splitPaneConfig := createDeploySplitPaneConfig(cfg.Styles, detailsRenderer, sectionGrouper, footerRenderer)
 
 	driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer := createDriftRenderers()
-	driftSplitPaneConfig := createDriftSplitPaneConfig(styles, driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer)
+	driftSplitPaneConfig := createDriftSplitPaneConfig(cfg.Styles, driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer)
 
-	printer := createHeadlessPrinter(isHeadless, headlessWriter)
+	printer := createHeadlessPrinter(cfg.IsHeadless, cfg.HeadlessWriter)
 
 	resourcesByName := make(map[string]*ResourceDeployItem)
 	childrenByName := make(map[string]*ChildDeployItem)
 	linksByName := make(map[string]*LinkDeployItem)
-	items := BuildItemsFromChangeset(changesetChanges, resourcesByName, childrenByName, linksByName, nil)
+	items := BuildItemsFromChangeset(cfg.ChangesetChanges, resourcesByName, childrenByName, linksByName, nil)
 
 	model := DeployModel{
 		splitPane:               splitpane.New(splitPaneConfig),
@@ -1020,22 +1023,22 @@ func NewDeployModel(
 		driftDetailsRenderer:    driftDetailsRenderer,
 		driftSectionGrouper:     driftSectionGrouper,
 		driftFooterRenderer:     driftFooterRenderer,
-		engine:                  deployEngine,
-		logger:                  logger,
-		changesetID:             changesetID,
-		instanceID:              instanceID,
-		instanceName:            instanceName,
-		blueprintFile:           blueprintFile,
-		blueprintSource:         blueprintSource,
-		autoRollback:            autoRollback,
-		force:                   force,
-		changesetChanges:        changesetChanges,
-		styles:                  styles,
-		headlessMode:            isHeadless,
-		headlessWriter:          headlessWriter,
+		engine:                  cfg.DeployEngine,
+		logger:                  cfg.Logger,
+		changesetID:             cfg.ChangesetID,
+		instanceID:              cfg.InstanceID,
+		instanceName:            cfg.InstanceName,
+		blueprintFile:           cfg.BlueprintFile,
+		blueprintSource:         cfg.BlueprintSource,
+		autoRollback:            cfg.AutoRollback,
+		force:                   cfg.Force,
+		changesetChanges:        cfg.ChangesetChanges,
+		styles:                  cfg.Styles,
+		headlessMode:            cfg.IsHeadless,
+		headlessWriter:          cfg.HeadlessWriter,
 		printer:                 printer,
-		jsonMode:                jsonMode,
-		spinner:                 createDeploySpinner(styles),
+		jsonMode:                cfg.JSONMode,
+		spinner:                 createDeploySpinner(cfg.Styles),
 		eventStream:             make(chan types.BlueprintInstanceEvent),
 		errStream:               make(chan error),
 		resourcesByName:         resourcesByName,

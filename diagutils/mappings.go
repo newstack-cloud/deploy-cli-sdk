@@ -1,13 +1,15 @@
 package diagutils
 
+const defaultPluginOrg = "newstack-cloud"
+
 // A mapping that provides the most likely organisation for a provider or transformer namespace
 // to be able to better guide users with a full plugin ID for suggested actions.
 var pluginOrgMappings = map[string]string{
-	"aws":        "newstack-cloud",
-	"azure":      "newstack-cloud",
-	"gcloud":     "newstack-cloud",
-	"kubernetes": "newstack-cloud",
-	"celerity":   "newstack-cloud",
+	"aws":        defaultPluginOrg,
+	"azure":      defaultPluginOrg,
+	"gcloud":     defaultPluginOrg,
+	"kubernetes": defaultPluginOrg,
+	"celerity":   defaultPluginOrg,
 }
 
 func getOrgForPluginNamespace(pluginNamespace string) string {

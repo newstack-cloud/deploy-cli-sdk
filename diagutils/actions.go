@@ -8,6 +8,14 @@ import (
 	"github.com/newstack-cloud/bluelink/libs/blueprint/provider"
 )
 
+const (
+	registryProvidersURL       = "https://registry.bluelink.dev/providers"
+	registryTransformersURL    = "https://registry.bluelink.dev/transformers"
+	registryProviderVersionURL = "https://registry.bluelink.dev/providers/%s/%s/latest"
+	exploreProvidersTitle      = "Explore providers in the official registry"
+	exploreTransformersTitle   = "Explore transformers in the official registry"
+)
+
 type ConcreteAction struct {
 	// One or more CLI commands that can be executed as a suggested action
 	// for a diagnostic.
@@ -72,14 +80,14 @@ func installProviderAction(diagMetadata map[string]any) *ConcreteAction {
 	if !hasProviderNamespace {
 		links := []*Link{
 			{
-				Title: "Explore providers in the official registry",
-				URL:   "https://registry.bluelink.dev/providers",
+				Title: exploreProvidersTitle,
+				URL:   registryProvidersURL,
 			},
 		}
 		if category == "resource" {
 			links = append(links, &Link{
-				Title: "Explore transformers in the official registry",
-				URL:   "https://registry.bluelink.dev/transformers",
+				Title: exploreTransformersTitle,
+				URL:   registryTransformersURL,
 			})
 		}
 		return &ConcreteAction{
@@ -98,8 +106,8 @@ func exploreTransformersAction() *ConcreteAction {
 	return &ConcreteAction{
 		Links: []*Link{
 			{
-				Title: "Explore transformers in the official registry",
-				URL:   "https://registry.bluelink.dev/transformers",
+				Title: exploreTransformersTitle,
+				URL:   registryTransformersURL,
 			},
 		},
 	}
@@ -112,7 +120,7 @@ func updateProviderAction(diagMetadata map[string]any) *ConcreteAction {
 			Links: []*Link{
 				{
 					Title: "Check for new versions of the provider in the official registry",
-					URL:   "https://registry.bluelink.dev/providers",
+					URL:   registryProvidersURL,
 				},
 			},
 		}
@@ -130,7 +138,7 @@ func checkFunctionNameAction() *ConcreteAction {
 		Links: []*Link{
 			{
 				Title: "Explore provider functions in the official registry",
-				URL:   "https://registry.bluelink.dev/providers",
+				URL:   registryProvidersURL,
 			},
 		},
 	}
@@ -153,7 +161,7 @@ func checkResourceTypeAction(diagMetadata map[string]any) *ConcreteAction {
 					providerNamespace,
 				),
 				URL: fmt.Sprintf(
-					"https://registry.bluelink.dev/providers/%s/%s/latest",
+					registryProviderVersionURL,
 					org,
 					providerNamespace,
 				),
@@ -235,7 +243,7 @@ func checkDataSourceTypeAction(diagMetadata map[string]any) *ConcreteAction {
 					providerNamespace,
 				),
 				URL: fmt.Sprintf(
-					"https://registry.bluelink.dev/providers/%s/%s/latest",
+					registryProviderVersionURL,
 					org,
 					providerNamespace,
 				),
@@ -261,7 +269,7 @@ func checkVariableTypeAction(diagMetadata map[string]any) *ConcreteAction {
 					providerNamespace,
 				),
 				URL: fmt.Sprintf(
-					"https://registry.bluelink.dev/providers/%s/%s/latest",
+					registryProviderVersionURL,
 					org,
 					providerNamespace,
 				),
@@ -282,7 +290,7 @@ func checkCustomVariableOptionsAction(diagMetadata map[string]any) *ConcreteActi
 		Links: []*Link{
 			{
 				Title: fmt.Sprintf("Explore custom variable options for the %s/%s provider in the official registry", org, providerNamespace),
-				URL:   fmt.Sprintf("https://registry.bluelink.dev/providers/%s/%s/latest", org, providerNamespace),
+				URL:   fmt.Sprintf(registryProviderVersionURL, org, providerNamespace),
 			},
 		},
 	}
@@ -292,8 +300,8 @@ func defaultProvidersAction() *ConcreteAction {
 	return &ConcreteAction{
 		Links: []*Link{
 			{
-				Title: "Explore providers in the official registry",
-				URL:   "https://registry.bluelink.dev/providers",
+				Title: exploreProvidersTitle,
+				URL:   registryProvidersURL,
 			},
 		},
 	}
@@ -303,8 +311,8 @@ func defaultTransformersAction() *ConcreteAction {
 	return &ConcreteAction{
 		Links: []*Link{
 			{
-				Title: "Explore transformers in the official registry",
-				URL:   "https://registry.bluelink.dev/transformers",
+				Title: exploreTransformersTitle,
+				URL:   registryTransformersURL,
 			},
 		},
 	}

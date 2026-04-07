@@ -154,7 +154,10 @@ func (m *CleanupModel) renderHeadless() {
 	}
 	m.headlessSummaryPrinted = true
 
-	// Calculate totals
+	m.printHeadlessSummary()
+}
+
+func (m *CleanupModel) printHeadlessSummary() {
 	var totalDeleted int64
 	var failedCount int
 	for _, op := range m.completedOps {
@@ -175,6 +178,10 @@ func (m *CleanupModel) renderHeadless() {
 	fmt.Fprintf(m.headlessWriter, "Resource types processed: %d\n\n",
 		len(m.completedOps))
 
+	m.printHeadlessOperationDetails()
+}
+
+func (m *CleanupModel) printHeadlessOperationDetails() {
 	fmt.Fprintln(m.headlessWriter, "Details:")
 	for _, op := range m.completedOps {
 		statusIcon := "[✓]"

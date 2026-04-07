@@ -4,12 +4,52 @@ package commands
 
 import (
 	"io"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/newstack-cloud/deploy-cli-sdk/config"
 	"github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/precommand"
 )
+
+// Flag name constants shared across command files to avoid duplicate string literals.
+const (
+	flagInstanceName = "instance-name"
+	flagInstanceID   = "instance-id"
+	flagChangeSetID  = "change-set-id"
+	flagAutoApprove  = "auto-approve"
+)
+
+// newTUIProgramOptions returns the standard tea.ProgramOption slice
+// for headless vs interactive mode.
+func newTUIProgramOptions(headlessMode bool) []tea.ProgramOption {
+	if headlessMode {
+		return []tea.ProgramOption{tea.WithInput(nil), tea.WithoutRenderer()}
+	}
+	return []tea.ProgramOption{tea.WithAltScreen(), tea.WithMouseCellMotion()}
+}
+
+// createPreflight builds the preflight model when a PreflightFactory is
+// configured and the user has not opted out via --skip-plugin-check.
+func createPreflight(
+	cfg *CLIConfig,
+	confProvider *config.Provider,
+	commandName string,
+	s *styles.Styles,
+	headless bool,
+	jsonMode bool,
+) tea.Model {
+	if cfg.PreflightFactory == nil {
+		return nil
+	}
+	skipCheck, _ := confProvider.GetBool("skipPluginCheck")
+	if skipCheck {
+		return nil
+	}
+	return cfg.PreflightFactory.CreatePreflight(
+		confProvider, commandName, s, headless, os.Stdout, jsonMode,
+	)
+}
 
 // CLIConfig holds the configuration that differentiates one CLI from another
 // when using shared deployment command factories.

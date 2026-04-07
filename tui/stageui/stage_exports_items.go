@@ -173,7 +173,6 @@ func hasActualChangesInChangeset(bc *changes.BlueprintChanges) bool {
 		return false
 	}
 
-	// Check for resource changes
 	if len(bc.NewResources) > 0 || len(bc.RemovedResources) > 0 {
 		return true
 	}
@@ -183,38 +182,36 @@ func hasActualChangesInChangeset(bc *changes.BlueprintChanges) bool {
 		}
 	}
 
-	// Check for new or removed children
 	if len(bc.NewChildren) > 0 || len(bc.RemovedChildren) > 0 {
 		return true
 	}
 
-	// Recursively check child changesets for actual changes
 	for _, childChanges := range bc.ChildChanges {
 		if hasActualChangesInChangeset(&childChanges) {
 			return true
 		}
 	}
 
-	// Check for link changes
 	if len(bc.RemovedLinks) > 0 {
 		return true
 	}
 
-	// Check for export changes (excluding resolve-on-deploy placeholders)
+	return hasActualExportChanges(bc)
+}
+
+// hasActualExportChanges checks for real export changes, excluding resolve-on-deploy placeholders.
+func hasActualExportChanges(bc *changes.BlueprintChanges) bool {
 	if len(bc.NewExports) > 0 || len(bc.RemovedExports) > 0 {
 		return true
 	}
 	for exportName, change := range bc.ExportChanges {
 		if change.PrevValue == nil {
-			// This is actually a new export
 			return true
 		}
 		if !isResolveOnDeployPlaceholder(exportName, &change, bc.ResolveOnDeploy) {
-			// This is an actual modification, not just a resolve-on-deploy placeholder
 			return true
 		}
 	}
-
 	return false
 }
 

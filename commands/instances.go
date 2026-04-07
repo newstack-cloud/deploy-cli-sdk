@@ -68,19 +68,19 @@ Examples:
 	prefix := cfg.EnvVarPrefix
 
 	inspectCmd.PersistentFlags().String(
-		"instance-id", "",
+		flagInstanceID, "",
 		"The system-generated ID of the blueprint instance to inspect. "+
 			"Leave empty if using --instance-name.",
 	)
-	confProvider.BindPFlag("instancesInspectInstanceID", inspectCmd.PersistentFlags().Lookup("instance-id"))
+	confProvider.BindPFlag("instancesInspectInstanceID", inspectCmd.PersistentFlags().Lookup(flagInstanceID))
 	confProvider.BindEnvVar("instancesInspectInstanceID", prefix+"_INSTANCES_INSPECT_INSTANCE_ID")
 
 	inspectCmd.PersistentFlags().String(
-		"instance-name", "",
+		flagInstanceName, "",
 		"The user-defined unique name of the blueprint instance to inspect. "+
 			"Leave empty if using --instance-id.",
 	)
-	confProvider.BindPFlag("instancesInspectInstanceName", inspectCmd.PersistentFlags().Lookup("instance-name"))
+	confProvider.BindPFlag("instancesInspectInstanceName", inspectCmd.PersistentFlags().Lookup(flagInstanceName))
 	confProvider.BindEnvVar("instancesInspectInstanceName", prefix+"_INSTANCES_INSPECT_INSTANCE_NAME")
 
 	inspectCmd.PersistentFlags().Bool("json", false,
@@ -91,6 +91,43 @@ Examples:
 	confProvider.BindEnvVar("instancesInspectJson", prefix+"_INSTANCES_INSPECT_JSON")
 
 	instancesCmd.AddCommand(inspectCmd)
+}
+
+type inspectFlags struct {
+	instanceID            string
+	instanceIDIsDefault   bool
+	instanceName          string
+	instanceNameIsDefault bool
+	jsonMode              bool
+}
+
+func readInspectFlags(confProvider *config.Provider) inspectFlags {
+	instanceID, instanceIDIsDefault := confProvider.GetString("instancesInspectInstanceID")
+	instanceName, instanceNameIsDefault := confProvider.GetString("instancesInspectInstanceName")
+	jsonMode, _ := confProvider.GetBool("instancesInspectJson")
+
+	return inspectFlags{
+		instanceID:            instanceID,
+		instanceIDIsDefault:   instanceIDIsDefault,
+		instanceName:          instanceName,
+		instanceNameIsDefault: instanceNameIsDefault,
+		jsonMode:              jsonMode,
+	}
+}
+
+func validateInspectFlags(flags inspectFlags) error {
+	return headless.Validate(headless.OneOf(
+		headless.Flag{
+			Name:      flagInstanceName,
+			Value:     flags.instanceName,
+			IsDefault: flags.instanceNameIsDefault,
+		},
+		headless.Flag{
+			Name:      flagInstanceID,
+			Value:     flags.instanceID,
+			IsDefault: flags.instanceIDIsDefault,
+		},
+	))
 }
 
 func runInspect(cmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) error {
@@ -105,37 +142,15 @@ func runInspect(cmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfi
 		return err
 	}
 
-	instanceID, instanceIDIsDefault := confProvider.GetString("instancesInspectInstanceID")
-	instanceName, instanceNameIsDefault := confProvider.GetString("instancesInspectInstanceName")
-	jsonMode, _ := confProvider.GetBool("instancesInspectJson")
+	flags := readInspectFlags(confProvider)
 
-	if jsonMode {
+	if flags.jsonMode {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 	}
 
-	instanceNameFlag := headless.Flag{
-		Name:      "instance-name",
-		Value:     instanceName,
-		IsDefault: instanceNameIsDefault,
-	}
-	instanceIDFlag := headless.Flag{
-		Name:      "instance-id",
-		Value:     instanceID,
-		IsDefault: instanceIDIsDefault,
-	}
-
-	if jsonMode {
-		oneOfRule := headless.OneOf(instanceNameFlag, instanceIDFlag)
-		if err := oneOfRule.Validate(); err != nil {
-			jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
-			return errInspectFailed
-		}
-	}
-
-	err = headless.Validate(headless.OneOf(instanceNameFlag, instanceIDFlag))
-	if err != nil {
-		if jsonMode {
+	if err := validateInspectFlags(flags); err != nil {
+		if flags.jsonMode {
 			jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
 			return errInspectFailed
 		}
@@ -153,30 +168,23 @@ func runInspect(cmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfi
 		cfg.Palette,
 	)
 	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-	headlessMode := !inTerminal || jsonMode
+	headlessMode := !inTerminal || flags.jsonMode
 
-	app, err := inspectui.NewInspectApp(
-		deployEngine,
-		logger,
-		instanceID,
-		instanceName,
-		styles,
-		headlessMode,
-		os.Stdout,
-		jsonMode,
-	)
+	app, err := inspectui.NewInspectApp(inspectui.InspectAppConfig{
+		DeployEngine:   deployEngine,
+		Logger:         logger,
+		InstanceID:     flags.instanceID,
+		InstanceName:   flags.instanceName,
+		Styles:         styles,
+		Headless:       headlessMode,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       flags.jsonMode,
+	})
 	if err != nil {
 		return err
 	}
 
-	options := []tea.ProgramOption{}
-	if !headlessMode {
-		options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	} else {
-		options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-	}
-
-	finalModel, err := tea.NewProgram(app, options...).Run()
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
 	if err != nil {
 		return err
 	}

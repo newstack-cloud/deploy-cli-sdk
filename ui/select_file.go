@@ -332,7 +332,7 @@ func ToFullFilePath(file, source string) string {
 	return file
 }
 
-func selectFileCmd(file string, source string) tea.Cmd {
+func selectFileCmd(file, source string) tea.Cmd {
 	return func() tea.Msg {
 		return SelectFileMsg{
 			File:   file,

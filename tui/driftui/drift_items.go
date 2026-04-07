@@ -440,33 +440,45 @@ func (r *DriftDetailsRenderer) renderResourceDetails(item *DriftItem, width int,
 	sb.WriteString(s.Muted.Render(strings.Repeat("─", ui.SafeWidth(width-4))))
 	sb.WriteString("\n\n")
 
-	// Resource type
+	r.renderResourceMetadata(&sb, item, s)
+	r.renderResourceDriftBody(&sb, item, width, s)
+
+	// Recommended action
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("Recommended: "))
+	sb.WriteString(HumanReadableAction(item.Recommended))
+	sb.WriteString("\n")
+
+	if item.Recommended == container.ReconciliationActionManualCleanupRequired {
+		r.renderManualCleanupInstructions(&sb, s)
+	}
+
+	return sb.String()
+}
+
+func (r *DriftDetailsRenderer) renderResourceMetadata(sb *strings.Builder, item *DriftItem, s *styles.Styles) {
 	if item.ResourceType != "" {
 		sb.WriteString(s.Muted.Render("Type: "))
 		sb.WriteString(item.ResourceType)
 		sb.WriteString("\n")
 	}
 
-	// Drift type
 	sb.WriteString(s.Muted.Render("Drift Type: "))
 	sb.WriteString(HumanReadableDriftTypeLabel(item.DriftType))
 	sb.WriteString("\n")
 
-	// Child path if present
 	if item.ChildPath != "" {
 		sb.WriteString(s.Muted.Render("Child Path: "))
 		sb.WriteString(item.ChildPath)
 		sb.WriteString("\n")
 	}
 
-	// Resource ID
 	if item.ResourceResult != nil && item.ResourceResult.ResourceID != "" {
 		sb.WriteString(s.Muted.Render("Resource ID: "))
 		sb.WriteString(item.ResourceResult.ResourceID)
 		sb.WriteString("\n")
 	}
 
-	// For interrupted resources, show whether resource exists externally
 	if item.DriftType == container.ReconciliationTypeInterrupted && item.ResourceResult != nil {
 		sb.WriteString(s.Muted.Render("Resource exists: "))
 		if item.ResourceResult.ResourceExists {
@@ -477,16 +489,15 @@ func (r *DriftDetailsRenderer) renderResourceDetails(item *DriftItem, width int,
 		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
+}
 
-	// Changes
+func (r *DriftDetailsRenderer) renderResourceDriftBody(sb *strings.Builder, item *DriftItem, width int, s *styles.Styles) {
 	if item.ResourceResult != nil && item.ResourceResult.Changes != nil {
 		sb.WriteString(r.renderResourceChanges(item.ResourceResult, s))
 	} else if item.DriftType == container.ReconciliationTypeInterrupted && item.ResourceResult != nil {
-		// For interrupted resources without computed changes, show the state comparison
 		sb.WriteString(r.renderInterruptedResourceState(item.ResourceResult, s))
 	}
 
-	// Current outputs - use ResourceState.ComputedFields as the single source of truth
 	if item.ResourceState != nil && item.ResourceState.SpecData != nil && len(item.ResourceState.ComputedFields) > 0 {
 		outputsSection := outpututil.RenderOutputsFromState(item.ResourceState, width, s)
 		if outputsSection != "" {
@@ -494,39 +505,30 @@ func (r *DriftDetailsRenderer) renderResourceDetails(item *DriftItem, width int,
 			sb.WriteString(outputsSection)
 		}
 	}
+}
 
-	// Recommended action
+func (r *DriftDetailsRenderer) renderManualCleanupInstructions(sb *strings.Builder, s *styles.Styles) {
 	sb.WriteString("\n")
-	sb.WriteString(s.Muted.Render("Recommended: "))
-	sb.WriteString(HumanReadableAction(item.Recommended))
+	sb.WriteString(s.Warning.Render("⚠ External state could not be retrieved"))
+	sb.WriteString("\n\n")
+	sb.WriteString(s.Muted.Render("This resource was interrupted during creation and its external"))
 	sb.WriteString("\n")
-
-	// Show manual cleanup instructions when external state could not be retrieved
-	if item.Recommended == container.ReconciliationActionManualCleanupRequired {
-		sb.WriteString("\n")
-		sb.WriteString(s.Warning.Render("⚠ External state could not be retrieved"))
-		sb.WriteString("\n\n")
-		sb.WriteString(s.Muted.Render("This resource was interrupted during creation and its external"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("state cannot be automatically retrieved (tag-based lookup may"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("not be supported for this resource type)."))
-		sb.WriteString("\n\n")
-		sb.WriteString(s.Category.Render("Recommended steps:"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("  1. Check if the resource exists in your provider console"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("  2. If it exists, delete it manually"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("  3. Destroy this instance and re-run the deployment"))
-		sb.WriteString("\n\n")
-		sb.WriteString(s.Muted.Render("If you destroy this instance without manual cleanup, this"))
-		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("resource may remain orphaned in your provider."))
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
+	sb.WriteString(s.Muted.Render("state cannot be automatically retrieved (tag-based lookup may"))
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("not be supported for this resource type)."))
+	sb.WriteString("\n\n")
+	sb.WriteString(s.Category.Render("Recommended steps:"))
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("  1. Check if the resource exists in your provider console"))
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("  2. If it exists, delete it manually"))
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("  3. Destroy this instance and re-run the deployment"))
+	sb.WriteString("\n\n")
+	sb.WriteString(s.Muted.Render("If you destroy this instance without manual cleanup, this"))
+	sb.WriteString("\n")
+	sb.WriteString(s.Muted.Render("resource may remain orphaned in your provider."))
+	sb.WriteString("\n")
 }
 
 func (r *DriftDetailsRenderer) renderResourceChanges(

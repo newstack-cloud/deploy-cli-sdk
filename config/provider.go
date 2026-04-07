@@ -70,7 +70,7 @@ func (p *Provider) LoadConfigFile(configFilePath string) error {
 	return ErrUnsupportedConfigFileFormat
 }
 
-func (p *Provider) BindEnvVar(configName string, envVarName string) {
+func (p *Provider) BindEnvVar(configName, envVarName string) {
 	p.envVars[configName] = envVarName
 }
 

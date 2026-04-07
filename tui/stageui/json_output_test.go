@@ -35,24 +35,24 @@ func TestJSONOutputTestSuite(t *testing.T) {
 
 func (s *JSONOutputTestSuite) Test_outputJSON_includes_changeset_id() {
 	jsonOutput := &bytes.Buffer{}
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(
+	model := NewStageModel(StageModelConfig{
+		DeployEngine: testutils.NewTestDeployEngineWithStaging(
 			[]*types.ChangeStagingEvent{
 				resourceCreateEvent("test-resource"),
 				completeChangesEvent(),
 			},
 			"test-changeset-json-123",
 		),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		InstanceID:     "",
+		InstanceName:   "test-instance",
+		Destroy:        false,
+		SkipDriftCheck: false,
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -85,18 +85,15 @@ func (s *JSONOutputTestSuite) Test_outputJSON_includes_resource_summary() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-summary"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-summary"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -129,18 +126,15 @@ func (s *JSONOutputTestSuite) Test_outputJSON_includes_child_summary() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-children"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-children"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -171,18 +165,15 @@ func (s *JSONOutputTestSuite) Test_outputJSON_includes_link_summary() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-links"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-links"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -231,18 +222,15 @@ func (s *JSONOutputTestSuite) Test_outputJSON_includes_export_summary() {
 		completeEvent,
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -283,18 +271,15 @@ func (s *JSONOutputTestSuite) Test_outputJSONError_formats_validation_errors() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(validationErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(validationErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -337,18 +322,15 @@ func (s *JSONOutputTestSuite) Test_outputJSONError_formats_stream_errors() {
 		},
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStagingError(streamErr),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(streamErr),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -381,18 +363,15 @@ func (s *JSONOutputTestSuite) Test_outputJSON_includes_recreate_count() {
 		completeChangesEvent(),
 	}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-recreate"),
-		zap.NewNop(),
-		"",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-recreate"),
+		Logger:         zap.NewNop(),
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -434,18 +413,16 @@ func (s *JSONOutputTestSuite) Test_outputJSONDrift_includes_reconciliation_resul
 
 	events := []*types.ChangeStagingEvent{driftEvent}
 
-	model := NewStageModel(
-		testutils.NewTestDeployEngineWithStaging(events, "test-changeset-drift"),
-		zap.NewNop(),
-		"test-instance-id",
-		"test-instance",
-		false,
-		false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true,
-		jsonOutput,
-		true,
-	)
+	model := NewStageModel(StageModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-drift"),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "test-instance",
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		IsHeadless:     true,
+		HeadlessWriter: jsonOutput,
+		JSONMode:       true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),

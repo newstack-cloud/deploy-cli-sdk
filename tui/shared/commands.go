@@ -64,7 +64,7 @@ func BuildIntermediaryActions(
 }
 
 // BuildDocumentInfo creates BlueprintDocumentInfo based on the source type.
-func BuildDocumentInfo(source string, blueprintFile string) (types.BlueprintDocumentInfo, error) {
+func BuildDocumentInfo(source, blueprintFile string) (types.BlueprintDocumentInfo, error) {
 	switch source {
 	case consts.BlueprintSourceHTTPS:
 		return BuildHTTPSDocumentInfo(blueprintFile)

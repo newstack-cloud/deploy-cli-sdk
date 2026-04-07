@@ -14,6 +14,8 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 )
 
+const labelIndentedStatus = "  Status: "
+
 // Interactive error rendering methods
 
 func (m DeployModel) renderError(err error) string {
@@ -193,7 +195,7 @@ func (m DeployModel) renderOverviewContent() string {
 		sb.WriteString(m.styles.Selected.Render(m.instanceName))
 		sb.WriteString("\n")
 	}
-	sb.WriteString(m.styles.Muted.Render("  Status: "))
+	sb.WriteString(m.styles.Muted.Render(labelIndentedStatus))
 	sb.WriteString(m.renderFinalStatusBadge())
 	sb.WriteString("\n")
 
@@ -396,7 +398,7 @@ func (m DeployModel) renderPreRollbackHeader(sb *strings.Builder, data *containe
 	sb.WriteString(m.styles.Muted.Render("  Instance Name: "))
 	sb.WriteString(m.styles.Selected.Render(data.InstanceName))
 	sb.WriteString("\n")
-	sb.WriteString(m.styles.Muted.Render("  Status: "))
+	sb.WriteString(m.styles.Muted.Render(labelIndentedStatus))
 	sb.WriteString(m.styles.Error.Render(data.Status.String()))
 	sb.WriteString("\n\n")
 }
@@ -465,42 +467,54 @@ func (m DeployModel) renderResourceSnapshot(sb *strings.Builder, r *container.Re
 	sb.WriteString("\n")
 
 	sb.WriteString(indent)
-	sb.WriteString(m.styles.Muted.Render("  Status: "))
+	sb.WriteString(m.styles.Muted.Render(labelIndentedStatus))
 	sb.WriteString(statusStyle.Render(r.Status.String()))
 	sb.WriteString("\n")
 
-	if len(r.FailureReasons) > 0 {
-		wrapWidth := max(m.preRollbackStateViewport.Width-len(indent)-6, 20)
-		for _, reason := range r.FailureReasons {
-			wrappedLines := outpututil.WrapTextLines(reason, wrapWidth)
-			for i, line := range wrappedLines {
-				sb.WriteString(indent)
-				if i == 0 {
-					sb.WriteString(m.styles.Error.Render("  • " + line))
-				} else {
-					sb.WriteString(m.styles.Error.Render("    " + line))
-				}
-				sb.WriteString("\n")
-			}
-		}
-	}
-
-	// Render outputs section if spec data is available
-	if r.SpecData != nil {
-		fields := outpututil.CollectOutputFields(r.SpecData, r.ComputedFields)
-		if len(fields) > 0 {
-			sb.WriteString(indent)
-			sb.WriteString(m.styles.Category.Render("  Outputs:"))
-			sb.WriteString("\n")
-			for _, field := range fields {
-				sb.WriteString(indent)
-				sb.WriteString(m.styles.Muted.Render(fmt.Sprintf("    %s: %s", field.Name, field.Value)))
-				sb.WriteString("\n")
-			}
-		}
-	}
+	m.renderSnapshotFailureReasons(sb, r.FailureReasons, indent)
+	m.renderSnapshotOutputs(sb, r.SpecData, r.ComputedFields, indent)
 
 	sb.WriteString("\n")
+}
+
+func (m DeployModel) renderSnapshotFailureReasons(sb *strings.Builder, reasons []string, indent string) {
+	if len(reasons) == 0 {
+		return
+	}
+
+	wrapWidth := max(m.preRollbackStateViewport.Width-len(indent)-6, 20)
+	for _, reason := range reasons {
+		wrappedLines := outpututil.WrapTextLines(reason, wrapWidth)
+		for i, line := range wrappedLines {
+			sb.WriteString(indent)
+			if i == 0 {
+				sb.WriteString(m.styles.Error.Render("  • " + line))
+			} else {
+				sb.WriteString(m.styles.Error.Render("    " + line))
+			}
+			sb.WriteString("\n")
+		}
+	}
+}
+
+func (m DeployModel) renderSnapshotOutputs(sb *strings.Builder, specData *core.MappingNode, computedFields []string, indent string) {
+	if specData == nil {
+		return
+	}
+
+	fields := outpututil.CollectOutputFields(specData, computedFields)
+	if len(fields) == 0 {
+		return
+	}
+
+	sb.WriteString(indent)
+	sb.WriteString(m.styles.Category.Render("  Outputs:"))
+	sb.WriteString("\n")
+	for _, field := range fields {
+		sb.WriteString(indent)
+		sb.WriteString(m.styles.Muted.Render(fmt.Sprintf("    %s: %s", field.Name, field.Value)))
+		sb.WriteString("\n")
+	}
 }
 
 // renderLinkSnapshot renders a link snapshot in the pre-rollback state view.
@@ -512,7 +526,7 @@ func (m DeployModel) renderLinkSnapshot(sb *strings.Builder, l *container.LinkSn
 	sb.WriteString("\n")
 
 	sb.WriteString(indent)
-	sb.WriteString(m.styles.Muted.Render("  Status: "))
+	sb.WriteString(m.styles.Muted.Render(labelIndentedStatus))
 	sb.WriteString(statusStyle.Render(l.Status.String()))
 	sb.WriteString("\n")
 
@@ -543,7 +557,7 @@ func (m DeployModel) renderChildSnapshot(sb *strings.Builder, c *container.Child
 	sb.WriteString("\n")
 
 	sb.WriteString(indent)
-	sb.WriteString(m.styles.Muted.Render("  Status: "))
+	sb.WriteString(m.styles.Muted.Render(labelIndentedStatus))
 	sb.WriteString(statusStyle.Render(c.Status.String()))
 	sb.WriteString("\n")
 

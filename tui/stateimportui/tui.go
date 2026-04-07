@@ -101,61 +101,85 @@ func (m MainModel) Init() tea.Cmd {
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	cmds := []tea.Cmd{}
-
 	switch msg := msg.(type) {
 	case sharedui.SelectFileMsg:
-		m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
-		m.sessionState = stateImportRunning
-		m.importModel.SetFilePath(m.filePath)
-		cmds = append(cmds, m.importModel.StartImport())
-
+		return m.handleSelectFileMsg(msg)
 	case sharedui.ClearSelectedFileMsg:
-		m.sessionState = stateImportFileSelect
-		m.filePath = ""
-
+		return m.handleClearSelectedFileMsg()
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.importModel.SetWidth(msg.Width)
-		if m.selectFile != nil {
-			var fileCmd tea.Cmd
-			m.selectFile, fileCmd = m.selectFile.Update(msg)
-			cmds = append(cmds, fileCmd)
-		}
-
+		return m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "q":
-			// Quit if import is complete and finished, or if there's an error
-			if (m.sessionState == stateImportComplete && m.importModel.IsFinished()) || m.Error != nil {
-				m.quitting = true
-				return m, tea.Quit
-			}
-		}
-
+		return m.handleKeyMsg(msg)
 	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.importModel, cmd = m.importModel.Update(msg)
-		cmds = append(cmds, cmd)
-
+		return m.handleSpinnerTickMsg(msg)
 	case ImportCompleteMsg:
-		m.sessionState = stateImportComplete
-		var cmd tea.Cmd
-		m.importModel, cmd = m.importModel.Update(msg)
-		cmds = append(cmds, cmd)
-		if msg.Err != nil {
-			m.Error = msg.Err
-		}
-		// Auto-quit in headless mode after import completes
-		if m.importModel.headless {
+		return m.handleImportCompleteMsg(msg)
+	}
+
+	return m.handleSessionStateRouting(msg)
+}
+
+func (m MainModel) handleSelectFileMsg(msg sharedui.SelectFileMsg) (tea.Model, tea.Cmd) {
+	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
+	m.sessionState = stateImportRunning
+	m.importModel.SetFilePath(m.filePath)
+	return m, m.importModel.StartImport()
+}
+
+func (m MainModel) handleClearSelectedFileMsg() (tea.Model, tea.Cmd) {
+	m.sessionState = stateImportFileSelect
+	m.filePath = ""
+	return m, nil
+}
+
+func (m MainModel) handleWindowSizeMsg(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
+	m.width = msg.Width
+	m.importModel.SetWidth(msg.Width)
+	if m.selectFile != nil {
+		var fileCmd tea.Cmd
+		m.selectFile, fileCmd = m.selectFile.Update(msg)
+		return m, fileCmd
+	}
+	return m, nil
+}
+
+func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "q":
+		// Quit if import is complete and finished, or if there's an error
+		if (m.sessionState == stateImportComplete && m.importModel.IsFinished()) || m.Error != nil {
 			m.quitting = true
 			return m, tea.Quit
 		}
 	}
+	return m, nil
+}
 
+func (m MainModel) handleSpinnerTickMsg(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.importModel, cmd = m.importModel.Update(msg)
+	return m, cmd
+}
+
+func (m MainModel) handleImportCompleteMsg(msg ImportCompleteMsg) (tea.Model, tea.Cmd) {
+	m.sessionState = stateImportComplete
+	var cmd tea.Cmd
+	m.importModel, cmd = m.importModel.Update(msg)
+	if msg.Err != nil {
+		m.Error = msg.Err
+	}
+	// Auto-quit in headless mode after import completes
+	if m.importModel.headless {
+		m.quitting = true
+		return m, tea.Quit
+	}
+	return m, cmd
+}
+
+func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.sessionState {
 	case stateImportFileSelect:
 		if m.selectFile != nil {
@@ -165,18 +189,18 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				panic("failed to perform assertion on select file model in state import")
 			}
 			m.selectFile = selectFileModel
-			cmds = append(cmds, newCmd)
+			return m, newCmd
 		}
 	case stateImportRunning, stateImportComplete:
 		var cmd tea.Cmd
 		m.importModel, cmd = m.importModel.Update(msg)
-		cmds = append(cmds, cmd)
 		if m.importModel.err != nil {
 			m.Error = m.importModel.err
 		}
+		return m, cmd
 	}
 
-	return m, tea.Batch(cmds...)
+	return m, nil
 }
 
 func (m MainModel) View() string {

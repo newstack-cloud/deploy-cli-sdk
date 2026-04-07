@@ -15,10 +15,158 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/destroyui"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/term"
 )
 
 var errDestroyFailed = errors.New("destroy failed")
+
+type destroyFlags struct {
+	changesetID            string
+	changesetIDIsDefault   bool
+	instanceID             string
+	instanceIDIsDefault    bool
+	instanceName           string
+	instanceNameIsDefault  bool
+	blueprintFile          string
+	isDefaultBlueprintFile bool
+	stageFirst             bool
+	autoApprove            bool
+	skipPrompts            bool
+	force                  bool
+	jsonMode               bool
+}
+
+func readDestroyFlags(confProvider *config.Provider) destroyFlags {
+	changesetID, changesetIDIsDefault := confProvider.GetString("destroyChangeSetID")
+	instanceID, instanceIDIsDefault := confProvider.GetString("destroyInstanceID")
+	instanceName, instanceNameIsDefault := confProvider.GetString("destroyInstanceName")
+	blueprintFile, isDefaultBlueprintFile := confProvider.GetString("destroyBlueprintFile")
+	stageFirst, _ := confProvider.GetBool("destroyStage")
+	autoApprove, _ := confProvider.GetBool("destroyAutoApprove")
+	skipPrompts, _ := confProvider.GetBool("destroySkipPrompts")
+	force, _ := confProvider.GetBool("destroyForce")
+	jsonMode, _ := confProvider.GetBool("destroyJson")
+
+	if jsonMode {
+		autoApprove = true
+	}
+
+	return destroyFlags{
+		changesetID:            changesetID,
+		changesetIDIsDefault:   changesetIDIsDefault,
+		instanceID:             instanceID,
+		instanceIDIsDefault:    instanceIDIsDefault,
+		instanceName:           instanceName,
+		instanceNameIsDefault:  instanceNameIsDefault,
+		blueprintFile:          blueprintFile,
+		isDefaultBlueprintFile: isDefaultBlueprintFile,
+		stageFirst:             stageFirst,
+		autoApprove:            autoApprove,
+		skipPrompts:            skipPrompts,
+		force:                  force,
+		jsonMode:               jsonMode,
+	}
+}
+
+func validateDestroyFlags(flags destroyFlags) error {
+	return headless.Validate(
+		headless.OneOf(
+			headless.Flag{
+				Name:      flagInstanceName,
+				Value:     flags.instanceName,
+				IsDefault: flags.instanceNameIsDefault,
+			},
+			headless.Flag{
+				Name:      flagInstanceID,
+				Value:     flags.instanceID,
+				IsDefault: flags.instanceIDIsDefault,
+			},
+		),
+		headless.OneOf(
+			headless.Flag{
+				Name:      "stage",
+				Value:     boolToString(flags.stageFirst),
+				IsDefault: !flags.stageFirst,
+			},
+			headless.Flag{
+				Name:      flagChangeSetID,
+				Value:     flags.changesetID,
+				IsDefault: flags.changesetIDIsDefault,
+			},
+		),
+		headless.RequiredIfBool(
+			headless.BoolFlagTrue("stage", flags.stageFirst),
+			flagAutoApprove,
+			flags.autoApprove,
+		),
+	)
+}
+
+func runDestroyTUI(
+	cmd *cobra.Command,
+	flags destroyFlags,
+	cfg *CLIConfig,
+	confProvider *config.Provider,
+	destroyEngine engine.DeployEngine,
+	logger *zap.Logger,
+) error {
+	if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
+		log.Fatal(err)
+	}
+
+	cmd.SilenceUsage = true
+
+	styles := stylespkg.NewStyles(
+		lipgloss.NewRenderer(os.Stdout),
+		cfg.Palette,
+	)
+	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	headlessMode := !inTerminal || flags.jsonMode
+
+	if cfg.PreCommandStep != nil {
+		if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "destroy", styles, headlessMode, os.Stdout); err != nil {
+			return err
+		}
+	}
+
+	preflightModel := createPreflight(cfg, confProvider, "destroy", styles, headlessMode, flags.jsonMode)
+
+	app, err := destroyui.NewDestroyApp(destroyui.DestroyAppConfig{
+		DestroyEngine:          destroyEngine,
+		Logger:                 logger,
+		ChangesetID:            flags.changesetID,
+		InstanceID:             flags.instanceID,
+		InstanceName:           flags.instanceName,
+		BlueprintFile:          flags.blueprintFile,
+		IsDefaultBlueprintFile: flags.isDefaultBlueprintFile,
+		Force:                  flags.force,
+		StageFirst:             flags.stageFirst,
+		AutoApprove:            flags.autoApprove,
+		SkipPrompts:            flags.skipPrompts,
+		Styles:                 styles,
+		Headless:               headlessMode,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               flags.jsonMode,
+		Preflight:              preflightModel,
+	})
+	if err != nil {
+		return err
+	}
+
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	if err != nil {
+		return err
+	}
+	finalApp := finalModel.(destroyui.MainModel)
+
+	if finalApp.Error != nil {
+		cmd.SilenceErrors = true
+		return errDestroyFailed
+	}
+
+	return nil
+}
 
 // SetupDestroyCommand registers a destroy command on the root command,
 // parameterized by CLIConfig for branding and defaults.
@@ -59,158 +207,49 @@ Examples:
 				return err
 			}
 
-			changesetID, changesetIDIsDefault := confProvider.GetString("destroyChangeSetID")
-			instanceID, instanceIDIsDefault := confProvider.GetString("destroyInstanceID")
-			instanceName, instanceNameIsDefault := confProvider.GetString("destroyInstanceName")
-			blueprintFile, isDefaultBlueprintFile := confProvider.GetString("destroyBlueprintFile")
-			stageFirst, _ := confProvider.GetBool("destroyStage")
-			autoApprove, _ := confProvider.GetBool("destroyAutoApprove")
-			skipPrompts, _ := confProvider.GetBool("destroySkipPrompts")
-			force, _ := confProvider.GetBool("destroyForce")
-			jsonMode, _ := confProvider.GetBool("destroyJson")
+			flags := readDestroyFlags(confProvider)
 
-			if jsonMode {
+			if flags.jsonMode {
 				cmd.SilenceUsage = true
 				cmd.SilenceErrors = true
-				autoApprove = true
 			}
 
-			err = headless.Validate(
-				headless.OneOf(
-					headless.Flag{
-						Name:      "instance-name",
-						Value:     instanceName,
-						IsDefault: instanceNameIsDefault,
-					},
-					headless.Flag{
-						Name:      "instance-id",
-						Value:     instanceID,
-						IsDefault: instanceIDIsDefault,
-					},
-				),
-				headless.OneOf(
-					headless.Flag{
-						Name:      "stage",
-						Value:     boolToString(stageFirst),
-						IsDefault: !stageFirst,
-					},
-					headless.Flag{
-						Name:      "change-set-id",
-						Value:     changesetID,
-						IsDefault: changesetIDIsDefault,
-					},
-				),
-				headless.RequiredIfBool(
-					headless.BoolFlagTrue("stage", stageFirst),
-					"auto-approve",
-					autoApprove,
-				),
-			)
-			if err != nil {
-				if jsonMode {
+			if err := validateDestroyFlags(flags); err != nil {
+				if flags.jsonMode {
 					jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
 					return errDestroyFailed
 				}
 				return err
 			}
 
-			if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
-				log.Fatal(err)
-			}
-
-			cmd.SilenceUsage = true
-
-			styles := stylespkg.NewStyles(
-				lipgloss.NewRenderer(os.Stdout),
-				cfg.Palette,
-			)
-			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-			headlessMode := !inTerminal || jsonMode
-
-			if cfg.PreCommandStep != nil {
-				if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "destroy", styles, headlessMode, os.Stdout); err != nil {
-					return err
-				}
-			}
-
-			var preflightModel tea.Model
-			if cfg.PreflightFactory != nil {
-				skipCheck, _ := confProvider.GetBool("skipPluginCheck")
-				if !skipCheck {
-					preflightModel = cfg.PreflightFactory.CreatePreflight(
-						confProvider, "destroy", styles, headlessMode, os.Stdout, jsonMode,
-					)
-				}
-			}
-
-			app, err := destroyui.NewDestroyApp(
-				destroyEngine,
-				logger,
-				changesetID,
-				instanceID,
-				instanceName,
-				blueprintFile,
-				isDefaultBlueprintFile,
-				force,
-				stageFirst,
-				autoApprove,
-				skipPrompts,
-				styles,
-				headlessMode,
-				os.Stdout,
-				jsonMode,
-				preflightModel,
-			)
-			if err != nil {
-				return err
-			}
-
-			options := []tea.ProgramOption{}
-			if !headlessMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
-			if err != nil {
-				return err
-			}
-			finalApp := finalModel.(destroyui.MainModel)
-
-			if finalApp.Error != nil {
-				cmd.SilenceErrors = true
-				return errDestroyFailed
-			}
-
-			return nil
+			return runDestroyTUI(cmd, flags, cfg, confProvider, destroyEngine, logger)
 		},
 	}
 
 	prefix := cfg.EnvVarPrefix
 
 	destroyCmd.PersistentFlags().String(
-		"change-set-id", "",
+		flagChangeSetID, "",
 		"The ID of the change set to use for destruction. "+
 			"If not provided, the latest destroy change set for the instance will be used.",
 	)
-	confProvider.BindPFlag("destroyChangeSetID", destroyCmd.PersistentFlags().Lookup("change-set-id"))
+	confProvider.BindPFlag("destroyChangeSetID", destroyCmd.PersistentFlags().Lookup(flagChangeSetID))
 	confProvider.BindEnvVar("destroyChangeSetID", prefix+"_DESTROY_CHANGE_SET_ID")
 
 	destroyCmd.PersistentFlags().String(
-		"instance-id", "",
+		flagInstanceID, "",
 		"The system-generated ID of the blueprint instance to destroy. "+
 			"Leave empty if using --instance-name.",
 	)
-	confProvider.BindPFlag("destroyInstanceID", destroyCmd.PersistentFlags().Lookup("instance-id"))
+	confProvider.BindPFlag("destroyInstanceID", destroyCmd.PersistentFlags().Lookup(flagInstanceID))
 	confProvider.BindEnvVar("destroyInstanceID", prefix+"_DESTROY_INSTANCE_ID")
 
 	destroyCmd.PersistentFlags().String(
-		"instance-name", "",
+		flagInstanceName, "",
 		"The user-defined unique identifier for the blueprint instance to destroy. "+
 			"Leave empty if using --instance-id.",
 	)
-	confProvider.BindPFlag("destroyInstanceName", destroyCmd.PersistentFlags().Lookup("instance-name"))
+	confProvider.BindPFlag("destroyInstanceName", destroyCmd.PersistentFlags().Lookup(flagInstanceName))
 	confProvider.BindEnvVar("destroyInstanceName", prefix+"_DESTROY_INSTANCE_NAME")
 
 	destroyCmd.PersistentFlags().String(
@@ -240,12 +279,12 @@ Examples:
 	confProvider.BindPFlag("destroyStage", destroyCmd.PersistentFlags().Lookup("stage"))
 	confProvider.BindEnvVar("destroyStage", prefix+"_DESTROY_STAGE")
 
-	destroyCmd.PersistentFlags().Bool("auto-approve", false,
+	destroyCmd.PersistentFlags().Bool(flagAutoApprove, false,
 		"Automatically approve staged changes without prompting for confirmation. "+
 			"This is intended for CI/CD pipelines where manual approval is not possible. "+
 			"Only applicable when --stage is set.",
 	)
-	confProvider.BindPFlag("destroyAutoApprove", destroyCmd.PersistentFlags().Lookup("auto-approve"))
+	confProvider.BindPFlag("destroyAutoApprove", destroyCmd.PersistentFlags().Lookup(flagAutoApprove))
 	confProvider.BindEnvVar("destroyAutoApprove", prefix+"_DESTROY_AUTO_APPROVE")
 
 	destroyCmd.PersistentFlags().Bool("skip-prompts", false,

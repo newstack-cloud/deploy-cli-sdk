@@ -435,31 +435,11 @@ func (m *StageModel) processLinkChanges(data *types.LinkChangesEventData) {
 // when it has link changes but no field changes.
 func (m *StageModel) updateResourceWithLinkChanges(data *types.LinkChangesEventData) {
 	resourceState, exists := m.resourceChanges[data.ResourceAName]
-	if !exists {
+	if !exists || resourceState.Changes == nil {
 		return
 	}
 
-	// Update the resource's Changes struct with the outbound link information
-	if resourceState.Changes == nil {
-		return
-	}
-
-	if data.New {
-		if resourceState.Changes.NewOutboundLinks == nil {
-			resourceState.Changes.NewOutboundLinks = make(map[string]provider.LinkChanges)
-		}
-		resourceState.Changes.NewOutboundLinks[data.ResourceBName] = data.Changes
-	} else if data.Removed {
-		resourceState.Changes.RemovedOutboundLinks = append(
-			resourceState.Changes.RemovedOutboundLinks,
-			data.ResourceBName,
-		)
-	} else if provider.LinkChangesHasFieldChanges(&data.Changes) {
-		if resourceState.Changes.OutboundLinkChanges == nil {
-			resourceState.Changes.OutboundLinkChanges = make(map[string]provider.LinkChanges)
-		}
-		resourceState.Changes.OutboundLinkChanges[data.ResourceBName] = data.Changes
-	}
+	applyOutboundLinkChange(resourceState.Changes, data)
 
 	// Re-evaluate the resource action now that it has link changes
 	newAction := m.determineResourceActionFromState(resourceState)
@@ -472,6 +452,26 @@ func (m *StageModel) updateResourceWithLinkChanges(data *types.LinkChangesEventD
 				break
 			}
 		}
+	}
+}
+
+// applyOutboundLinkChange updates a resource's Changes struct with outbound link information.
+func applyOutboundLinkChange(changes *provider.Changes, data *types.LinkChangesEventData) {
+	if data.New {
+		if changes.NewOutboundLinks == nil {
+			changes.NewOutboundLinks = make(map[string]provider.LinkChanges)
+		}
+		changes.NewOutboundLinks[data.ResourceBName] = data.Changes
+	} else if data.Removed {
+		changes.RemovedOutboundLinks = append(
+			changes.RemovedOutboundLinks,
+			data.ResourceBName,
+		)
+	} else if provider.LinkChangesHasFieldChanges(&data.Changes) {
+		if changes.OutboundLinkChanges == nil {
+			changes.OutboundLinkChanges = make(map[string]provider.LinkChanges)
+		}
+		changes.OutboundLinkChanges[data.ResourceBName] = data.Changes
 	}
 }
 
@@ -663,54 +663,51 @@ func blueprintChangesHasAnyChanges(bc *changes.BlueprintChanges) bool {
 		return false
 	}
 
-	// Check for resource changes
+	return hasResourceChanges(bc) ||
+		hasChildChanges(bc) ||
+		hasLinkChanges(bc) ||
+		hasExportChanges(bc) ||
+		hasMetadataChanges(bc)
+}
+
+func hasResourceChanges(bc *changes.BlueprintChanges) bool {
 	if len(bc.NewResources) > 0 || len(bc.RemovedResources) > 0 {
 		return true
 	}
-
-	// Check if any ResourceChanges have actual field changes
 	for _, resourceChanges := range bc.ResourceChanges {
 		if provider.HasAnyChanges(&resourceChanges) {
 			return true
 		}
 	}
+	return false
+}
 
-	// Check for child blueprint changes
+func hasChildChanges(bc *changes.BlueprintChanges) bool {
 	if len(bc.NewChildren) > 0 || len(bc.RemovedChildren) > 0 || len(bc.RecreateChildren) > 0 {
 		return true
 	}
-
-	// Recursively check child blueprint changes
 	for _, childChanges := range bc.ChildChanges {
 		if blueprintChangesHasAnyChanges(&childChanges) {
 			return true
 		}
 	}
+	return false
+}
 
-	// Check for link changes
-	if len(bc.RemovedLinks) > 0 {
-		return true
-	}
+func hasLinkChanges(bc *changes.BlueprintChanges) bool {
+	return len(bc.RemovedLinks) > 0
+}
 
-	// Check for export changes
-	// New exports and removed exports are always real changes
+func hasExportChanges(bc *changes.BlueprintChanges) bool {
 	if len(bc.NewExports) > 0 || len(bc.RemovedExports) > 0 {
 		return true
 	}
+	return hasRealExportChanges(bc)
+}
 
-	// For ExportChanges, check if any have actual value changes
-	// (not just "resolve on deploy" placeholders where newValue is nil)
-	if hasRealExportChanges(bc) {
-		return true
-	}
-
-	// Check for metadata changes
+func hasMetadataChanges(bc *changes.BlueprintChanges) bool {
 	mc := &bc.MetadataChanges
-	if len(mc.NewFields) > 0 || len(mc.ModifiedFields) > 0 || len(mc.RemovedFields) > 0 {
-		return true
-	}
-
-	return false
+	return len(mc.NewFields) > 0 || len(mc.ModifiedFields) > 0 || len(mc.RemovedFields) > 0
 }
 
 // hasRealExportChanges checks if any export changes represent actual value changes,
@@ -1017,22 +1014,25 @@ func (m StageModel) renderDiagnostic(diag *core.Diagnostic) string {
 	return sb.String()
 }
 
+// StageModelConfig holds the configuration for creating a new StageModel.
+type StageModelConfig struct {
+	DeployEngine   engine.DeployEngine
+	Logger         *zap.Logger
+	InstanceID     string
+	InstanceName   string
+	Destroy        bool
+	SkipDriftCheck bool
+	Styles         *stylespkg.Styles
+	IsHeadless     bool
+	HeadlessWriter io.Writer
+	JSONMode       bool
+}
+
 // NewStageModel creates a new stage model with the given configuration.
-func NewStageModel(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	instanceID string,
-	instanceName string,
-	destroy bool,
-	skipDriftCheck bool,
-	styles *stylespkg.Styles,
-	isHeadless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-) StageModel {
+func NewStageModel(cfg StageModelConfig) StageModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = styles.Spinner
+	s.Style = cfg.Styles.Spinner
 
 	// Create renderers
 	detailsRenderer := &StageDetailsRenderer{
@@ -1046,14 +1046,14 @@ func NewStageModel(
 
 	footerRenderer := &StageFooterRenderer{
 		ChangesetID:  "",
-		InstanceID:   instanceID,
-		InstanceName: instanceName,
-		Destroy:      destroy,
+		InstanceID:   cfg.InstanceID,
+		InstanceName: cfg.InstanceName,
+		Destroy:      cfg.Destroy,
 	}
 
 	// Create splitpane config
 	splitPaneConfig := splitpane.Config{
-		Styles:          styles,
+		Styles:          cfg.Styles,
 		DetailsRenderer: detailsRenderer,
 		Title:           "Change Staging",
 		LeftPaneRatio:   0.4,
@@ -1078,7 +1078,7 @@ func NewStageModel(
 
 	// Create drift splitpane config
 	driftSplitPaneConfig := splitpane.Config{
-		Styles:          styles,
+		Styles:          cfg.Styles,
 		DetailsRenderer: driftDetailsRenderer,
 		Title:           "⚠ Drift Detected",
 		LeftPaneRatio:   0.4,
@@ -1089,8 +1089,8 @@ func NewStageModel(
 
 	// Create headless printer if in headless mode
 	var printer *headless.Printer
-	if isHeadless && headlessWriter != nil {
-		prefixedWriter := headless.NewPrefixedWriter(headlessWriter, "[stage] ")
+	if cfg.IsHeadless && cfg.HeadlessWriter != nil {
+		prefixedWriter := headless.NewPrefixedWriter(cfg.HeadlessWriter, "[stage] ")
 		printer = headless.NewPrinter(prefixedWriter, 80)
 	}
 
@@ -1103,17 +1103,17 @@ func NewStageModel(
 		driftDetailsRenderer: driftDetailsRenderer,
 		driftSectionGrouper:  driftSectionGrouper,
 		driftFooterRenderer:  driftFooterRenderer,
-		engine:               deployEngine,
-		logger:               logger,
-		instanceID:           instanceID,
-		instanceName:         instanceName,
-		destroy:              destroy,
-		skipDriftCheck:       skipDriftCheck,
-		styles:               styles,
-		headlessMode:         isHeadless,
-		headlessWriter:       headlessWriter,
+		engine:               cfg.DeployEngine,
+		logger:               cfg.Logger,
+		instanceID:           cfg.InstanceID,
+		instanceName:         cfg.InstanceName,
+		destroy:              cfg.Destroy,
+		skipDriftCheck:       cfg.SkipDriftCheck,
+		styles:               cfg.Styles,
+		headlessMode:         cfg.IsHeadless,
+		headlessWriter:       cfg.HeadlessWriter,
 		printer:              printer,
-		jsonMode:             jsonMode,
+		jsonMode:             cfg.JSONMode,
 		spinner:              s,
 		eventStream:          make(chan types.ChangeStagingEvent),
 		errStream:            make(chan error),

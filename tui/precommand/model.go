@@ -100,37 +100,9 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ProgressUpdateMsg:
-		m.currentPhase = msg.Phase
-		m.phaseDetail = msg.Detail
-		if m.headless && m.writer != nil {
-			if msg.Detail != "" {
-				fmt.Fprintf(m.writer, "  %s: %s\n", msg.Phase, msg.Detail)
-			} else {
-				fmt.Fprintf(m.writer, "  %s\n", msg.Phase)
-			}
-		}
-		// Wait for the next progress message.
-		if m.progressCh != nil {
-			return m, m.waitForProgress(m.progressCh)
-		}
-		return m, nil
-
+		return m.handleProgressUpdate(msg)
 	case stepDoneMsg:
-		m.done = true
-		m.progressCh = nil
-		if msg.err != nil {
-			m.err = msg.err
-			m.Err = msg.err
-			if m.headless && m.writer != nil {
-				fmt.Fprintf(m.writer, "Pre-command step failed: %v\n", msg.err)
-			}
-			return m, tea.Quit
-		}
-		if m.headless && m.writer != nil {
-			fmt.Fprintf(m.writer, "Pre-command step complete.\n")
-		}
-		return m, tea.Quit
-
+		return m.handleStepDone(msg)
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -140,6 +112,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.spinner, cmd = m.spinner.Update(msg)
 	return m, cmd
+}
+
+func (m Model) handleProgressUpdate(msg ProgressUpdateMsg) (tea.Model, tea.Cmd) {
+	m.currentPhase = msg.Phase
+	m.phaseDetail = msg.Detail
+	if m.headless && m.writer != nil {
+		if msg.Detail != "" {
+			fmt.Fprintf(m.writer, "  %s: %s\n", msg.Phase, msg.Detail)
+		} else {
+			fmt.Fprintf(m.writer, "  %s\n", msg.Phase)
+		}
+	}
+	// Wait for the next progress message.
+	if m.progressCh != nil {
+		return m, m.waitForProgress(m.progressCh)
+	}
+	return m, nil
+}
+
+func (m Model) handleStepDone(msg stepDoneMsg) (tea.Model, tea.Cmd) {
+	m.done = true
+	m.progressCh = nil
+	if msg.err != nil {
+		m.err = msg.err
+		m.Err = msg.err
+		if m.headless && m.writer != nil {
+			fmt.Fprintf(m.writer, "Pre-command step failed: %v\n", msg.err)
+		}
+		return m, tea.Quit
+	}
+	if m.headless && m.writer != nil {
+		fmt.Fprintf(m.writer, "Pre-command step complete.\n")
+	}
+	return m, tea.Quit
 }
 
 func (m Model) View() string {

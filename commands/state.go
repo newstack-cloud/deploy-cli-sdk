@@ -46,6 +46,90 @@ func SetupStateCommand(rootCmd *cobra.Command, confProvider *config.Provider, cf
 	rootCmd.AddCommand(stateCmd)
 }
 
+type stateImportFlags struct {
+	filePath          string
+	filePathIsDefault bool
+	engineConfigFile  string
+	jsonMode          bool
+}
+
+func readStateImportFlags(confProvider *config.Provider) stateImportFlags {
+	filePath, filePathIsDefault := confProvider.GetString("stateImportFile")
+	engineConfigFile, _ := confProvider.GetString("stateEngineConfigFile")
+	jsonMode, _ := confProvider.GetBool("stateImportJson")
+
+	return stateImportFlags{
+		filePath:          filePath,
+		filePathIsDefault: filePathIsDefault,
+		engineConfigFile:  engineConfigFile,
+		jsonMode:          jsonMode,
+	}
+}
+
+func validateStateImportFlags(flags stateImportFlags) error {
+	if flags.jsonMode && (flags.filePathIsDefault || flags.filePath == "") {
+		return fmt.Errorf("--file is required when --json is set")
+	}
+	return headless.Validate(
+		headless.Required(headless.Flag{
+			Name:      "file",
+			Value:     flags.filePath,
+			IsDefault: flags.filePathIsDefault,
+		}),
+	)
+}
+
+func loadEngineConfig(engineConfigFile string) (*stateio.EngineConfig, error) {
+	path := engineConfigFile
+	if path == "" {
+		path = stateio.GetDefaultEngineConfigPath()
+	}
+	cfg, err := stateio.LoadEngineConfig(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load engine config: %w", err)
+	}
+	return cfg, nil
+}
+
+func runStateImportTUI(cmd *cobra.Command, flags stateImportFlags, cfg *CLIConfig) error {
+	engineConfig, err := loadEngineConfig(flags.engineConfigFile)
+	if err != nil {
+		return err
+	}
+
+	styles := stylespkg.NewStyles(
+		lipgloss.NewRenderer(os.Stdout),
+		cfg.Palette,
+	)
+
+	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	headlessMode := !inTerminal || flags.jsonMode
+	app, err := stateimportui.NewStateImportApp(stateimportui.StateImportAppConfig{
+		FilePath:       flags.filePath,
+		EngineConfig:   engineConfig,
+		Styles:         styles,
+		Headless:       headlessMode,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       flags.jsonMode,
+	})
+	if err != nil {
+		return err
+	}
+
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	if err != nil {
+		return err
+	}
+	finalApp := finalModel.(stateimportui.MainModel)
+
+	if finalApp.Error != nil {
+		cmd.SilenceErrors = true
+		return errStateImportFailed
+	}
+
+	return nil
+}
+
 func setupStateImportCommand(stateCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
 	importCmd := &cobra.Command{
 		Use:   "import",
@@ -73,80 +157,22 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			filePath, filePathIsDefault := confProvider.GetString("stateImportFile")
-			engineConfigFile, _ := confProvider.GetString("stateEngineConfigFile")
-			jsonMode, _ := confProvider.GetBool("stateImportJson")
+			flags := readStateImportFlags(confProvider)
 
-			if jsonMode {
+			if flags.jsonMode {
 				cmd.SilenceUsage = true
 				cmd.SilenceErrors = true
+			}
 
-				if filePathIsDefault || filePath == "" {
-					err := fmt.Errorf("--file is required when --json is set")
+			if err := validateStateImportFlags(flags); err != nil {
+				if flags.jsonMode {
 					jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
 					return errStateImportFailed
 				}
-			}
-
-			err := headless.Validate(
-				headless.Required(headless.Flag{
-					Name:      "file",
-					Value:     filePath,
-					IsDefault: filePathIsDefault,
-				}),
-			)
-			if err != nil {
 				return err
 			}
 
-			var engineConfig *stateio.EngineConfig
-			if engineConfigFile != "" {
-				engineConfig, err = stateio.LoadEngineConfig(engineConfigFile)
-			} else {
-				engineConfig, err = stateio.LoadEngineConfig(stateio.GetDefaultEngineConfigPath())
-			}
-			if err != nil {
-				return fmt.Errorf("failed to load engine config: %w", err)
-			}
-
-			styles := stylespkg.NewStyles(
-				lipgloss.NewRenderer(os.Stdout),
-				cfg.Palette,
-			)
-
-			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-			headlessMode := !inTerminal || jsonMode
-			app, err := stateimportui.NewStateImportApp(stateimportui.StateImportAppConfig{
-				FilePath:       filePath,
-				EngineConfig:   engineConfig,
-				Styles:         styles,
-				Headless:       headlessMode,
-				HeadlessWriter: os.Stdout,
-				JSONMode:       jsonMode,
-			})
-			if err != nil {
-				return err
-			}
-
-			options := []tea.ProgramOption{}
-			if inTerminal && !jsonMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
-			if err != nil {
-				return err
-			}
-			finalApp := finalModel.(stateimportui.MainModel)
-
-			if finalApp.Error != nil {
-				cmd.SilenceErrors = true
-				return errStateImportFailed
-			}
-
-			return nil
+			return runStateImportTUI(cmd, flags, cfg)
 		},
 	}
 
@@ -166,6 +192,92 @@ Examples:
 	confProvider.BindEnvVar("stateImportJson", prefix+"_STATE_IMPORT_JSON")
 
 	stateCmd.AddCommand(importCmd)
+}
+
+type stateExportFlags struct {
+	filePath          string
+	filePathIsDefault bool
+	engineConfigFile  string
+	instanceFilters   []string
+	jsonMode          bool
+}
+
+func readStateExportFlags(confProvider *config.Provider) stateExportFlags {
+	filePath, filePathIsDefault := confProvider.GetString("stateExportFile")
+	engineConfigFile, _ := confProvider.GetString("stateEngineConfigFile")
+	instancesFlag, _ := confProvider.GetString("stateExportInstances")
+	jsonMode, _ := confProvider.GetBool("stateExportJson")
+
+	var instanceFilters []string
+	if instancesFlag != "" {
+		for _, inst := range strings.Split(instancesFlag, ",") {
+			trimmed := strings.TrimSpace(inst)
+			if trimmed != "" {
+				instanceFilters = append(instanceFilters, trimmed)
+			}
+		}
+	}
+
+	return stateExportFlags{
+		filePath:          filePath,
+		filePathIsDefault: filePathIsDefault,
+		engineConfigFile:  engineConfigFile,
+		instanceFilters:   instanceFilters,
+		jsonMode:          jsonMode,
+	}
+}
+
+func validateStateExportFlags(flags stateExportFlags) error {
+	if flags.jsonMode && (flags.filePathIsDefault || flags.filePath == "") {
+		return fmt.Errorf("--file is required when --json is set")
+	}
+	return headless.Validate(
+		headless.Required(headless.Flag{
+			Name:      "file",
+			Value:     flags.filePath,
+			IsDefault: flags.filePathIsDefault,
+		}),
+	)
+}
+
+func runStateExportTUI(cmd *cobra.Command, flags stateExportFlags, cfg *CLIConfig) error {
+	engineConfig, err := loadEngineConfig(flags.engineConfigFile)
+	if err != nil {
+		return err
+	}
+
+	styles := stylespkg.NewStyles(
+		lipgloss.NewRenderer(os.Stdout),
+		cfg.Palette,
+	)
+
+	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	headlessMode := !inTerminal || flags.jsonMode
+	app, err := stateexportui.NewStateExportApp(stateexportui.StateExportAppConfig{
+		FilePath:        flags.filePath,
+		InstanceFilters: flags.instanceFilters,
+		EngineConfig:    engineConfig,
+		Styles:          styles,
+		Headless:        headlessMode,
+		HeadlessWriter:  os.Stdout,
+		JSONMode:        flags.jsonMode,
+	})
+	if err != nil {
+		return err
+	}
+
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	if err != nil {
+		return err
+	}
+	finalApp := finalModel.(stateexportui.MainModel)
+
+	if finalApp.Error != nil {
+		cmd.SilenceErrors = true
+		return errStateExportFailed
+	}
+
+	return nil
 }
 
 func setupStateExportCommand(stateCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
@@ -198,92 +310,22 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			filePath, filePathIsDefault := confProvider.GetString("stateExportFile")
-			engineConfigFile, _ := confProvider.GetString("stateEngineConfigFile")
-			instancesFlag, _ := confProvider.GetString("stateExportInstances")
-			jsonMode, _ := confProvider.GetBool("stateExportJson")
+			flags := readStateExportFlags(confProvider)
 
-			var instanceFilters []string
-			if instancesFlag != "" {
-				for _, inst := range strings.Split(instancesFlag, ",") {
-					trimmed := strings.TrimSpace(inst)
-					if trimmed != "" {
-						instanceFilters = append(instanceFilters, trimmed)
-					}
-				}
-			}
-
-			if jsonMode {
+			if flags.jsonMode {
 				cmd.SilenceUsage = true
 				cmd.SilenceErrors = true
+			}
 
-				if filePathIsDefault || filePath == "" {
-					err := fmt.Errorf("--file is required when --json is set")
+			if err := validateStateExportFlags(flags); err != nil {
+				if flags.jsonMode {
 					jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
 					return errStateExportFailed
 				}
-			}
-
-			err := headless.Validate(
-				headless.Required(headless.Flag{
-					Name:      "file",
-					Value:     filePath,
-					IsDefault: filePathIsDefault,
-				}),
-			)
-			if err != nil {
 				return err
 			}
 
-			var engineConfig *stateio.EngineConfig
-			if engineConfigFile != "" {
-				engineConfig, err = stateio.LoadEngineConfig(engineConfigFile)
-			} else {
-				engineConfig, err = stateio.LoadEngineConfig(stateio.GetDefaultEngineConfigPath())
-			}
-			if err != nil {
-				return fmt.Errorf("failed to load engine config: %w", err)
-			}
-
-			styles := stylespkg.NewStyles(
-				lipgloss.NewRenderer(os.Stdout),
-				cfg.Palette,
-			)
-
-			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-			headlessMode := !inTerminal || jsonMode
-			app, err := stateexportui.NewStateExportApp(stateexportui.StateExportAppConfig{
-				FilePath:        filePath,
-				InstanceFilters: instanceFilters,
-				EngineConfig:    engineConfig,
-				Styles:          styles,
-				Headless:        headlessMode,
-				HeadlessWriter:  os.Stdout,
-				JSONMode:        jsonMode,
-			})
-			if err != nil {
-				return err
-			}
-
-			options := []tea.ProgramOption{}
-			if inTerminal && !jsonMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
-			if err != nil {
-				return err
-			}
-			finalApp := finalModel.(stateexportui.MainModel)
-
-			if finalApp.Error != nil {
-				cmd.SilenceErrors = true
-				return errStateExportFailed
-			}
-
-			return nil
+			return runStateExportTUI(cmd, flags, cfg)
 		},
 	}
 

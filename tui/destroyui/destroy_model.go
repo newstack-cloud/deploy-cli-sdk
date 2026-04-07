@@ -705,32 +705,35 @@ func (m *DestroyModel) SetPreDestroyInstanceState(instanceState *state.InstanceS
 	}
 }
 
+// DestroyModelConfig holds the configuration for creating a new DestroyModel.
+type DestroyModelConfig struct {
+	DestroyEngine    engine.DeployEngine
+	Logger           *zap.Logger
+	ChangesetID      string
+	InstanceID       string
+	InstanceName     string
+	Force            bool
+	Styles           *stylespkg.Styles
+	IsHeadless       bool
+	HeadlessWriter   io.Writer
+	ChangesetChanges *changes.BlueprintChanges
+	JSONMode         bool
+}
+
 // NewDestroyModel creates a new destroy model.
-func NewDestroyModel(
-	destroyEngine engine.DeployEngine,
-	logger *zap.Logger,
-	changesetID string,
-	instanceID string,
-	instanceName string,
-	force bool,
-	styles *stylespkg.Styles,
-	isHeadless bool,
-	headlessWriter io.Writer,
-	changesetChanges *changes.BlueprintChanges,
-	jsonMode bool,
-) DestroyModel {
-	detailsRenderer, sectionGrouper, footerRenderer := createDestroyRenderers(instanceID, instanceName, changesetID)
-	splitPaneConfig := createDestroySplitPaneConfig(styles, detailsRenderer, sectionGrouper, footerRenderer)
+func NewDestroyModel(cfg DestroyModelConfig) DestroyModel {
+	detailsRenderer, sectionGrouper, footerRenderer := createDestroyRenderers(cfg.InstanceID, cfg.InstanceName, cfg.ChangesetID)
+	splitPaneConfig := createDestroySplitPaneConfig(cfg.Styles, detailsRenderer, sectionGrouper, footerRenderer)
 
 	driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer := createDestroyDriftRenderers()
-	driftSplitPaneConfig := createDestroyDriftSplitPaneConfig(styles, driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer)
+	driftSplitPaneConfig := createDestroyDriftSplitPaneConfig(cfg.Styles, driftDetailsRenderer, driftSectionGrouper, driftFooterRenderer)
 
-	printer := createDestroyHeadlessPrinter(isHeadless, headlessWriter)
+	printer := createDestroyHeadlessPrinter(cfg.IsHeadless, cfg.HeadlessWriter)
 
 	resourcesByName := make(map[string]*ResourceDestroyItem)
 	childrenByName := make(map[string]*ChildDestroyItem)
 	linksByName := make(map[string]*LinkDestroyItem)
-	items := buildItemsFromChangeset(changesetChanges, resourcesByName, childrenByName, linksByName, nil)
+	items := buildItemsFromChangeset(cfg.ChangesetChanges, resourcesByName, childrenByName, linksByName, nil)
 
 	model := DestroyModel{
 		splitPane:               splitpane.New(splitPaneConfig),
@@ -741,19 +744,19 @@ func NewDestroyModel(
 		driftDetailsRenderer:    driftDetailsRenderer,
 		driftSectionGrouper:     driftSectionGrouper,
 		driftFooterRenderer:     driftFooterRenderer,
-		engine:                  destroyEngine,
-		logger:                  logger,
-		changesetID:             changesetID,
-		instanceID:              instanceID,
-		instanceName:            instanceName,
-		force:                   force,
-		changesetChanges:        changesetChanges,
-		styles:                  styles,
-		headlessMode:            isHeadless,
-		headlessWriter:          headlessWriter,
+		engine:                  cfg.DestroyEngine,
+		logger:                  cfg.Logger,
+		changesetID:             cfg.ChangesetID,
+		instanceID:              cfg.InstanceID,
+		instanceName:            cfg.InstanceName,
+		force:                   cfg.Force,
+		changesetChanges:        cfg.ChangesetChanges,
+		styles:                  cfg.Styles,
+		headlessMode:            cfg.IsHeadless,
+		headlessWriter:          cfg.HeadlessWriter,
 		printer:                 printer,
-		jsonMode:                jsonMode,
-		spinner:                 createDestroySpinner(styles),
+		jsonMode:                cfg.JSONMode,
+		spinner:                 createDestroySpinner(cfg.Styles),
 		eventStream:             make(chan types.BlueprintInstanceEvent),
 		errStream:               make(chan error),
 		resourcesByName:         resourcesByName,

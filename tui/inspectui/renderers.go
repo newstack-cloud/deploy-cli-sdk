@@ -13,6 +13,8 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
 
+const labelStatus = "Status: "
+
 // InspectDetailsRenderer implements splitpane.DetailsRenderer for inspect UI.
 type InspectDetailsRenderer struct {
 	MaxExpandDepth       int
@@ -66,17 +68,7 @@ func (r *InspectDetailsRenderer) renderResourceDetails(item *deployui.DeployItem
 	sb.WriteString(s.Muted.Render(strings.Repeat("─", ui.SafeWidth(width-4))))
 	sb.WriteString("\n\n")
 
-	resourceState := res.ResourceState
-	if resourceState == nil {
-		// Check item's instance state first (handles nested blueprints)
-		if item.InstanceState != nil {
-			resourceState = shared.FindResourceStateByName(item.InstanceState, res.Name)
-		}
-		// Fall back to root instance state
-		if resourceState == nil && r.InstanceState != nil {
-			resourceState = shared.FindResourceStateByName(r.InstanceState, res.Name)
-		}
-	}
+	resourceState := r.resolveResourceState(res, item.InstanceState)
 
 	// Resource metadata (ID, name, type)
 	shared.RenderResourceMetadata(&sb, shared.ResourceMetadata{
@@ -88,11 +80,11 @@ func (r *InspectDetailsRenderer) renderResourceDetails(item *deployui.DeployItem
 
 	// Status - prefer resourceState, fall back to item status for streaming resources
 	if resourceState != nil {
-		sb.WriteString(s.Muted.Render("Status: "))
+		sb.WriteString(s.Muted.Render(labelStatus))
 		sb.WriteString(shared.RenderResourceStatus(resourceState.Status, s))
 		sb.WriteString("\n")
 	} else if res.Status != 0 {
-		sb.WriteString(s.Muted.Render("Status: "))
+		sb.WriteString(s.Muted.Render(labelStatus))
 		sb.WriteString(shared.RenderResourceStatus(res.Status, s))
 		sb.WriteString("\n")
 	}
@@ -154,6 +146,21 @@ func (r *InspectDetailsRenderer) renderOutboundLinksSection(resourceName string,
 	return shared.RenderOutboundLinksSection(resourceName, r.InstanceState.Links, s)
 }
 
+func (r *InspectDetailsRenderer) resolveResourceState(res *deployui.ResourceDeployItem, itemInstanceState *state.InstanceState) *state.ResourceState {
+	if res.ResourceState != nil {
+		return res.ResourceState
+	}
+	if itemInstanceState != nil {
+		if rs := shared.FindResourceStateByName(itemInstanceState, res.Name); rs != nil {
+			return rs
+		}
+	}
+	if r.InstanceState != nil {
+		return shared.FindResourceStateByName(r.InstanceState, res.Name)
+	}
+	return nil
+}
+
 func (r *InspectDetailsRenderer) renderChildDetails(item *deployui.DeployItem, width int, s *styles.Styles) string {
 	child := item.Child
 	if child == nil {
@@ -185,7 +192,7 @@ func (r *InspectDetailsRenderer) renderChildDetails(item *deployui.DeployItem, w
 	}
 
 	// Status
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	sb.WriteString(shared.RenderInstanceStatus(child.Status, s))
 	sb.WriteString("\n")
 
@@ -217,7 +224,7 @@ func (r *InspectDetailsRenderer) renderLinkDetails(item *deployui.DeployItem, wi
 	}, width, s)
 
 	// Status
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	sb.WriteString(shared.RenderLinkStatus(link.Status, s))
 	sb.WriteString("\n")
 

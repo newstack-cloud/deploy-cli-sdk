@@ -197,26 +197,19 @@ func finishEvent(status core.InstanceStatus) *types.BlueprintInstanceEvent {
 // --- Interactive Mode Tests ---
 
 func (s *DeployTUISuite) Test_successful_deployment_with_resource_create() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false, // headless
-		os.Stdout,
-		nil,
-		false, // jsonMode
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-123",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -244,26 +237,20 @@ func (s *DeployTUISuite) Test_successful_deployment_with_resource_create() {
 }
 
 func (s *DeployTUISuite) Test_successful_deployment_with_resource_update() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessUpdate),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusUpdated),
 		),
-		zap.NewNop(),
-		"test-changeset-456",
-		"existing-instance-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-456",
+		InstanceID:     "existing-instance-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -291,26 +278,19 @@ func (s *DeployTUISuite) Test_successful_deployment_with_resource_update() {
 }
 
 func (s *DeployTUISuite) Test_deployment_failure_shows_error() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployFailure),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-fail",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-fail",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -338,26 +318,19 @@ func (s *DeployTUISuite) Test_deployment_failure_shows_error() {
 }
 
 func (s *DeployTUISuite) Test_deployment_rollback_sets_final_status() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployRollback),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-rollback",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-rollback",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -384,26 +357,19 @@ func (s *DeployTUISuite) Test_deployment_rollback_sets_final_status() {
 }
 
 func (s *DeployTUISuite) Test_deployment_with_child_blueprints() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployWithChild),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-child",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-child",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -430,26 +396,19 @@ func (s *DeployTUISuite) Test_deployment_with_child_blueprints() {
 }
 
 func (s *DeployTUISuite) Test_deployment_with_links() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployWithLink),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-link",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-link",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -476,26 +435,19 @@ func (s *DeployTUISuite) Test_deployment_with_links() {
 }
 
 func (s *DeployTUISuite) Test_deployment_with_multiple_resources() {
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployMultipleSuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-multi",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-multi",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -527,26 +479,20 @@ func (s *DeployTUISuite) Test_deployment_with_multiple_resources() {
 func (s *DeployTUISuite) Test_headless_mode_outputs_deployment_progress() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-headless",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-headless",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -566,26 +512,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_deployment_progress() {
 func (s *DeployTUISuite) Test_headless_mode_shows_failure_details() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployFailure),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-fail",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-fail",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -619,22 +559,16 @@ func (s *DeployTUISuite) Test_deployment_uses_changeset_for_initial_items() {
 		finishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", testInstanceState(core.InstanceStatusDeployed)),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		changesetChanges,
-		false,
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", testInstanceState(core.InstanceStatusDeployed)),
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+		ChangesetChanges: changesetChanges,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -664,26 +598,20 @@ func (s *DeployTUISuite) Test_deployment_uses_changeset_for_initial_items() {
 func (s *DeployTUISuite) Test_headless_mode_outputs_child_and_link_events() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployWithChild),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-child",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-child",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -703,26 +631,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_child_and_link_events() {
 func (s *DeployTUISuite) Test_headless_mode_outputs_link_events() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployWithLink),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-link",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-link",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -753,26 +675,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_exports() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			instanceStateWithExports,
 		),
-		zap.NewNop(),
-		"test-changeset-exports",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-exports",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -808,26 +724,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_nested_child_exports() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployWithChild),
 			"test-instance-id",
 			instanceStateWithNestedExports,
 		),
-		zap.NewNop(),
-		"test-changeset-nested",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-nested",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -846,26 +756,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_nested_child_exports() {
 func (s *DeployTUISuite) Test_headless_mode_outputs_rollback_status() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployRollback),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-rollback",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-rollback",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -905,26 +809,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_resource_with_durations() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			instanceStateWithDurations,
 		),
-		zap.NewNop(),
-		"test-changeset-durations",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-durations",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -945,26 +843,20 @@ func (s *DeployTUISuite) Test_headless_mode_outputs_resource_with_durations() {
 func (s *DeployTUISuite) Test_headless_mode_outputs_header_info() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployed),
 		),
-		zap.NewNop(),
-		"test-changeset-header",
-		"",
-		"my-test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-header",
+		InstanceName:   "my-test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -994,26 +886,21 @@ func (s *DeployTUISuite) Test_headless_mode_update_rollback_complete() {
 		finishEvent(core.InstanceStatusUpdateRollbackComplete),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusUpdateRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-update-rollback",
-		"existing-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-update-rollback",
+		InstanceID:     "existing-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1040,26 +927,21 @@ func (s *DeployTUISuite) Test_headless_mode_destroy_rollback_complete() {
 		finishEvent(core.InstanceStatusDestroyRollbackComplete),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-destroy-rollback",
-		"existing-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-destroy-rollback",
+		InstanceID:     "existing-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1086,26 +968,20 @@ func (s *DeployTUISuite) Test_headless_mode_rollback_failed() {
 		finishEvent(core.InstanceStatusDeployRollbackFailed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployRollbackFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-rollback-failed",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-rollback-failed",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1129,26 +1005,21 @@ func (s *DeployTUISuite) Test_headless_mode_update_failed() {
 		finishEvent(core.InstanceStatusUpdateFailed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusUpdateFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-update-failed",
-		"existing-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-update-failed",
+		InstanceID:     "existing-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1172,26 +1043,21 @@ func (s *DeployTUISuite) Test_headless_mode_destroy_failed() {
 		finishEvent(core.InstanceStatusDestroyFailed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-destroy-failed",
-		"existing-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-destroy-failed",
+		InstanceID:     "existing-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1215,26 +1081,21 @@ func (s *DeployTUISuite) Test_headless_mode_destroyed_status() {
 		finishEvent(core.InstanceStatusDestroyed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-destroyed",
-		"existing-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-destroyed",
+		InstanceID:     "existing-id",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1275,26 +1136,20 @@ func (s *DeployTUISuite) Test_headless_mode_resource_with_outputs() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			instanceStateWithOutputs,
 		),
-		zap.NewNop(),
-		"test-changeset-outputs",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-outputs",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1313,26 +1168,20 @@ func (s *DeployTUISuite) Test_headless_mode_resource_with_outputs() {
 func (s *DeployTUISuite) Test_headless_mode_interrupted() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deployInterrupted),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployInterrupted),
 		),
-		zap.NewNop(),
-		"test-changeset-interrupted",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-interrupted",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1383,26 +1232,20 @@ func (s *DeployTUISuite) Test_headless_mode_with_pre_rollback_state() {
 		finishEvent(core.InstanceStatusDeployRollbackComplete),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-pre-rollback",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-pre-rollback",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1451,26 +1294,20 @@ func (s *DeployTUISuite) Test_headless_mode_with_skipped_rollback_items() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			events,
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDeployRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-skipped",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-skipped",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1503,26 +1340,20 @@ func (s *DeployTUISuite) Test_headless_mode_export_with_all_fields() {
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine: 		testutils.NewTestDeployEngineWithDeployment(
 			testDeployEvents(deploySuccessCreate),
 			"test-instance-id",
 			instanceStateWithExportFields,
 		),
-		zap.NewNop(),
-		"test-changeset-export-fields",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:         zap.NewNop(),
+		ChangesetID:    "test-changeset-export-fields",
+		InstanceName:   "test-instance",
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),

@@ -48,22 +48,22 @@ func (s *DeployJSONOutputTestSuite) Test_outputJSON_includes_instance_info() {
 		deployFinishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine:     testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		BlueprintFile:    "test.blueprint.yaml",
+		BlueprintSource:  "",
+		AutoRollback:     false,
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -99,22 +99,22 @@ func (s *DeployJSONOutputTestSuite) Test_outputJSON_includes_deployment_summary(
 		deployFinishEvent(core.InstanceStatusDeployFailed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		jsonOutput,
-		nil,
-		true,
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine:     testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		BlueprintFile:    "test.blueprint.yaml",
+		BlueprintSource:  "",
+		AutoRollback:     false,
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -153,22 +153,22 @@ func (s *DeployJSONOutputTestSuite) Test_outputJSON_includes_instance_state() {
 		deployFinishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		jsonOutput,
-		nil,
-		true,
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine:     testutils.NewTestDeployEngineWithDeployment(events, "test-instance-id", instanceState),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		BlueprintFile:    "test.blueprint.yaml",
+		BlueprintSource:  "",
+		AutoRollback:     false,
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -205,22 +205,22 @@ func (s *DeployJSONOutputTestSuite) Test_outputJSONError_formats_validation_erro
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeploymentError(validationErr),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		jsonOutput,
-		nil,
-		true,
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine:     testutils.NewTestDeployEngineWithDeploymentError(validationErr),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		BlueprintFile:    "test.blueprint.yaml",
+		BlueprintSource:  "",
+		AutoRollback:     false,
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -265,22 +265,22 @@ func (s *DeployJSONOutputTestSuite) Test_outputJSONDrift_includes_reconciliation
 		},
 	}
 
-	model := NewDeployModel(
-		testutils.NewTestDeployEngineWithDeploymentError(driftErr),
-		zap.NewNop(),
-		"test-changeset-123",
-		"test-instance-id",
-		"test-instance",
-		"test.blueprint.yaml",
-		"",
-		false,
-		false,
-		s.styles,
-		true,
-		jsonOutput,
-		nil,
-		true,
-	)
+	model := NewDeployModel(DeployModelConfig{
+		DeployEngine:     testutils.NewTestDeployEngineWithDeploymentError(driftErr),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		BlueprintFile:    "test.blueprint.yaml",
+		BlueprintSource:  "",
+		AutoRollback:     false,
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),

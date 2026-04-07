@@ -221,91 +221,94 @@ func (m MainModel) View() string {
 	return selected + m.stage.View()
 }
 
+// StageAppConfig holds the configuration for creating a new stage application.
+type StageAppConfig struct {
+	DeployEngine           engine.DeployEngine
+	Logger                 *zap.Logger
+	BlueprintFile          string
+	IsDefaultBlueprintFile bool
+	InstanceID             string
+	InstanceName           string
+	Destroy                bool
+	SkipDriftCheck         bool
+	Styles                 *stylespkg.Styles
+	Headless               bool
+	HeadlessWriter         io.Writer
+	JSONMode               bool
+	Preflight              tea.Model
+}
+
 // NewStageApp creates a new stage application with the given configuration.
-func NewStageApp(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	blueprintFile string,
-	isDefaultBlueprintFile bool,
-	instanceID string,
-	instanceName string,
-	destroy bool,
-	skipDriftCheck bool,
-	bluelinkStyles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-	preflight tea.Model,
-) (*MainModel, error) {
+func NewStageApp(cfg StageAppConfig) (*MainModel, error) {
 	// Auto-stage when:
 	// 1. A non-default blueprint file is provided, OR
 	// 2. An instance identifier is provided (staging for existing instance), OR
 	// 3. Running in headless mode
-	hasInstanceIdentifier := instanceID != "" || instanceName != ""
-	autoStage := (blueprintFile != "" && !isDefaultBlueprintFile) || hasInstanceIdentifier || headless
+	hasInstanceIdentifier := cfg.InstanceID != "" || cfg.InstanceName != ""
+	autoStage := (cfg.BlueprintFile != "" && !cfg.IsDefaultBlueprintFile) || hasInstanceIdentifier || cfg.Headless
 
 	sessionState := stageBlueprintSelect
 	if autoStage {
 		sessionState = stageView
 	}
-	if preflight != nil {
+	if cfg.Preflight != nil {
 		sessionState = stagePreflight
 	}
 
-	fp, err := sharedui.BlueprintLocalFilePicker(bluelinkStyles)
+	fp, err := sharedui.BlueprintLocalFilePicker(cfg.Styles)
 	if err != nil {
 		return nil, err
 	}
 
 	selectBlueprint, err := sharedui.NewSelectBlueprint(
-		blueprintFile,
+		cfg.BlueprintFile,
 		autoStage,
 		"stage",
-		bluelinkStyles,
+		cfg.Styles,
 		&fp,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	stage := NewStageModel(
-		deployEngine,
-		logger,
-		instanceID,
-		instanceName,
-		destroy,
-		skipDriftCheck,
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		jsonMode,
-	)
+	stage := NewStageModel(StageModelConfig{
+		DeployEngine:   cfg.DeployEngine,
+		Logger:         cfg.Logger,
+		InstanceID:     cfg.InstanceID,
+		InstanceName:   cfg.InstanceName,
+		Destroy:        cfg.Destroy,
+		SkipDriftCheck: cfg.SkipDriftCheck,
+		Styles:         cfg.Styles,
+		IsHeadless:     cfg.Headless,
+		HeadlessWriter: cfg.HeadlessWriter,
+		JSONMode:       cfg.JSONMode,
+	})
 
 	// Determine if we need to prompt for stage options
 	// We need options input if:
 	// 1. Not headless mode (interactive)
 	// 2. No instance ID or instance name provided
 	// This allows users to configure instance name, destroy mode, and skip drift check interactively.
-	needsOptionsInput := !headless && instanceID == "" && instanceName == ""
+	needsOptionsInput := !cfg.Headless && cfg.InstanceID == "" && cfg.InstanceName == ""
 
 	var stageOptionsForm *StageOptionsFormModel
 	if needsOptionsInput {
-		stageOptionsForm = NewStageOptionsFormModel(bluelinkStyles, StageOptionsFormConfig{
-			InitialInstanceName:   instanceName,
-			InitialDestroy:        destroy,
-			InitialSkipDriftCheck: skipDriftCheck,
-			Engine:                deployEngine,
+		stageOptionsForm = NewStageOptionsFormModel(cfg.Styles, StageOptionsFormConfig{
+			InitialInstanceName:   cfg.InstanceName,
+			InitialDestroy:        cfg.Destroy,
+			InitialSkipDriftCheck: cfg.SkipDriftCheck,
+			Engine:                cfg.DeployEngine,
 		})
 	}
 
 	return &MainModel{
 		sessionState:      sessionState,
-		blueprintFile:     blueprintFile,
+		blueprintFile:     cfg.BlueprintFile,
 		selectBlueprint:   selectBlueprint,
 		stageOptionsForm:  stageOptionsForm,
 		stage:             stage,
-		preflight:         preflight,
-		styles:            bluelinkStyles,
+		preflight:         cfg.Preflight,
+		styles:            cfg.Styles,
 		needsOptionsInput: needsOptionsInput,
 		autoStage:         autoStage,
 	}, nil

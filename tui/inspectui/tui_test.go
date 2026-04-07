@@ -157,16 +157,16 @@ func finishEvent(status core.InstanceStatus) *types.BlueprintInstanceEvent {
 func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_resources() {
 	instanceState := testInstanceStateWithResources(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -198,16 +198,16 @@ func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_resources() {
 func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_child_blueprints() {
 	instanceState := testInstanceStateWithChild(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -233,16 +233,16 @@ func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_child_blueprin
 func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_links() {
 	instanceState := testInstanceStateWithLink(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -268,16 +268,16 @@ func (s *InspectTUISuite) Test_inspect_completed_deployment_shows_links() {
 func (s *InspectTUISuite) Test_inspect_failed_deployment_shows_error_status() {
 	instanceState := testInstanceState(core.InstanceStatusDeployFailed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -306,16 +306,16 @@ func (s *InspectTUISuite) Test_inspect_in_progress_deployment_streams_events() {
 	instanceState := testInstanceState(core.InstanceStatusDeploying)
 	events := testDeploymentEvents(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -346,16 +346,16 @@ func (s *InspectTUISuite) Test_inspect_in_progress_destroy_streams_events() {
 		finishEvent(core.InstanceStatusDestroyed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -386,16 +386,16 @@ func (s *InspectTUISuite) Test_inspect_in_progress_with_child_streams_events() {
 		finishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -426,16 +426,16 @@ func (s *InspectTUISuite) Test_inspect_in_progress_with_link_streams_events() {
 		finishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -461,16 +461,16 @@ func (s *InspectTUISuite) Test_inspect_in_progress_with_link_streams_events() {
 // --- Error Cases ---
 
 func (s *InspectTUISuite) Test_inspect_instance_not_found_shows_error() {
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspectNotFound(),
-		zap.NewNop(),
-		"non-existent-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspectNotFound(),
+		Logger:         zap.NewNop(),
+		InstanceID:     "non-existent-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -501,16 +501,16 @@ func (s *InspectTUISuite) Test_headless_mode_outputs_instance_state() {
 	headlessOutput := &bytes.Buffer{}
 	instanceState := testInstanceStateWithResources(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -534,16 +534,16 @@ func (s *InspectTUISuite) Test_headless_mode_outputs_streaming_events() {
 	instanceState := testInstanceState(core.InstanceStatusDeploying)
 	events := testDeploymentEvents(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -564,16 +564,16 @@ func (s *InspectTUISuite) Test_headless_mode_outputs_streaming_events() {
 func (s *InspectTUISuite) Test_headless_mode_outputs_error() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspectNotFound(),
-		zap.NewNop(),
-		"non-existent-id",
-		"",
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspectNotFound(),
+		Logger:         zap.NewNop(),
+		InstanceID:     "non-existent-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -600,16 +600,16 @@ func (s *InspectTUISuite) Test_inspect_resource_failure_shows_create_failed_stat
 		finishEvent(core.InstanceStatusDeployFailed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -649,16 +649,16 @@ func (s *InspectTUISuite) Test_inspect_rollback_shows_rolling_back_status() {
 		finishEvent(core.InstanceStatusDeployRollbackComplete),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -694,16 +694,16 @@ func (s *InspectTUISuite) Test_inspect_update_status_shows_updated() {
 		finishEvent(core.InstanceStatusUpdated),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -740,16 +740,16 @@ func (s *InspectTUISuite) Test_inspect_nested_child_events_during_streaming() {
 		finishEvent(core.InstanceStatusDeployed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -780,16 +780,16 @@ func (s *InspectTUISuite) Test_inspect_link_failure_shows_create_failed() {
 		finishEvent(core.InstanceStatusDeployFailed),
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, events),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, events),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -819,16 +819,16 @@ func (s *InspectTUISuite) Test_headless_mode_shows_nested_children() {
 	headlessOutput := &bytes.Buffer{}
 	instanceState := testInstanceStateWithNestedChildren(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -851,16 +851,16 @@ func (s *InspectTUISuite) Test_headless_mode_shows_link_status() {
 	headlessOutput := &bytes.Buffer{}
 	instanceState := testInstanceStateWithLink(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     true,
+		HeadlessWriter: headlessOutput,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -884,16 +884,16 @@ func (s *InspectTUISuite) Test_headless_mode_shows_link_status() {
 func (s *InspectTUISuite) Test_overview_shows_exports_section() {
 	instanceState := testInstanceStateWithExports(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -926,16 +926,16 @@ func (s *InspectTUISuite) Test_overview_shows_exports_section() {
 func (s *InspectTUISuite) Test_overview_shows_timing_section() {
 	instanceState := testInstanceStateWithTiming(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -967,16 +967,16 @@ func (s *InspectTUISuite) Test_overview_shows_timing_section() {
 func (s *InspectTUISuite) Test_overview_shows_instance_info() {
 	instanceState := testInstanceStateWithResources(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1010,16 +1010,16 @@ func (s *InspectTUISuite) Test_overview_shows_instance_info() {
 func (s *InspectTUISuite) Test_overview_toggle_closes_with_o_key() {
 	instanceState := testInstanceStateWithResources(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1054,16 +1054,16 @@ func (s *InspectTUISuite) Test_overview_toggle_closes_with_o_key() {
 func (s *InspectTUISuite) Test_spec_view_shows_resource_specification() {
 	instanceState := testInstanceStateWithResourceSpec(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1096,16 +1096,16 @@ func (s *InspectTUISuite) Test_spec_view_shows_resource_specification() {
 func (s *InspectTUISuite) Test_spec_view_shows_outputs_section() {
 	instanceState := testInstanceStateWithResourceSpec(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1137,16 +1137,16 @@ func (s *InspectTUISuite) Test_spec_view_shows_outputs_section() {
 func (s *InspectTUISuite) Test_spec_view_toggle_closes_with_s_key() {
 	instanceState := testInstanceStateWithResourceSpec(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1181,16 +1181,16 @@ func (s *InspectTUISuite) Test_spec_view_toggle_closes_with_s_key() {
 func (s *InspectTUISuite) Test_exports_view_shows_exports() {
 	instanceState := testInstanceStateWithExports(core.InstanceStatusDeployed)
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+		Logger:         zap.NewNop(),
+		InstanceID:     "test-instance-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1221,16 +1221,16 @@ func (s *InspectTUISuite) Test_exports_view_shows_exports() {
 // --- Error View Tests ---
 
 func (s *InspectTUISuite) Test_error_view_shows_error_and_quit_instruction() {
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspectNotFound(),
-		zap.NewNop(),
-		"non-existent-id",
-		"",
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspectNotFound(),
+		Logger:         zap.NewNop(),
+		InstanceID:     "non-existent-id",
+		InstanceName:   "",
+		Styles:         s.styles,
+		IsHeadless:     false,
+		HeadlessWriter: os.Stdout,
+		JSONMode:       false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),

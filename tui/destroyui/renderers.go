@@ -15,6 +15,12 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
 
+const (
+	labelStatus                   = "Status: "
+	labelDetails                  = "Details: "
+	msgNotAttemptedDestroyFailure = "Not attempted due to destroy failure"
+)
+
 // ChangeSummary holds counts of different change types.
 type ChangeSummary struct {
 	Create   int
@@ -130,16 +136,16 @@ func (r *DestroyDetailsRenderer) renderResourceDetails(item *DestroyItem, width 
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	if res.Skipped {
 		sb.WriteString(s.Warning.Render("Skipped"))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
-		sb.WriteString("Not attempted due to destroy failure")
+		sb.WriteString(s.Muted.Render(labelDetails))
+		sb.WriteString(msgNotAttemptedDestroyFailure)
 	} else {
 		sb.WriteString(shared.RenderResourceStatus(res.Status, s))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
+		sb.WriteString(s.Muted.Render(labelDetails))
 		sb.WriteString(shared.FormatPreciseResourceStatus(res.PreciseStatus))
 	}
 	sb.WriteString("\n")
@@ -177,12 +183,12 @@ func (r *DestroyDetailsRenderer) renderChildDetails(item *DestroyItem, width int
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	if child.Skipped {
 		sb.WriteString(s.Warning.Render("Skipped"))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
-		sb.WriteString("Not attempted due to destroy failure")
+		sb.WriteString(s.Muted.Render(labelDetails))
+		sb.WriteString(msgNotAttemptedDestroyFailure)
 	} else {
 		sb.WriteString(shared.RenderInstanceStatus(child.Status, s))
 	}
@@ -218,12 +224,12 @@ func (r *DestroyDetailsRenderer) renderLinkDetails(item *DestroyItem, width int,
 	}, width, s)
 
 	// Status
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	if link.Skipped {
 		sb.WriteString(s.Warning.Render("Skipped"))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
-		sb.WriteString("Not attempted due to destroy failure")
+		sb.WriteString(s.Muted.Render(labelDetails))
+		sb.WriteString(msgNotAttemptedDestroyFailure)
 		sb.WriteString("\n")
 	} else {
 		sb.WriteString(shared.RenderLinkStatus(link.Status, s))

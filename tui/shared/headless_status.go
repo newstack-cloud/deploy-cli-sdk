@@ -2,6 +2,13 @@ package shared
 
 import "github.com/newstack-cloud/bluelink/libs/blueprint/core"
 
+const (
+	statusUpdateFailed       = "update failed"
+	statusDestroyFailed      = "destroy failed"
+	statusUpdateInterrupted  = "update interrupted"
+	statusDestroyInterrupted = "destroy interrupted"
+)
+
 // Resource status icon mappings for headless output
 var resourceStatusIcons = map[core.ResourceStatus]string{
 	core.ResourceStatusCreating:          "...",
@@ -28,16 +35,16 @@ var resourceStatusText = map[core.ResourceStatus]string{
 	core.ResourceStatusCreateFailed:       "create failed",
 	core.ResourceStatusUpdating:           "updating",
 	core.ResourceStatusUpdated:            "updated",
-	core.ResourceStatusUpdateFailed:       "update failed",
+	core.ResourceStatusUpdateFailed:       statusUpdateFailed,
 	core.ResourceStatusDestroying:         "destroying",
 	core.ResourceStatusDestroyed:          "destroyed",
-	core.ResourceStatusDestroyFailed:      "destroy failed",
+	core.ResourceStatusDestroyFailed:      statusDestroyFailed,
 	core.ResourceStatusRollingBack:        "rolling back",
 	core.ResourceStatusRollbackFailed:     "rollback failed",
 	core.ResourceStatusRollbackComplete:   "rolled back",
 	core.ResourceStatusCreateInterrupted:  "create interrupted",
-	core.ResourceStatusUpdateInterrupted:  "update interrupted",
-	core.ResourceStatusDestroyInterrupted: "destroy interrupted",
+	core.ResourceStatusUpdateInterrupted:  statusUpdateInterrupted,
+	core.ResourceStatusDestroyInterrupted: statusDestroyInterrupted,
 }
 
 // Instance status icon mappings for headless output
@@ -74,10 +81,10 @@ var instanceStatusText = map[core.InstanceStatus]string{
 	core.InstanceStatusDeployFailed:            "deploy failed",
 	core.InstanceStatusUpdating:                "updating",
 	core.InstanceStatusUpdated:                 "updated",
-	core.InstanceStatusUpdateFailed:            "update failed",
+	core.InstanceStatusUpdateFailed:            statusUpdateFailed,
 	core.InstanceStatusDestroying:              "destroying",
 	core.InstanceStatusDestroyed:               "destroyed",
-	core.InstanceStatusDestroyFailed:           "destroy failed",
+	core.InstanceStatusDestroyFailed:           statusDestroyFailed,
 	core.InstanceStatusDeployRollingBack:       "rolling back deploy",
 	core.InstanceStatusDeployRollbackFailed:    "deploy rollback failed",
 	core.InstanceStatusDeployRollbackComplete:  "deploy rolled back",
@@ -88,8 +95,8 @@ var instanceStatusText = map[core.InstanceStatus]string{
 	core.InstanceStatusDestroyRollbackFailed:   "destroy rollback failed",
 	core.InstanceStatusDestroyRollbackComplete: "destroy rolled back",
 	core.InstanceStatusDeployInterrupted:       "deploy interrupted",
-	core.InstanceStatusUpdateInterrupted:       "update interrupted",
-	core.InstanceStatusDestroyInterrupted:      "destroy interrupted",
+	core.InstanceStatusUpdateInterrupted:       statusUpdateInterrupted,
+	core.InstanceStatusDestroyInterrupted:      statusDestroyInterrupted,
 	core.InstanceStatusNotDeployed:             "not deployed",
 }
 
@@ -125,10 +132,10 @@ var linkStatusText = map[core.LinkStatus]string{
 	core.LinkStatusCreateFailed:           "create failed",
 	core.LinkStatusUpdating:               "updating",
 	core.LinkStatusUpdated:                "updated",
-	core.LinkStatusUpdateFailed:           "update failed",
+	core.LinkStatusUpdateFailed:           statusUpdateFailed,
 	core.LinkStatusDestroying:             "destroying",
 	core.LinkStatusDestroyed:              "destroyed",
-	core.LinkStatusDestroyFailed:          "destroy failed",
+	core.LinkStatusDestroyFailed:          statusDestroyFailed,
 	core.LinkStatusCreateRollingBack:      "rolling back create",
 	core.LinkStatusCreateRollbackFailed:   "create rollback failed",
 	core.LinkStatusCreateRollbackComplete: "create rolled back",
@@ -139,8 +146,8 @@ var linkStatusText = map[core.LinkStatus]string{
 	core.LinkStatusDestroyRollbackFailed:  "destroy rollback failed",
 	core.LinkStatusDestroyRollbackComplete: "destroy rolled back",
 	core.LinkStatusCreateInterrupted:      "create interrupted",
-	core.LinkStatusUpdateInterrupted:      "update interrupted",
-	core.LinkStatusDestroyInterrupted:     "destroy interrupted",
+	core.LinkStatusUpdateInterrupted:      statusUpdateInterrupted,
+	core.LinkStatusDestroyInterrupted:     statusDestroyInterrupted,
 }
 
 // ResourceStatusHeadlessIcon returns the icon for a resource status in headless mode.

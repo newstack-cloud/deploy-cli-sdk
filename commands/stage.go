@@ -15,10 +15,126 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/stageui"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/term"
 )
 
 var errStagingFailed = errors.New("staging failed")
+
+type stageFlags struct {
+	blueprintFile          string
+	isDefaultBlueprintFile bool
+	instanceID             string
+	instanceIDIsDefault    bool
+	instanceName           string
+	instanceNameIsDefault  bool
+	destroy                bool
+	skipDriftCheck         bool
+	jsonMode               bool
+}
+
+func readStageFlags(confProvider *config.Provider) stageFlags {
+	blueprintFile, isDefault := confProvider.GetString("stageBlueprintFile")
+	instanceID, instanceIDIsDefault := confProvider.GetString("stageInstanceID")
+	instanceName, instanceNameIsDefault := confProvider.GetString("stageInstanceName")
+	destroy, _ := confProvider.GetBool("stageDestroy")
+	skipDriftCheck, _ := confProvider.GetBool("stageSkipDriftCheck")
+	jsonMode, _ := confProvider.GetBool("stageJson")
+
+	return stageFlags{
+		blueprintFile:          blueprintFile,
+		isDefaultBlueprintFile: isDefault,
+		instanceID:             instanceID,
+		instanceIDIsDefault:    instanceIDIsDefault,
+		instanceName:           instanceName,
+		instanceNameIsDefault:  instanceNameIsDefault,
+		destroy:                destroy,
+		skipDriftCheck:         skipDriftCheck,
+		jsonMode:               jsonMode,
+	}
+}
+
+func validateStageFlags(flags stageFlags) error {
+	if !flags.destroy {
+		return nil
+	}
+	return headless.Validate(
+		headless.OneOf(
+			headless.Flag{
+				Name:      flagInstanceName,
+				Value:     flags.instanceName,
+				IsDefault: flags.instanceNameIsDefault,
+			},
+			headless.Flag{
+				Name:      flagInstanceID,
+				Value:     flags.instanceID,
+				IsDefault: flags.instanceIDIsDefault,
+			},
+		),
+	)
+}
+
+func runStageTUI(
+	cmd *cobra.Command,
+	flags stageFlags,
+	cfg *CLIConfig,
+	confProvider *config.Provider,
+	deployEngine engine.DeployEngine,
+	logger *zap.Logger,
+) error {
+	if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
+		log.Fatal(err)
+	}
+
+	cmd.SilenceUsage = true
+
+	styles := stylespkg.NewStyles(
+		lipgloss.NewRenderer(os.Stdout),
+		cfg.Palette,
+	)
+	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	headlessMode := !inTerminal || flags.jsonMode
+
+	if cfg.PreCommandStep != nil {
+		if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "stage", styles, headlessMode, os.Stdout); err != nil {
+			return err
+		}
+	}
+
+	preflightModel := createPreflight(cfg, confProvider, "stage", styles, headlessMode, flags.jsonMode)
+
+	app, err := stageui.NewStageApp(stageui.StageAppConfig{
+		DeployEngine:           deployEngine,
+		Logger:                 logger,
+		BlueprintFile:          flags.blueprintFile,
+		IsDefaultBlueprintFile: flags.isDefaultBlueprintFile,
+		InstanceID:             flags.instanceID,
+		InstanceName:           flags.instanceName,
+		Destroy:                flags.destroy,
+		SkipDriftCheck:         flags.skipDriftCheck,
+		Styles:                 styles,
+		Headless:               headlessMode,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               flags.jsonMode,
+		Preflight:              preflightModel,
+	})
+	if err != nil {
+		return err
+	}
+
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	if err != nil {
+		return err
+	}
+	finalApp := finalModel.(stageui.MainModel)
+
+	if finalApp.Error != nil {
+		cmd.SilenceErrors = true
+		return errStagingFailed
+	}
+
+	return nil
+}
 
 // SetupStageCommand registers a stage command on the root command,
 // parameterized by CLIConfig for branding and defaults.
@@ -58,108 +174,22 @@ Examples:
 				return err
 			}
 
-			blueprintFile, isDefault := confProvider.GetString("stageBlueprintFile")
-			instanceID, instanceIDIsDefault := confProvider.GetString("stageInstanceID")
-			instanceName, instanceNameIsDefault := confProvider.GetString("stageInstanceName")
-			destroy, _ := confProvider.GetBool("stageDestroy")
-			skipDriftCheck, _ := confProvider.GetBool("stageSkipDriftCheck")
-			jsonMode, _ := confProvider.GetBool("stageJson")
+			flags := readStageFlags(confProvider)
 
-			if jsonMode {
+			if flags.jsonMode {
 				cmd.SilenceUsage = true
 				cmd.SilenceErrors = true
 			}
 
-			if destroy {
-				if err := headless.Validate(
-					headless.OneOf(
-						headless.Flag{
-							Name:      "instance-name",
-							Value:     instanceName,
-							IsDefault: instanceNameIsDefault,
-						},
-						headless.Flag{
-							Name:      "instance-id",
-							Value:     instanceID,
-							IsDefault: instanceIDIsDefault,
-						},
-					),
-				); err != nil {
-					if jsonMode {
-						jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
-						return errStagingFailed
-					}
-					return err
+			if err := validateStageFlags(flags); err != nil {
+				if flags.jsonMode {
+					jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
+					return errStagingFailed
 				}
-			}
-
-			if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
-				log.Fatal(err)
-			}
-
-			cmd.SilenceUsage = true
-
-			styles := stylespkg.NewStyles(
-				lipgloss.NewRenderer(os.Stdout),
-				cfg.Palette,
-			)
-			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-			headlessMode := !inTerminal || jsonMode
-
-			if cfg.PreCommandStep != nil {
-				if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "stage", styles, headlessMode, os.Stdout); err != nil {
-					return err
-				}
-			}
-
-			var preflightModel tea.Model
-			if cfg.PreflightFactory != nil {
-				skipCheck, _ := confProvider.GetBool("skipPluginCheck")
-				if !skipCheck {
-					preflightModel = cfg.PreflightFactory.CreatePreflight(
-						confProvider, "stage", styles, headlessMode, os.Stdout, jsonMode,
-					)
-				}
-			}
-
-			app, err := stageui.NewStageApp(
-				deployEngine,
-				logger,
-				blueprintFile,
-				isDefault,
-				instanceID,
-				instanceName,
-				destroy,
-				skipDriftCheck,
-				styles,
-				headlessMode,
-				os.Stdout,
-				jsonMode,
-				preflightModel,
-			)
-			if err != nil {
 				return err
 			}
 
-			options := []tea.ProgramOption{}
-			if !headlessMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
-			if err != nil {
-				return err
-			}
-			finalApp := finalModel.(stageui.MainModel)
-
-			if finalApp.Error != nil {
-				cmd.SilenceErrors = true
-				return errStagingFailed
-			}
-
-			return nil
+			return runStageTUI(cmd, flags, cfg, confProvider, deployEngine, logger)
 		},
 	}
 
@@ -178,19 +208,19 @@ Examples:
 	confProvider.BindEnvVar("stageBlueprintFile", prefix+"_STAGE_BLUEPRINT_FILE")
 
 	stageCmd.PersistentFlags().String(
-		"instance-id", "",
+		flagInstanceID, "",
 		"The ID of an existing blueprint instance to stage changes for. "+
 			"If not provided and --instance-name is not provided, changes will be staged for a new deployment.",
 	)
-	confProvider.BindPFlag("stageInstanceID", stageCmd.PersistentFlags().Lookup("instance-id"))
+	confProvider.BindPFlag("stageInstanceID", stageCmd.PersistentFlags().Lookup(flagInstanceID))
 	confProvider.BindEnvVar("stageInstanceID", prefix+"_STAGE_INSTANCE_ID")
 
 	stageCmd.PersistentFlags().String(
-		"instance-name", "",
+		flagInstanceName, "",
 		"The user-defined name of an existing blueprint instance to stage changes for. "+
 			"If not provided and --instance-id is not provided, changes will be staged for a new deployment.",
 	)
-	confProvider.BindPFlag("stageInstanceName", stageCmd.PersistentFlags().Lookup("instance-name"))
+	confProvider.BindPFlag("stageInstanceName", stageCmd.PersistentFlags().Lookup(flagInstanceName))
 	confProvider.BindEnvVar("stageInstanceName", prefix+"_STAGE_INSTANCE_NAME")
 
 	stageCmd.PersistentFlags().Bool("destroy", false,

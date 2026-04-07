@@ -16,6 +16,12 @@ import (
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
 )
 
+const (
+	fmtInstanceID   = "Instance ID: %s\n"
+	fmtInstanceName = "Instance Name: %s\n"
+	fmtStatusLine   = "Status: %s\n"
+)
+
 // Headless output methods for DeployModel.
 // These methods handle rendering deployment progress and results in non-interactive mode.
 
@@ -23,9 +29,9 @@ func (m *DeployModel) printHeadlessHeader() {
 	w := m.printer.Writer()
 	w.PrintlnEmpty()
 	w.Println("Starting deployment...")
-	w.Printf("Instance ID: %s\n", m.instanceID)
+	w.Printf(fmtInstanceID, m.instanceID)
 	if m.instanceName != "" {
-		w.Printf("Instance Name: %s\n", m.instanceName)
+		w.Printf(fmtInstanceName, m.instanceName)
 	}
 	w.Printf("Changeset: %s\n", m.changesetID)
 	w.DoubleSeparator(72)
@@ -84,9 +90,9 @@ func (m *DeployModel) printHeadlessSummary() {
 	w.PrintlnEmpty()
 
 	if !m.isDeployRollbackComplete() {
-		w.Printf("Instance ID: %s\n", m.instanceID)
+		w.Printf(fmtInstanceID, m.instanceID)
 		if m.instanceName != "" {
-			w.Printf("Instance Name: %s\n", m.instanceName)
+			w.Printf(fmtInstanceName, m.instanceName)
 		}
 	}
 
@@ -243,7 +249,7 @@ func (m *DeployModel) printResourceBasicInfo(w *headless.PrefixedWriter, res *Re
 		w.Printf("Type: %s\n", resourceType)
 	}
 
-	w.Printf("Status: %s\n", statusText)
+	w.Printf(fmtStatusLine, statusText)
 }
 
 func (m *DeployModel) printResourceTiming(w *headless.PrefixedWriter, res *ResourceDeployItem) {
@@ -326,10 +332,10 @@ func (m *DeployModel) printHeadlessChildDetailsWithPath(child *ChildDeployItem, 
 	w.SingleSeparator(72)
 
 	if child.ChildInstanceID != "" {
-		w.Printf("Instance ID: %s\n", child.ChildInstanceID)
+		w.Printf(fmtInstanceID, child.ChildInstanceID)
 	}
 
-	w.Printf("Status: %s\n", statusText)
+	w.Printf(fmtStatusLine, statusText)
 
 	w.PrintlnEmpty()
 	w.PrintlnEmpty()
@@ -350,7 +356,7 @@ func (m *DeployModel) printHeadlessLinkDetailsWithPath(link *LinkDeployItem, dis
 		w.Printf("Link ID: %s\n", link.LinkID)
 	}
 
-	w.Printf("Status: %s\n", statusText)
+	w.Printf(fmtStatusLine, statusText)
 
 	if link.ResourceAName != "" && link.ResourceBName != "" {
 		w.Printf("Connection: %s -> %s\n", link.ResourceAName, link.ResourceBName)
@@ -621,9 +627,9 @@ func (m *DeployModel) printHeadlessPreRollbackState(data *container.PreRollbackS
 	w.DoubleSeparator(72)
 	w.PrintlnEmpty()
 
-	w.Printf("Instance ID: %s\n", data.InstanceID)
-	w.Printf("Instance Name: %s\n", data.InstanceName)
-	w.Printf("Status: %s\n", data.Status.String())
+	w.Printf(fmtInstanceID, data.InstanceID)
+	w.Printf(fmtInstanceName, data.InstanceName)
+	w.Printf(fmtStatusLine, data.Status.String())
 	w.PrintlnEmpty()
 
 	if len(data.FailureReasons) > 0 {

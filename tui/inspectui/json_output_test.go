@@ -52,16 +52,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_outputs_raw_instance_state(
 		},
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true, // headless
-		jsonOutput,
-		true, // jsonMode
-	)
+	model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+			Logger:         zap.NewNop(),
+			InstanceID:     "test-instance-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -104,16 +104,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_includes_child_blueprints()
 		},
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true,
-		jsonOutput,
-		true,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+			Logger:         zap.NewNop(),
+			InstanceID:     "test-instance-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -151,16 +151,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_includes_links() {
 		},
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true,
-		jsonOutput,
-		true,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+			Logger:         zap.NewNop(),
+			InstanceID:     "test-instance-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -186,16 +186,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_includes_links() {
 func (s *InspectJSONOutputTestSuite) Test_outputJSONError_for_not_found() {
 	jsonOutput := &bytes.Buffer{}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspectNotFound(),
-		zap.NewNop(),
-		"non-existent-id",
-		"",
-		s.styles,
-		true,
-		jsonOutput,
-		true,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspectNotFound(),
+			Logger:         zap.NewNop(),
+			InstanceID:     "non-existent-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -234,16 +234,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_preserves_exports() {
 		},
 	}
 
-	model := *NewInspectModel(
-		testutils.NewTestDeployEngineForInspect(instanceState, nil),
-		zap.NewNop(),
-		"test-instance-id",
-		"",
-		s.styles,
-		true,
-		jsonOutput,
-		true,
-	)
+	model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+			Logger:         zap.NewNop(),
+			InstanceID:     "test-instance-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -290,16 +290,16 @@ func (s *InspectJSONOutputTestSuite) Test_outputJSON_includes_status_variations(
 				Status:       tc.status,
 			}
 
-			model := *NewInspectModel(
-				testutils.NewTestDeployEngineForInspect(instanceState, nil),
-				zap.NewNop(),
-				"test-instance-id",
-				"",
-				s.styles,
-				true,
-				jsonOutput,
-				true,
-			)
+			model := *NewInspectModel(InspectModelConfig{
+			DeployEngine:   testutils.NewTestDeployEngineForInspect(instanceState, nil),
+			Logger:         zap.NewNop(),
+			InstanceID:     "test-instance-id",
+			InstanceName:   "",
+			Styles:         s.styles,
+			IsHeadless:     true,
+			HeadlessWriter: jsonOutput,
+			JSONMode:       true,
+		})
 
 			testModel := teatest.NewTestModel(
 				s.T(),

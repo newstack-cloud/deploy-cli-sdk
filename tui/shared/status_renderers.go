@@ -6,6 +6,11 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/styles"
 )
 
+const (
+	labelUpdateFailed  = "Update Failed"
+	labelDestroyFailed = "Destroy Failed"
+)
+
 // RenderResourceStatus renders a styled resource status string.
 func RenderResourceStatus(status core.ResourceStatus, s *styles.Styles) string {
 	successStyle := lipgloss.NewStyle().Foreground(s.Palette.Success())
@@ -22,13 +27,13 @@ func RenderResourceStatus(status core.ResourceStatus, s *styles.Styles) string {
 	case core.ResourceStatusUpdated:
 		return successStyle.Render("Updated")
 	case core.ResourceStatusUpdateFailed:
-		return s.Error.Render("Update Failed")
+		return s.Error.Render(labelUpdateFailed)
 	case core.ResourceStatusDestroying:
 		return s.Info.Render("Destroying")
 	case core.ResourceStatusDestroyed:
 		return successStyle.Render("Destroyed")
 	case core.ResourceStatusDestroyFailed:
-		return s.Error.Render("Destroy Failed")
+		return s.Error.Render(labelDestroyFailed)
 	case core.ResourceStatusRollingBack:
 		return s.Warning.Render("Rolling Back")
 	case core.ResourceStatusRollbackFailed:
@@ -62,13 +67,13 @@ func RenderInstanceStatus(status core.InstanceStatus, s *styles.Styles) string {
 	case core.InstanceStatusUpdated:
 		return successStyle.Render("Updated")
 	case core.InstanceStatusUpdateFailed:
-		return s.Error.Render("Update Failed")
+		return s.Error.Render(labelUpdateFailed)
 	case core.InstanceStatusDestroying:
 		return s.Info.Render("Destroying")
 	case core.InstanceStatusDestroyed:
 		return successStyle.Render("Destroyed")
 	case core.InstanceStatusDestroyFailed:
-		return s.Error.Render("Destroy Failed")
+		return s.Error.Render(labelDestroyFailed)
 	case core.InstanceStatusDeployRollingBack:
 		return s.Warning.Render("Rolling Back Deploy")
 	case core.InstanceStatusDeployRollbackFailed:
@@ -114,13 +119,13 @@ func RenderLinkStatus(status core.LinkStatus, s *styles.Styles) string {
 	case core.LinkStatusUpdated:
 		return successStyle.Render("Updated")
 	case core.LinkStatusUpdateFailed:
-		return s.Error.Render("Update Failed")
+		return s.Error.Render(labelUpdateFailed)
 	case core.LinkStatusDestroying:
 		return s.Info.Render("Destroying")
 	case core.LinkStatusDestroyed:
 		return successStyle.Render("Destroyed")
 	case core.LinkStatusDestroyFailed:
-		return s.Error.Render("Destroy Failed")
+		return s.Error.Render(labelDestroyFailed)
 	case core.LinkStatusCreateRollingBack:
 		return s.Warning.Render("Rolling Back Create")
 	case core.LinkStatusCreateRollbackFailed:

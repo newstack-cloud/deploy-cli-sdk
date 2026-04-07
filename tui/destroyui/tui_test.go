@@ -194,23 +194,23 @@ func finishEvent(status core.InstanceStatus) *types.BlueprintInstanceEvent {
 // --- Interactive Mode Tests ---
 
 func (s *DestroyTUISuite) Test_successful_destroy_single_resource() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-123",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false, // headless
-		os.Stdout,
-		nil,
-		false, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-123",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -238,23 +238,23 @@ func (s *DestroyTUISuite) Test_successful_destroy_single_resource() {
 }
 
 func (s *DestroyTUISuite) Test_successful_destroy_multiple_resources() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyMultiple),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-multi",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-multi",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -283,23 +283,23 @@ func (s *DestroyTUISuite) Test_successful_destroy_multiple_resources() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_with_child_blueprints() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyWithChild),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-child",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-child",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -324,23 +324,23 @@ func (s *DestroyTUISuite) Test_destroy_with_child_blueprints() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_with_links() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyWithLink),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-link",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-link",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -367,23 +367,23 @@ func (s *DestroyTUISuite) Test_destroy_with_links() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_failure_shows_error() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyFailure),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-fail",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-fail",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -408,23 +408,23 @@ func (s *DestroyTUISuite) Test_destroy_failure_shows_error() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_rollback_sets_final_status() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyRollback),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-rollback",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-rollback",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -450,23 +450,23 @@ func (s *DestroyTUISuite) Test_destroy_rollback_sets_final_status() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_interrupted() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyInterrupted),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyInterrupted),
 		),
-		zap.NewNop(),
-		"test-changeset-interrupted",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-interrupted",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -491,23 +491,23 @@ func (s *DestroyTUISuite) Test_destroy_interrupted() {
 }
 
 func (s *DestroyTUISuite) Test_quit_with_q() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-quit",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-quit",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -528,23 +528,23 @@ func (s *DestroyTUISuite) Test_quit_with_q() {
 func (s *DestroyTUISuite) Test_headless_mode_outputs_progress() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-headless",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-headless",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   headlessOutput,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -564,23 +564,23 @@ func (s *DestroyTUISuite) Test_headless_mode_outputs_progress() {
 func (s *DestroyTUISuite) Test_headless_mode_shows_failure_details() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyFailure),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-fail",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-fail",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   headlessOutput,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -601,23 +601,23 @@ func (s *DestroyTUISuite) Test_headless_mode_shows_failure_details() {
 func (s *DestroyTUISuite) Test_json_mode_outputs_result() {
 	jsonOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-json",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-json",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -640,23 +640,23 @@ func (s *DestroyTUISuite) Test_precreated_items_from_changeset_get_updated() {
 		RemovedResources: []string{"test-resource"},
 	}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-precreated",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		changesetChanges, // Pass changeset changes to pre-create items
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-precreated",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: changesetChanges,
+		JSONMode:         false,
+	})
 
 	// Verify item was pre-created with pending status
 	s.Require().Len(model.Items(), 1)
@@ -693,23 +693,23 @@ func (s *DestroyTUISuite) Test_precreated_items_from_changeset_get_updated() {
 }
 
 func (s *DestroyTUISuite) Test_destroy_force_mode() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-force",
-		"",
-		"test-instance",
-		true, // force mode
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-force",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            true,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -799,23 +799,23 @@ func testPreDestroyInstanceState() *state.InstanceState {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_on_s_key() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-state-view",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-state-view",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Set pre-destroy state before starting
 	model.SetPreDestroyInstanceState(preDestroyState)
@@ -855,23 +855,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_on_s_key() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_resources() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-resources",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-resources",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -907,23 +907,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_resources() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_links() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-links",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-links",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -955,23 +955,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_links() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_exports() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-exports",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-exports",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1005,23 +1005,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_exports() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_child_blueprints() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-children",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-children",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1055,23 +1055,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_child_blueprints() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_closes_on_esc() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-esc",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-esc",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1104,23 +1104,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_closes_on_esc() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_hint_shown_when_state_available() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-hint",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-hint",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1147,23 +1147,23 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_hint_shown_when_state_available
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_quit_with_q() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-quit-state",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-quit-state",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1187,22 +1187,22 @@ func (s *DestroyTUISuite) Test_pre_destroy_state_view_quit_with_q() {
 
 func (s *DestroyTUISuite) Test_s_key_does_nothing_without_pre_destroy_state() {
 	// Use a deploy engine that returns an error when fetching instance state
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithNoInstanceState(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithNoInstanceState(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 		),
-		zap.NewNop(),
-		"test-changeset-no-state",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-no-state",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1231,23 +1231,23 @@ func (s *DestroyTUISuite) Test_s_key_does_nothing_without_pre_destroy_state() {
 func (s *DestroyTUISuite) Test_pre_destroy_state_view_shows_spec_and_outputs_separately() {
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-spec-outputs",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-spec-outputs",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1320,24 +1320,24 @@ func (s *DestroyTUISuite) Test_changeset_changes_fetched_when_destroying_with_ch
 	}
 
 	// Use the new constructor that supports changeset changes being fetched
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeploymentAndChangeset(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeploymentAndChangeset(
 			testDestroyEvents(destroyWithChild),
 			"test-instance-id",
 			preDestroyState,
 			changesetChanges,
 		),
-		zap.NewNop(),
-		"test-changeset-fetch",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil, // No pre-provided changeset changes - should be fetched
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-fetch",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Set pre-destroy state for resource type lookups
 	model.SetPreDestroyInstanceState(preDestroyState)
@@ -1413,24 +1413,24 @@ func (s *DestroyTUISuite) Test_child_blueprint_navigation_available_with_fetched
 		},
 	}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeploymentAndChangeset(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeploymentAndChangeset(
 			testDestroyEvents(destroyWithChild),
 			"test-instance-id",
 			preDestroyState,
 			changesetChanges,
 		),
-		zap.NewNop(),
-		"test-changeset-nav",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil, // Changeset changes will be fetched
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-nav",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1499,19 +1499,19 @@ func createDriftBlockedError() error {
 }
 
 func (s *DestroyTUISuite) Test_drift_detected_during_destroy_shows_drift_view() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createDriftBlockedError()),
-		zap.NewNop(),
-		"test-changeset-drift",
-		"test-instance-id",
-		"test-instance",
-		false, // force = false
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createDriftBlockedError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-drift",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1538,23 +1538,23 @@ func (s *DestroyTUISuite) Test_drift_detected_during_destroy_shows_drift_view() 
 
 func (s *DestroyTUISuite) Test_force_flag_bypasses_drift_check() {
 	// With force=true, even if drift is detected, the operation proceeds
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-force-drift",
-		"test-instance-id",
-		"test-instance",
-		true, // force = true
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-force-drift",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            true,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1583,19 +1583,19 @@ func (s *DestroyTUISuite) Test_force_flag_bypasses_drift_check() {
 func (s *DestroyTUISuite) Test_drift_detected_headless_mode() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createDriftBlockedError()),
-		zap.NewNop(),
-		"test-changeset-drift-headless",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		headlessOutput,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createDriftBlockedError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-drift-headless",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   headlessOutput,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1622,19 +1622,19 @@ func createDeployChangesetError() error {
 }
 
 func (s *DestroyTUISuite) Test_deploy_changeset_error_shows_message() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createDeployChangesetError()),
-		zap.NewNop(),
-		"test-changeset-deploy",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createDeployChangesetError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-deploy",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1661,19 +1661,19 @@ func (s *DestroyTUISuite) Test_deploy_changeset_error_shows_message() {
 func (s *DestroyTUISuite) Test_deploy_changeset_error_headless_mode() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createDeployChangesetError()),
-		zap.NewNop(),
-		"test-changeset-deploy-headless",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createDeployChangesetError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-deploy-headless",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   headlessOutput,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1703,19 +1703,19 @@ func (e *testNetworkError) Error() string {
 }
 
 func (s *DestroyTUISuite) Test_network_error_during_destroy() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createNetworkError()),
-		zap.NewNop(),
-		"test-changeset-network",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createNetworkError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-network",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1742,19 +1742,19 @@ func (s *DestroyTUISuite) Test_network_error_during_destroy() {
 func (s *DestroyTUISuite) Test_network_error_headless_mode() {
 	headlessOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDestroyError(createNetworkError()),
-		zap.NewNop(),
-		"test-changeset-network-headless",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true,
-		headlessOutput,
-		nil,
-		false,
-	)
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDestroyError(createNetworkError()),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-network-headless",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   headlessOutput,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1775,23 +1775,23 @@ func (s *DestroyTUISuite) Test_json_mode_includes_pre_destroy_state() {
 	jsonOutput := &bytes.Buffer{}
 	preDestroyState := testPreDestroyInstanceState()
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-json-predestroy",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-json-predestroy",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	model.SetPreDestroyInstanceState(preDestroyState)
 
@@ -1813,23 +1813,23 @@ func (s *DestroyTUISuite) Test_json_mode_includes_pre_destroy_state() {
 func (s *DestroyTUISuite) Test_json_mode_with_failures() {
 	jsonOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyFailure),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyFailed),
 		),
-		zap.NewNop(),
-		"test-changeset-json-failure",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-json-failure",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1849,23 +1849,23 @@ func (s *DestroyTUISuite) Test_json_mode_with_failures() {
 func (s *DestroyTUISuite) Test_json_mode_with_rollback() {
 	jsonOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyRollback),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyRollbackComplete),
 		),
-		zap.NewNop(),
-		"test-changeset-json-rollback",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-json-rollback",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -1884,23 +1884,23 @@ func (s *DestroyTUISuite) Test_json_mode_with_rollback() {
 func (s *DestroyTUISuite) Test_json_mode_with_interrupted() {
 	jsonOutput := &bytes.Buffer{}
 
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroyInterrupted),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyInterrupted),
 		),
-		zap.NewNop(),
-		"test-changeset-json-interrupted",
-		"test-instance-id",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		jsonOutput,
-		nil,
-		true, // jsonMode
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-json-interrupted",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -2003,23 +2003,23 @@ func (s *DestroyTUISuite) Test_LinkDestroyItem_SetSkipped() {
 // --- SetChangesetChanges Tests ---
 
 func (s *DestroyTUISuite) Test_SetChangesetChanges_nil_changes() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// SetChangesetChanges with nil should not panic or modify model
 	model.SetChangesetChanges(nil)
@@ -2027,23 +2027,23 @@ func (s *DestroyTUISuite) Test_SetChangesetChanges_nil_changes() {
 }
 
 func (s *DestroyTUISuite) Test_SetChangesetChanges_builds_items() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	changesetChanges := &changes.BlueprintChanges{
 		RemovedResources: []string{"resource-1", "resource-2"},
@@ -2058,46 +2058,46 @@ func (s *DestroyTUISuite) Test_SetChangesetChanges_builds_items() {
 // --- View Tests for Edge Cases ---
 
 func (s *DestroyTUISuite) Test_View_returns_empty_in_headless_mode() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		true, // headless
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	output := model.View()
 	s.Empty(output)
 }
 
 func (s *DestroyTUISuite) Test_View_shows_error_when_set() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Use public Update method with DestroyErrorMsg to set error state
 	updatedModel, _ := model.Update(DestroyErrorMsg{Err: errors.New("test error message")})
@@ -2108,23 +2108,23 @@ func (s *DestroyTUISuite) Test_View_shows_error_when_set() {
 }
 
 func (s *DestroyTUISuite) Test_View_shows_deploy_changeset_error() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Use public Update method with DeployChangesetErrorMsg to set the error state
 	updatedModel, _ := model.Update(DeployChangesetErrorMsg{})
@@ -2136,23 +2136,23 @@ func (s *DestroyTUISuite) Test_View_shows_deploy_changeset_error() {
 // --- Init Tests ---
 
 func (s *DestroyTUISuite) Test_Init_returns_spinner_tick() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	cmd := model.Init()
 	s.Require().NotNil(cmd)
@@ -2165,23 +2165,23 @@ func (s *DestroyTUISuite) Test_Init_returns_spinner_tick() {
 // --- Update Method Key Handler Tests ---
 
 func (s *DestroyTUISuite) Test_Update_o_key_opens_overview_when_finished() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-o-key",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-o-key",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// First, finish the destroy via DestroyEventMsg with finish event
 	finishEvt := DestroyEventMsg(*finishEvent(core.InstanceStatusDestroyed))
@@ -2198,23 +2198,23 @@ func (s *DestroyTUISuite) Test_Update_o_key_opens_overview_when_finished() {
 }
 
 func (s *DestroyTUISuite) Test_Update_o_key_toggles_overview() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-toggle",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-toggle",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Set window size first so viewport has dimensions
 	updatedModel, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -2243,23 +2243,23 @@ func (s *DestroyTUISuite) Test_Update_o_key_toggles_overview() {
 }
 
 func (s *DestroyTUISuite) Test_Update_esc_closes_overview() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-esc",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-esc",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Finish the destroy
 	finishEvt := DestroyEventMsg(*finishEvent(core.InstanceStatusDestroyed))
@@ -2280,23 +2280,23 @@ func (s *DestroyTUISuite) Test_Update_esc_closes_overview() {
 }
 
 func (s *DestroyTUISuite) Test_Update_q_quits_from_overview() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-quit",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-quit",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Finish the destroy
 	finishEvt := DestroyEventMsg(*finishEvent(core.InstanceStatusDestroyed))
@@ -2316,23 +2316,23 @@ func (s *DestroyTUISuite) Test_Update_q_quits_from_overview() {
 }
 
 func (s *DestroyTUISuite) Test_Update_error_state_quits_on_q() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-error-quit",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-error-quit",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	// Set error state via DestroyErrorMsg
 	updatedModel, _ := model.Update(DestroyErrorMsg{Err: errors.New("test error")})
@@ -2347,23 +2347,23 @@ func (s *DestroyTUISuite) Test_Update_error_state_quits_on_q() {
 }
 
 func (s *DestroyTUISuite) Test_Update_window_size_updates_dimensions() {
-	model := NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			testDestroyEvents(destroySuccess),
 			"test-instance-id",
 			testInstanceState(core.InstanceStatusDestroyed),
 		),
-		zap.NewNop(),
-		"test-changeset-window",
-		"",
-		"test-instance",
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-window",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 
 	updatedModel, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	resultModel := updatedModel.(DestroyModel)

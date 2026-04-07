@@ -14,7 +14,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const pageSize = 20
+const (
+	pageSize   = 20
+	keyCtrlC   = "ctrl+c"
+)
 
 type listSessionState int
 
@@ -142,7 +145,7 @@ func (m MainModel) handlePageLoadError(msg PageLoadErrorMsg) (tea.Model, tea.Cmd
 
 func (m MainModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.sessionState == listLoading {
-		if msg.String() == "ctrl+c" || msg.String() == "q" {
+		if msg.String() == keyCtrlC || msg.String() == "q" {
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -150,7 +153,7 @@ func (m MainModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
-	case "ctrl+c", "q":
+	case keyCtrlC, "q":
 		m.quitting = true
 		return m, tea.Quit
 
@@ -218,7 +221,7 @@ func (m MainModel) handleSearchInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sessionState = listViewing
 			return m, nil
 
-		case "ctrl+c":
+		case keyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -235,16 +238,16 @@ func (m MainModel) navigateToInspect(inst state.InstanceSummary) (tea.Model, tea
 	m.SelectedInstanceName = inst.InstanceName
 
 	// Create the inspect model
-	m.inspect = inspectui.NewInspectModel(
-		m.engine,
-		m.logger,
-		inst.InstanceID,
-		inst.InstanceName,
-		m.styles,
-		false, // headless
-		m.headlessWriter,
-		false, // jsonMode
-	)
+	m.inspect = inspectui.NewInspectModel(inspectui.InspectModelConfig{
+		DeployEngine:   m.engine,
+		Logger:         m.logger,
+		InstanceID:     inst.InstanceID,
+		InstanceName:   inst.InstanceName,
+		Styles:         m.styles,
+		IsHeadless:     false,
+		HeadlessWriter: m.headlessWriter,
+		JSONMode:       false,
+	})
 
 	// Mark as embedded in list so footer shows "esc back to list"
 	m.inspect.SetEmbeddedInList(true)
@@ -270,7 +273,7 @@ func (m MainModel) handleInspectModeUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle key events for quit/back navigation
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "ctrl+c":
+		case keyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":

@@ -17,6 +17,19 @@ type cleanupStep struct {
 	cleanupType manage.CleanupType
 }
 
+// CleanupModelConfig holds configuration for creating a new cleanup model.
+type CleanupModelConfig struct {
+	Engine                       engine.DeployEngine
+	Logger                       *zap.Logger
+	CleanupValidations           bool
+	CleanupChangesets            bool
+	CleanupReconciliationResults bool
+	CleanupEvents                bool
+	Headless                     bool
+	HeadlessWriter               io.Writer
+	Styles                       *stylespkg.Styles
+}
+
 // CleanupModel handles the execution of cleanup operations.
 type CleanupModel struct {
 	engine  engine.DeployEngine
@@ -39,38 +52,28 @@ type CleanupModel struct {
 }
 
 // NewCleanupModel creates a new cleanup execution model.
-func NewCleanupModel(
-	engine engine.DeployEngine,
-	logger *zap.Logger,
-	cleanupValidations bool,
-	cleanupChangesets bool,
-	cleanupReconciliationResults bool,
-	cleanupEvents bool,
-	headless bool,
-	headlessWriter io.Writer,
-	styles *stylespkg.Styles,
-) *CleanupModel {
+func NewCleanupModel(cfg CleanupModelConfig) *CleanupModel {
 	var steps []cleanupStep
 
-	if cleanupValidations {
+	if cfg.CleanupValidations {
 		steps = append(steps, cleanupStep{
 			name:        "validations",
 			cleanupType: manage.CleanupTypeValidations,
 		})
 	}
-	if cleanupChangesets {
+	if cfg.CleanupChangesets {
 		steps = append(steps, cleanupStep{
 			name:        "changesets",
 			cleanupType: manage.CleanupTypeChangesets,
 		})
 	}
-	if cleanupReconciliationResults {
+	if cfg.CleanupReconciliationResults {
 		steps = append(steps, cleanupStep{
 			name:        "reconciliation results",
 			cleanupType: manage.CleanupTypeReconciliationResults,
 		})
 	}
-	if cleanupEvents {
+	if cfg.CleanupEvents {
 		steps = append(steps, cleanupStep{
 			name:        "events",
 			cleanupType: manage.CleanupTypeEvents,
@@ -79,17 +82,17 @@ func NewCleanupModel(
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = styles.Spinner
+	s.Style = cfg.Styles.Spinner
 
 	return &CleanupModel{
-		engine:              engine,
-		logger:              logger,
+		engine:              cfg.Engine,
+		logger:              cfg.Logger,
 		spinner:             s,
-		styles:              styles,
+		styles:              cfg.Styles,
 		steps:               steps,
 		currentStepIndex:    0,
-		headless:            headless,
-		headlessWriter:      headlessWriter,
+		headless:            cfg.Headless,
+		headlessWriter:      cfg.HeadlessWriter,
 		headlessLastPrinted: -1, // Start at -1 so step 0 gets printed
 	}
 }

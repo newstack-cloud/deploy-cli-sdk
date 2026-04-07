@@ -35,23 +35,23 @@ func (s *ViewTestSuite) SetupTest() {
 
 // createTestModel creates a model using the public constructor.
 func (s *ViewTestSuite) createTestModel() DestroyModel {
-	return NewDestroyModel(
-		testutils.NewTestDeployEngineWithDeployment(
+	return NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(
 			[]*types.BlueprintInstanceEvent{},
 			"inst-123",
 			&state.InstanceState{InstanceID: "inst-123"},
 		),
-		zap.NewNop(),
-		"cs-456",
-		"inst-123",
-		"test-instance",
-		false,
-		s.testStyles,
-		false,
-		os.Stdout,
-		nil,
-		false,
-	)
+		Logger:           zap.NewNop(),
+		ChangesetID:      "cs-456",
+		InstanceID:       "inst-123",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.testStyles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
 }
 
 // createTestModelWithWindowSize creates a model and sets the window size.

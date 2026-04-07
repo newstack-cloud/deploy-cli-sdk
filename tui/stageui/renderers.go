@@ -17,6 +17,8 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
 
+const labelAction = "Action: "
+
 // StageDetailsRenderer implements splitpane.DetailsRenderer for stage UI.
 type StageDetailsRenderer struct {
 	// MaxExpandDepth is used to determine when to show the drill-down hint
@@ -89,7 +91,7 @@ func (r *StageDetailsRenderer) renderResourceMetadata(sb *strings.Builder, item 
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(s.Muted.Render("Action: "))
+	sb.WriteString(s.Muted.Render(labelAction))
 	sb.WriteString(renderActionBadge(item.Action, s))
 	sb.WriteString("\n")
 
@@ -500,7 +502,7 @@ func (r *StageDetailsRenderer) renderChildDetails(item *StageItem, width int, s 
 	sb.WriteString("Changes computed")
 	sb.WriteString("\n")
 
-	sb.WriteString(s.Muted.Render("Action: "))
+	sb.WriteString(s.Muted.Render(labelAction))
 	sb.WriteString(renderActionBadge(item.Action, s))
 	sb.WriteString("\n")
 
@@ -536,20 +538,14 @@ func (r *StageDetailsRenderer) renderChildDetails(item *StageItem, width int, s 
 }
 
 func (r *StageDetailsRenderer) renderChildChangesSummary(childChanges *changes.BlueprintChanges, s *styles.Styles) string {
-	sb := strings.Builder{}
-
-	successStyle := lipgloss.NewStyle().Foreground(s.Palette.Success())
-
 	newCount := len(childChanges.NewResources)
 	updateCount := len(childChanges.ResourceChanges)
 	removeCount := len(childChanges.RemovedResources)
 
-	// Child blueprints
 	newChildren := len(childChanges.NewChildren)
 	childUpdates := len(childChanges.ChildChanges)
 	removedChildren := len(childChanges.RemovedChildren)
 
-	// Only render summary if there's something to show
 	hasResourceChanges := newCount > 0 || updateCount > 0 || removeCount > 0
 	hasChildChanges := newChildren > 0 || childUpdates > 0 || removedChildren > 0
 
@@ -557,9 +553,19 @@ func (r *StageDetailsRenderer) renderChildChangesSummary(childChanges *changes.B
 		return ""
 	}
 
+	sb := strings.Builder{}
+	successStyle := lipgloss.NewStyle().Foreground(s.Palette.Success())
+
 	sb.WriteString(s.Category.Render("Summary:"))
 	sb.WriteString("\n")
 
+	r.renderResourceChangeCounts(&sb, newCount, updateCount, removeCount, successStyle, s)
+	r.renderChildChangeCounts(&sb, newChildren, childUpdates, removedChildren, hasResourceChanges, successStyle, s)
+
+	return sb.String()
+}
+
+func (r *StageDetailsRenderer) renderResourceChangeCounts(sb *strings.Builder, newCount, updateCount, removeCount int, successStyle lipgloss.Style, s *styles.Styles) {
 	if newCount > 0 {
 		sb.WriteString(successStyle.Render(fmt.Sprintf("  %d %s to be created", newCount, sdkstrings.Pluralize(newCount, "resource", "resources"))))
 		sb.WriteString("\n")
@@ -572,26 +578,28 @@ func (r *StageDetailsRenderer) renderChildChangesSummary(childChanges *changes.B
 		sb.WriteString(s.Error.Render(fmt.Sprintf("  %d %s to be removed", removeCount, sdkstrings.Pluralize(removeCount, "resource", "resources"))))
 		sb.WriteString("\n")
 	}
+}
 
-	if hasChildChanges {
-		if hasResourceChanges {
-			sb.WriteString("\n")
-		}
-		if newChildren > 0 {
-			sb.WriteString(successStyle.Render(fmt.Sprintf("  %d child %s to be created", newChildren, sdkstrings.Pluralize(newChildren, "blueprint", "blueprints"))))
-			sb.WriteString("\n")
-		}
-		if childUpdates > 0 {
-			sb.WriteString(s.Warning.Render(fmt.Sprintf("  %d child %s to be updated", childUpdates, sdkstrings.Pluralize(childUpdates, "blueprint", "blueprints"))))
-			sb.WriteString("\n")
-		}
-		if removedChildren > 0 {
-			sb.WriteString(s.Error.Render(fmt.Sprintf("  %d child %s to be removed", removedChildren, sdkstrings.Pluralize(removedChildren, "blueprint", "blueprints"))))
-			sb.WriteString("\n")
-		}
+func (r *StageDetailsRenderer) renderChildChangeCounts(sb *strings.Builder, newChildren, childUpdates, removedChildren int, hasResourceChanges bool, successStyle lipgloss.Style, s *styles.Styles) {
+	if newChildren == 0 && childUpdates == 0 && removedChildren == 0 {
+		return
 	}
 
-	return sb.String()
+	if hasResourceChanges {
+		sb.WriteString("\n")
+	}
+	if newChildren > 0 {
+		sb.WriteString(successStyle.Render(fmt.Sprintf("  %d child %s to be created", newChildren, sdkstrings.Pluralize(newChildren, "blueprint", "blueprints"))))
+		sb.WriteString("\n")
+	}
+	if childUpdates > 0 {
+		sb.WriteString(s.Warning.Render(fmt.Sprintf("  %d child %s to be updated", childUpdates, sdkstrings.Pluralize(childUpdates, "blueprint", "blueprints"))))
+		sb.WriteString("\n")
+	}
+	if removedChildren > 0 {
+		sb.WriteString(s.Error.Render(fmt.Sprintf("  %d child %s to be removed", removedChildren, sdkstrings.Pluralize(removedChildren, "blueprint", "blueprints"))))
+		sb.WriteString("\n")
+	}
 }
 
 func (r *StageDetailsRenderer) renderLinkDetails(item *StageItem, width int, s *styles.Styles) string {
@@ -608,7 +616,7 @@ func (r *StageDetailsRenderer) renderLinkDetails(item *StageItem, width int, s *
 	sb.WriteString("Changes computed")
 	sb.WriteString("\n")
 
-	sb.WriteString(s.Muted.Render("Action: "))
+	sb.WriteString(s.Muted.Render(labelAction))
 	sb.WriteString(renderActionBadge(item.Action, s))
 	sb.WriteString("\n")
 

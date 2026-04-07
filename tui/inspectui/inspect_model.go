@@ -22,6 +22,18 @@ import (
 
 var errStreamClosedUnexpectedly = errors.New("event stream closed unexpectedly")
 
+// InspectModelConfig holds configuration for creating a new inspect model.
+type InspectModelConfig struct {
+	DeployEngine   engine.DeployEngine
+	Logger         *zap.Logger
+	InstanceID     string
+	InstanceName   string
+	Styles         *stylespkg.Styles
+	IsHeadless     bool
+	HeadlessWriter io.Writer
+	JSONMode       bool
+}
+
 // InspectModel is the model for the inspect view.
 type InspectModel struct {
 	splitPane       splitpane.Model
@@ -513,20 +525,11 @@ func (m *InspectModel) processEvent(event *InspectEventMsg) {
 }
 
 // NewInspectModel creates a new inspect model.
-func NewInspectModel(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	instanceID string,
-	instanceName string,
-	styles *stylespkg.Styles,
-	isHeadless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-) *InspectModel {
-	detailsRenderer, sectionGrouper, footerRenderer := createInspectRenderers(instanceID, instanceName)
-	splitPaneConfig := createInspectSplitPaneConfig(styles, detailsRenderer, sectionGrouper, footerRenderer)
+func NewInspectModel(cfg InspectModelConfig) *InspectModel {
+	detailsRenderer, sectionGrouper, footerRenderer := createInspectRenderers(cfg.InstanceID, cfg.InstanceName)
+	splitPaneConfig := createInspectSplitPaneConfig(cfg.Styles, detailsRenderer, sectionGrouper, footerRenderer)
 
-	printer := createInspectHeadlessPrinter(isHeadless, headlessWriter)
+	printer := createInspectHeadlessPrinter(cfg.IsHeadless, cfg.HeadlessWriter)
 
 	resourcesByName := make(map[string]*deployui.ResourceDeployItem)
 	childrenByName := make(map[string]*deployui.ChildDeployItem)
@@ -537,22 +540,22 @@ func NewInspectModel(
 		detailsRenderer:         detailsRenderer,
 		sectionGrouper:          sectionGrouper,
 		footerRenderer:          footerRenderer,
-		engine:                  deployEngine,
-		logger:                  logger,
-		instanceID:              instanceID,
-		instanceName:            instanceName,
-		styles:                  styles,
-		headlessMode:            isHeadless,
-		headlessWriter:          headlessWriter,
+		engine:                  cfg.DeployEngine,
+		logger:                  cfg.Logger,
+		instanceID:              cfg.InstanceID,
+		instanceName:            cfg.InstanceName,
+		styles:                  cfg.Styles,
+		headlessMode:            cfg.IsHeadless,
+		headlessWriter:          cfg.HeadlessWriter,
 		printer:                 printer,
-		jsonMode:                jsonMode,
-		spinner:                 createInspectSpinner(styles),
+		jsonMode:                cfg.JSONMode,
+		spinner:                 createInspectSpinner(cfg.Styles),
 		eventStream:             make(chan types.BlueprintInstanceEvent),
 		errStream:               make(chan error),
 		resourcesByName:         resourcesByName,
 		childrenByName:          childrenByName,
 		linksByName:             linksByName,
-		pathBuilder:             shared.NewPathBuilder(instanceID),
+		pathBuilder:             shared.NewPathBuilder(cfg.InstanceID),
 		childNameToInstancePath: make(map[string]string),
 	}
 

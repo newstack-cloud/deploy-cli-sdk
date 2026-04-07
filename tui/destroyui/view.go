@@ -280,47 +280,49 @@ func (m DestroyModel) renderResourceStates(sb *strings.Builder, instanceState *s
 	for _, name := range resourceNames {
 		resourceID := instanceState.ResourceIDs[name]
 		resourceState := instanceState.Resources[resourceID]
+		m.renderSingleResourceState(sb, name, resourceID, resourceState, indent, valueWidth)
+	}
+}
 
-		sb.WriteString(indent)
-		sb.WriteString(m.styles.Muted.Render("• "))
-		sb.WriteString(name)
-		if resourceState != nil && resourceState.Type != "" {
-			sb.WriteString(m.styles.Muted.Render(" ("))
-			sb.WriteString(m.styles.Muted.Render(resourceState.Type))
-			sb.WriteString(m.styles.Muted.Render(")"))
-		}
-		sb.WriteString("\n")
+func (m DestroyModel) renderSingleResourceState(sb *strings.Builder, name, resourceID string, resourceState *state.ResourceState, indent string, valueWidth int) {
+	sb.WriteString(indent)
+	sb.WriteString(m.styles.Muted.Render("• "))
+	sb.WriteString(name)
+	if resourceState != nil && resourceState.Type != "" {
+		sb.WriteString(m.styles.Muted.Render(" ("))
+		sb.WriteString(m.styles.Muted.Render(resourceState.Type))
+		sb.WriteString(m.styles.Muted.Render(")"))
+	}
+	sb.WriteString("\n")
 
-		// Show resource ID
+	sb.WriteString(indent + "  ")
+	sb.WriteString(m.styles.Muted.Render("ID: "))
+	sb.WriteString(m.styles.Muted.Render(resourceID))
+	sb.WriteString("\n")
+
+	if resourceState == nil || resourceState.SpecData == nil {
+		return
+	}
+
+	computedFieldsSet := make(map[string]bool)
+	for _, field := range resourceState.ComputedFields {
+		computedFieldsSet[field] = true
+	}
+
+	specFields := filterSpecFields(resourceState.SpecData, computedFieldsSet, false)
+	if len(specFields) > 0 {
 		sb.WriteString(indent + "  ")
-		sb.WriteString(m.styles.Muted.Render("ID: "))
-		sb.WriteString(m.styles.Muted.Render(resourceID))
+		sb.WriteString(m.styles.Muted.Render("Spec:"))
 		sb.WriteString("\n")
+		m.renderFieldsWithWrapping(sb, specFields, indent+"    ", valueWidth)
+	}
 
-		if resourceState != nil && resourceState.SpecData != nil {
-			computedFieldsSet := make(map[string]bool)
-			for _, field := range resourceState.ComputedFields {
-				computedFieldsSet[field] = true
-			}
-
-			// Show spec (non-computed fields)
-			specFields := filterSpecFields(resourceState.SpecData, computedFieldsSet, false)
-			if len(specFields) > 0 {
-				sb.WriteString(indent + "  ")
-				sb.WriteString(m.styles.Muted.Render("Spec:"))
-				sb.WriteString("\n")
-				m.renderFieldsWithWrapping(sb, specFields, indent+"    ", valueWidth)
-			}
-
-			// Show outputs (computed fields)
-			outputFields := filterSpecFields(resourceState.SpecData, computedFieldsSet, true)
-			if len(outputFields) > 0 {
-				sb.WriteString(indent + "  ")
-				sb.WriteString(m.styles.Muted.Render("Outputs:"))
-				sb.WriteString("\n")
-				m.renderFieldsWithWrapping(sb, outputFields, indent+"    ", valueWidth)
-			}
-		}
+	outputFields := filterSpecFields(resourceState.SpecData, computedFieldsSet, true)
+	if len(outputFields) > 0 {
+		sb.WriteString(indent + "  ")
+		sb.WriteString(m.styles.Muted.Render("Outputs:"))
+		sb.WriteString("\n")
+		m.renderFieldsWithWrapping(sb, outputFields, indent+"    ", valueWidth)
 	}
 }
 
@@ -428,40 +430,49 @@ func (m DestroyModel) renderExports(sb *strings.Builder, exports map[string]*sta
 		sb.WriteString(indent)
 		sb.WriteString(m.styles.Muted.Render("• "))
 		sb.WriteString(name)
+		m.renderExportValue(sb, export, indent, valueWidth, prettyOpts)
+	}
+}
 
-		if export != nil && export.Value != nil {
-			valueStr := headless.FormatMappingNodeWithOptions(export.Value, prettyOpts)
-			if valueStr != "" && valueStr != "null" {
-				sb.WriteString(m.styles.Muted.Render(": "))
-				// Handle multi-line values (pretty-printed JSON)
-				if strings.Contains(valueStr, "\n") {
-					sb.WriteString("\n")
-					lines := strings.SplitSeq(valueStr, "\n")
-					for line := range lines {
-						sb.WriteString(indent + "  ")
-						sb.WriteString(m.styles.Muted.Render(line))
-						sb.WriteString("\n")
-					}
-				} else {
-					// Wrap long single-line values
-					wrappedLines := outpututil.WrapTextLines(valueStr, valueWidth)
-					if len(wrappedLines) == 1 {
-						sb.WriteString(m.styles.Muted.Render(wrappedLines[0]))
-						sb.WriteString("\n")
-					} else {
-						sb.WriteString("\n")
-						for _, line := range wrappedLines {
-							sb.WriteString(indent + "  ")
-							sb.WriteString(m.styles.Muted.Render(line))
-							sb.WriteString("\n")
-						}
-					}
-				}
-			} else {
-				sb.WriteString("\n")
-			}
-		} else {
+func (m DestroyModel) renderExportValue(sb *strings.Builder, export *state.ExportState, indent string, valueWidth int, prettyOpts headless.FormatMappingNodeOptions) {
+	if export == nil || export.Value == nil {
+		sb.WriteString("\n")
+		return
+	}
+
+	valueStr := headless.FormatMappingNodeWithOptions(export.Value, prettyOpts)
+	if valueStr == "" || valueStr == "null" {
+		sb.WriteString("\n")
+		return
+	}
+
+	sb.WriteString(m.styles.Muted.Render(": "))
+	m.renderWrappedValue(sb, valueStr, indent, valueWidth)
+}
+
+func (m DestroyModel) renderWrappedValue(sb *strings.Builder, valueStr string, indent string, valueWidth int) {
+	if strings.Contains(valueStr, "\n") {
+		sb.WriteString("\n")
+		lines := strings.SplitSeq(valueStr, "\n")
+		for line := range lines {
+			sb.WriteString(indent + "  ")
+			sb.WriteString(m.styles.Muted.Render(line))
 			sb.WriteString("\n")
 		}
+		return
+	}
+
+	wrappedLines := outpututil.WrapTextLines(valueStr, valueWidth)
+	if len(wrappedLines) == 1 {
+		sb.WriteString(m.styles.Muted.Render(wrappedLines[0]))
+		sb.WriteString("\n")
+		return
+	}
+
+	sb.WriteString("\n")
+	for _, line := range wrappedLines {
+		sb.WriteString(indent + "  ")
+		sb.WriteString(m.styles.Muted.Render(line))
+		sb.WriteString("\n")
 	}
 }

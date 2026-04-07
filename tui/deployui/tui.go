@@ -1,7 +1,6 @@
 package deployui
 
 import (
-	"errors"
 	"io"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -111,301 +110,38 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.sessionState == deployPreflight {
 		return m.updatePreflight(msg)
 	}
-	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
 	case sharedui.SelectBlueprintMsg:
-		m.blueprintFile = sharedui.ToFullBlueprintPath(msg.BlueprintFile, msg.Source)
-		m.blueprintSource = msg.Source
-
-		// If we're already in deployExecute state, just pass the message to the deploy model
-		// without recalculating state. This prevents switching back to staging when
-		// SelectBlueprintMsg is received during deployment.
-		if m.sessionState == deployExecute {
-			var cmd tea.Cmd
-			m.deploy, cmd = m.deploy.Update(msg)
-			cmds = append(cmds, cmd)
-			return m, tea.Batch(cmds...)
-		}
-
-		// Determine next state based on whether we need instance name
-		nextState := m.determineNextStateAfterBlueprintSelect()
-		m.sessionState = nextState
-
-		switch nextState {
-		case deployStaging:
-			// Resolve instance identifiers before starting staging
-			// This handles the case where instance name is provided but instance doesn't exist yet
-			m.staging.SetBlueprintFile(m.blueprintFile)
-			m.staging.SetBlueprintSource(m.blueprintSource)
-			cmds = append(cmds, resolveInstanceIdentifiersCmd(m))
-		case deployExecute:
-			// Pass the message to the deploy model to start deployment
-			var cmd tea.Cmd
-			m.deploy, cmd = m.deploy.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-
+		return m.handleSelectBlueprintMsg(msg)
 	case DeployConfigMsg:
-		// Update config from form
-		m.instanceName = msg.InstanceName
-		m.instanceID = msg.InstanceID
-		m.changesetID = msg.ChangesetID
-		m.stageFirst = msg.StageFirst
-		m.autoApprove = msg.AutoApprove
-		m.autoRollback = msg.AutoRollback
-
-		// Update deploy model with the new values
-		deployModel, ok := m.deploy.(DeployModel)
-		if ok {
-			deployModel.instanceName = msg.InstanceName
-			deployModel.instanceID = msg.InstanceID
-			deployModel.changesetID = msg.ChangesetID
-			deployModel.autoRollback = msg.AutoRollback
-			deployModel.footerRenderer.InstanceName = msg.InstanceName
-			deployModel.footerRenderer.InstanceID = msg.InstanceID
-			deployModel.footerRenderer.ChangesetID = msg.ChangesetID
-			m.deploy = deployModel
-		}
-
-		// Update staging model
-		if m.staging != nil {
-			m.staging.SetInstanceName(msg.InstanceName)
-			m.staging.SetInstanceID(msg.InstanceID)
-		}
-
-		// Determine next state - staging if stageFirst is set, otherwise deploy
-		if msg.StageFirst {
-			m.sessionState = deployStaging
-			m.staging.SetBlueprintFile(m.blueprintFile)
-			m.staging.SetBlueprintSource(m.blueprintSource)
-			// Start the staging spinner animation
-			cmds = append(cmds, m.staging.Init())
-			// Resolve instance identifiers before starting staging
-			// This handles the case where instance name is provided but instance doesn't exist yet
-			cmds = append(cmds, resolveInstanceIdentifiersCmd(m))
-		} else {
-			m.sessionState = deployExecute
-			// Trigger deployment start with the provided changeset ID
-			cmds = append(cmds, func() tea.Msg {
-				return sharedui.SelectBlueprintMsg{
-					BlueprintFile: m.blueprintFile,
-					Source:        m.blueprintSource,
-				}
-			})
-		}
-
+		return m.handleDeployConfigMsg(msg)
 	case InstanceResolvedMsg:
-		// Instance identifiers have been resolved - set them on staging model and start staging
-		m.staging.SetInstanceID(msg.InstanceID)
-		m.staging.SetInstanceName(msg.InstanceName)
-		cmds = append(cmds, m.staging.StartStaging())
-
+		return m.handleInstanceResolvedMsg(msg)
 	case stageui.StageCompleteMsg:
-		// Guard: If we're already in deployExecute, ignore this message.
-		// This can happen if a stale StageCompleteMsg arrives after deployment has started.
-		if m.sessionState == deployExecute {
-			return m, tea.Batch(cmds...)
-		}
-		return m.handleStageComplete(msg, cmds)
-
+		return m.handleStageCompleteMsg(msg)
 	case ConfirmDeployMsg:
-		if msg.Confirmed {
-			m.sessionState = deployExecute
-			cmds = append(cmds, m.triggerDeploymentWithChangeset(m.changesetID, nil))
-		} else {
-			// User cancelled
-			m.quitting = true
-			return m, tea.Quit
-		}
-
+		return m.handleConfirmDeployMsg(msg)
 	case StartDeployMsg:
-		// Forward StartDeployMsg to the deploy model to initiate deployment
-		var cmd tea.Cmd
-		m.deploy, cmd = m.deploy.Update(msg)
-		cmds = append(cmds, cmd)
-
+		return m.handleStartDeployMsg(msg)
 	case sharedui.ClearSelectedBlueprintMsg:
-		// Guard: Don't reset state if we're in deployStaging or deployExecute.
-		// This prevents unexpected state resets during active operations.
-		if m.sessionState == deployStaging || m.sessionState == deployExecute {
-			return m, tea.Batch(cmds...)
-		}
-		m.sessionState = deployBlueprintSelect
-		m.blueprintFile = ""
-		m.blueprintSource = ""
-
+		return m.handleClearSelectedBlueprintMsg()
 	case tea.WindowSizeMsg:
-		var bpCmd tea.Cmd
-		m.selectBlueprint, bpCmd = m.selectBlueprint.Update(msg)
-		var configFormCmd tea.Cmd
-		var configFormModel tea.Model
-		configFormModel, configFormCmd = m.deployConfigForm.Update(msg)
-		if cfm, ok := configFormModel.(DeployConfigFormModel); ok {
-			m.deployConfigForm = &cfm
-		}
-		var deployCmd tea.Cmd
-		m.deploy, deployCmd = m.deploy.Update(msg)
-		cmds = append(cmds, bpCmd, configFormCmd, deployCmd)
-		if m.staging != nil {
-			var stagingModel tea.Model
-			var stagingCmd tea.Cmd
-			stagingModel, stagingCmd = m.staging.Update(msg)
-			if sm, ok := stagingModel.(stageui.StageModel); ok {
-				m.staging = &sm
-			}
-			cmds = append(cmds, stagingCmd)
-		}
-
+		return m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "y", "Y":
-			// Handle confirmation when staging is finished (deploy flow)
-			if m.sessionState == deployStaging && m.staging != nil && m.staging.IsFinished() && !m.autoApprove {
-				return m, func() tea.Msg {
-					return ConfirmDeployMsg{Confirmed: true}
-				}
-			}
-		case "n", "N":
-			// Handle rejection when staging is finished (deploy flow)
-			if m.sessionState == deployStaging && m.staging != nil && m.staging.IsFinished() && !m.autoApprove {
-				return m, func() tea.Msg {
-					return ConfirmDeployMsg{Confirmed: false}
-				}
-			}
-		case "q":
-			// Only quit if we're in the deploy view and deployment is finished
-			if m.sessionState == deployExecute {
-				deployModel, ok := m.deploy.(DeployModel)
-				if ok && deployModel.finished {
-					m.quitting = true
-					return m, tea.Quit
-				}
-			}
-			// Allow quit during staging error
-			if m.sessionState == deployStaging && m.staging != nil && m.staging.GetError() != nil {
-				m.quitting = true
-				return m, tea.Quit
-			}
+		newModel, cmd, handled := m.handleKeyMsg(msg)
+		if handled {
+			return newModel, cmd
 		}
-
 	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.deploy, cmd = m.deploy.Update(msg)
-		cmds = append(cmds, cmd)
-		if m.staging != nil && m.sessionState == deployStaging {
-			var stagingModel tea.Model
-			var stagingCmd tea.Cmd
-			stagingModel, stagingCmd = m.staging.Update(msg)
-			if sm, ok := stagingModel.(stageui.StageModel); ok {
-				m.staging = &sm
-			}
-			cmds = append(cmds, stagingCmd)
-		}
-
+		return m.handleSpinnerTickMsg(msg)
 	case stageui.StageStartedMsg, stageui.StageEventMsg, stageui.StageErrorMsg:
-		// Route staging-specific messages to staging model.
-		if m.staging != nil {
-			var stagingModel tea.Model
-			var stagingCmd tea.Cmd
-			stagingModel, stagingCmd = m.staging.Update(msg)
-			if sm, ok := stagingModel.(stageui.StageModel); ok {
-				m.staging = &sm
-			}
-			cmds = append(cmds, stagingCmd)
-			if m.staging.GetError() != nil {
-				m.Error = m.staging.GetError()
-			}
-		}
-
+		return m.handleStagingEventMsg(msg)
 	case driftui.DriftDetectedMsg, driftui.ReconciliationCompleteMsg, driftui.ReconciliationErrorMsg:
-		// Route drift messages based on current session state.
-		// During deployment (deployExecute), drift is handled by the deploy model.
-		// During staging (deployStaging), drift is handled by the staging model.
-		if m.sessionState == deployExecute {
-			var cmd tea.Cmd
-			m.deploy, cmd = m.deploy.Update(msg)
-			cmds = append(cmds, cmd)
-		} else if m.staging != nil {
-			var stagingModel tea.Model
-			var stagingCmd tea.Cmd
-			stagingModel, stagingCmd = m.staging.Update(msg)
-			if sm, ok := stagingModel.(stageui.StageModel); ok {
-				m.staging = &sm
-			}
-			cmds = append(cmds, stagingCmd)
-			if m.staging.GetError() != nil {
-				m.Error = m.staging.GetError()
-			}
-		}
+		return m.handleDriftMsg(msg)
 	}
 
-	switch m.sessionState {
-	case deployBlueprintSelect:
-		newSelectBlueprint, newCmd := m.selectBlueprint.Update(msg)
-		selectBlueprintModel, ok := newSelectBlueprint.(sharedui.SelectBlueprintModel)
-		if !ok {
-			panic("failed to perform assertion on select blueprint model in deploy")
-		}
-		m.selectBlueprint = selectBlueprintModel
-		cmds = append(cmds, newCmd)
-
-	case deployStaging:
-		// Route non-staging-specific messages (like KeyMsg, MouseMsg) to staging model.
-		// Staging-specific messages, drift messages, and spinner ticks are already handled
-		// in the type switch above, so skip them here to avoid duplicate processing.
-		switch msg.(type) {
-		case stageui.StageStartedMsg, stageui.StageEventMsg, stageui.StageErrorMsg, stageui.StageCompleteMsg,
-			driftui.DriftDetectedMsg, driftui.ReconciliationCompleteMsg, driftui.ReconciliationErrorMsg,
-			spinner.TickMsg:
-			// Already handled above
-		default:
-			if m.staging != nil {
-				var stagingModel tea.Model
-				var stagingCmd tea.Cmd
-				stagingModel, stagingCmd = m.staging.Update(msg)
-				if sm, ok := stagingModel.(stageui.StageModel); ok {
-					m.staging = &sm
-				}
-				cmds = append(cmds, stagingCmd)
-			}
-		}
-
-	case deployConfigInput:
-		var configFormModel tea.Model
-		var configFormCmd tea.Cmd
-		configFormModel, configFormCmd = m.deployConfigForm.Update(msg)
-		if cfm, ok := configFormModel.(DeployConfigFormModel); ok {
-			m.deployConfigForm = &cfm
-		}
-		cmds = append(cmds, configFormCmd)
-
-	case deployExecute:
-		// Skip drift messages since they're already handled in the type switch above.
-		switch msg.(type) {
-		case driftui.DriftDetectedMsg, driftui.ReconciliationCompleteMsg, driftui.ReconciliationErrorMsg:
-			// Already handled above
-		default:
-			newDeploy, newCmd := m.deploy.Update(msg)
-			deployModel, ok := newDeploy.(DeployModel)
-			if !ok {
-				panic("failed to perform assertion on deploy model")
-			}
-			m.deploy = deployModel
-			cmds = append(cmds, newCmd)
-			if deployModel.err != nil {
-				m.Error = deployModel.err
-			} else if deployModel.finished && IsFailedStatus(deployModel.finalStatus) {
-				// Deployment completed with a failed status - set error for non-zero exit code
-				m.Error = errors.New("deployment failed with status: " + deployModel.finalStatus.String())
-			}
-		}
-	}
-
-	return m, tea.Batch(cmds...)
+	return m.handleSessionStateRouting(msg)
 }
 
 func (m *MainModel) handleStageComplete(
@@ -578,44 +314,47 @@ func (m MainModel) View() string {
 	}
 }
 
+// DeployAppConfig holds the configuration for creating a new deploy application.
+type DeployAppConfig struct {
+	DeployEngine           engine.DeployEngine
+	Logger                 *zap.Logger
+	ChangesetID            string
+	InstanceID             string
+	InstanceName           string
+	BlueprintFile          string
+	IsDefaultBlueprintFile bool
+	AutoRollback           bool
+	Force                  bool
+	StageFirst             bool
+	AutoApprove            bool
+	AutoApproveCodeOnly    bool
+	SkipPrompts            bool
+	Styles                 *stylespkg.Styles
+	Headless               bool
+	HeadlessWriter         io.Writer
+	JSONMode               bool
+	Preflight              tea.Model
+}
+
 // NewDeployApp creates a new deploy application with the given configuration.
-func NewDeployApp(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	changesetID string,
-	instanceID string,
-	instanceName string,
-	blueprintFile string,
-	isDefaultBlueprintFile bool,
-	autoRollback bool,
-	force bool,
-	stageFirst bool,
-	autoApprove bool,
-	autoApproveCodeOnly bool,
-	skipPrompts bool,
-	bluelinkStyles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-	preflight tea.Model,
-) (*MainModel, error) {
+func NewDeployApp(cfg DeployAppConfig) (*MainModel, error) {
 	sessionState := deployBlueprintSelect
 	// In headless mode or with --skip-prompts, use the default blueprint file if no explicit file is provided.
 	// Also auto-start if blueprint file is explicitly provided.
-	autoDeploy := (blueprintFile != "" && !isDefaultBlueprintFile) || headless || skipPrompts
+	autoDeploy := (cfg.BlueprintFile != "" && !cfg.IsDefaultBlueprintFile) || cfg.Headless || cfg.SkipPrompts
 
 	if autoDeploy {
 		// Check if all required values are provided for skipping prompts
-		instanceIdentified := instanceID != "" || instanceName != ""
-		hasDeployPath := stageFirst || changesetID != ""
-		canSkipForm := skipPrompts && instanceIdentified && hasDeployPath
+		instanceIdentified := cfg.InstanceID != "" || cfg.InstanceName != ""
+		hasDeployPath := cfg.StageFirst || cfg.ChangesetID != ""
+		canSkipForm := cfg.SkipPrompts && instanceIdentified && hasDeployPath
 
 		// Flag validation for headless mode is now done at the command level
 		// using headless.Validate() in deploy.go
 
-		if headless || canSkipForm {
+		if cfg.Headless || canSkipForm {
 			// Skip config form - go straight to staging or deploy
-			if stageFirst {
+			if cfg.StageFirst {
 				sessionState = deployStaging
 			} else {
 				sessionState = deployExecute
@@ -626,16 +365,16 @@ func NewDeployApp(
 		}
 	}
 
-	fp, err := sharedui.BlueprintLocalFilePicker(bluelinkStyles)
+	fp, err := sharedui.BlueprintLocalFilePicker(cfg.Styles)
 	if err != nil {
 		return nil, err
 	}
 
 	selectBlueprint, err := sharedui.NewSelectBlueprint(
-		blueprintFile,
+		cfg.BlueprintFile,
 		autoDeploy,
 		"deploy",
-		bluelinkStyles,
+		cfg.Styles,
 		&fp,
 	)
 	if err != nil {
@@ -644,55 +383,55 @@ func NewDeployApp(
 
 	deployConfigForm := NewDeployConfigFormModel(
 		DeployConfigFormInitialValues{
-			InstanceName: instanceName,
-			InstanceID:   instanceID,
-			ChangesetID:  changesetID,
-			StageFirst:   stageFirst,
-			AutoApprove:  autoApprove,
-			AutoRollback: autoRollback,
+			InstanceName: cfg.InstanceName,
+			InstanceID:   cfg.InstanceID,
+			ChangesetID:  cfg.ChangesetID,
+			StageFirst:   cfg.StageFirst,
+			AutoApprove:  cfg.AutoApprove,
+			AutoRollback: cfg.AutoRollback,
 		},
-		bluelinkStyles,
+		cfg.Styles,
 	)
 
 	// Create staging model for --stage flow (reusing stageui.StageModel)
-	stagingModel := stageui.NewStageModel(
-		deployEngine,
-		logger,
-		instanceID,
-		instanceName,
-		false, // destroy - not applicable for deploy staging
-		force, // skipDriftCheck - use force flag to skip drift detection during staging
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		jsonMode,
-	)
+	stagingModel := stageui.NewStageModel(stageui.StageModelConfig{
+		DeployEngine:   cfg.DeployEngine,
+		Logger:         cfg.Logger,
+		InstanceID:     cfg.InstanceID,
+		InstanceName:   cfg.InstanceName,
+		Destroy:        false,     // not applicable for deploy staging
+		SkipDriftCheck: cfg.Force, // use force flag to skip drift detection during staging
+		Styles:         cfg.Styles,
+		IsHeadless:     cfg.Headless,
+		HeadlessWriter: cfg.HeadlessWriter,
+		JSONMode:       cfg.JSONMode,
+	})
 	staging := &stagingModel
 	// Pre-populate blueprint info if available
-	staging.SetBlueprintFile(blueprintFile)
+	staging.SetBlueprintFile(cfg.BlueprintFile)
 	// Mark as deploy flow mode so staging doesn't print apply hint or quit
 	staging.SetDeployFlowMode(true)
 
-	blueprintSource := shared.BlueprintSourceFromPath(blueprintFile)
-	deploy := NewDeployModel(
-		deployEngine,
-		logger,
-		changesetID,
-		instanceID,
-		instanceName,
-		blueprintFile,
-		blueprintSource,
-		autoRollback,
-		force,
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		nil, // changesetChanges - will be set when staging completes
-		jsonMode,
-	)
+	blueprintSource := shared.BlueprintSourceFromPath(cfg.BlueprintFile)
+	deploy := NewDeployModel(DeployModelConfig{
+		DeployEngine:     cfg.DeployEngine,
+		Logger:           cfg.Logger,
+		ChangesetID:      cfg.ChangesetID,
+		InstanceID:       cfg.InstanceID,
+		InstanceName:     cfg.InstanceName,
+		BlueprintFile:    cfg.BlueprintFile,
+		BlueprintSource:  blueprintSource,
+		AutoRollback:     cfg.AutoRollback,
+		Force:            cfg.Force,
+		Styles:           cfg.Styles,
+		IsHeadless:       cfg.Headless,
+		HeadlessWriter:   cfg.HeadlessWriter,
+		ChangesetChanges: nil, // will be set when staging completes
+		JSONMode:         cfg.JSONMode,
+	})
 
 	postPreflightState := sessionState
-	if preflight != nil {
+	if cfg.Preflight != nil {
 		sessionState = deployPreflight
 	}
 
@@ -702,25 +441,25 @@ func NewDeployApp(
 		deployConfigForm:    deployConfigForm,
 		staging:             staging,
 		deploy:              deploy,
-		preflight:           preflight,
+		preflight:           cfg.Preflight,
 		postPreflightState:  postPreflightState,
-		changesetID:         changesetID,
-		instanceID:          instanceID,
-		instanceName:        instanceName,
-		blueprintFile:       blueprintFile,
+		changesetID:         cfg.ChangesetID,
+		instanceID:          cfg.InstanceID,
+		instanceName:        cfg.InstanceName,
+		blueprintFile:       cfg.BlueprintFile,
 		blueprintSource:     blueprintSource,
-		isDefaultBlueprint:  isDefaultBlueprintFile,
-		autoRollback:        autoRollback,
-		force:               force,
-		stageFirst:          stageFirst,
-		autoApprove:         autoApprove,
-		autoApproveCodeOnly: autoApproveCodeOnly,
-		skipPrompts:         skipPrompts,
-		headless:            headless,
-		jsonMode:            jsonMode,
-		engine:              deployEngine,
-		logger:              logger,
-		styles:              bluelinkStyles,
+		isDefaultBlueprint:  cfg.IsDefaultBlueprintFile,
+		autoRollback:        cfg.AutoRollback,
+		force:               cfg.Force,
+		stageFirst:          cfg.StageFirst,
+		autoApprove:         cfg.AutoApprove,
+		autoApproveCodeOnly: cfg.AutoApproveCodeOnly,
+		skipPrompts:         cfg.SkipPrompts,
+		headless:            cfg.Headless,
+		jsonMode:            cfg.JSONMode,
+		engine:              cfg.DeployEngine,
+		logger:              cfg.Logger,
+		styles:              cfg.Styles,
 	}, nil
 }
 

@@ -18,6 +18,41 @@ import (
 
 var errCleanupFailed = errors.New("cleanup failed")
 
+type cleanupFlags struct {
+	validations           bool
+	changesets            bool
+	reconciliationResults bool
+	events                bool
+}
+
+func readCleanupFlags(confProvider *config.Provider) cleanupFlags {
+	validations, _ := confProvider.GetBool("cleanupValidations")
+	changesets, _ := confProvider.GetBool("cleanupChangesets")
+	reconciliationResults, _ := confProvider.GetBool("cleanupReconciliationResults")
+	events, _ := confProvider.GetBool("cleanupEvents")
+
+	return cleanupFlags{
+		validations:           validations,
+		changesets:            changesets,
+		reconciliationResults: reconciliationResults,
+		events:                events,
+	}
+}
+
+func (f cleanupFlags) noFlagsProvided() bool {
+	return !f.validations && !f.changesets && !f.reconciliationResults && !f.events
+}
+
+func (f cleanupFlags) resolveForHeadless(headlessMode bool) cleanupFlags {
+	if f.noFlagsProvided() && headlessMode {
+		f.validations = true
+		f.changesets = true
+		f.reconciliationResults = true
+		f.events = true
+	}
+	return f
+}
+
 // SetupCleanupCommand registers a cleanup command on the root command,
 // parameterized by CLIConfig for branding and defaults.
 func SetupCleanupCommand(rootCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
@@ -53,23 +88,10 @@ Examples:
 				return err
 			}
 
-			cleanupValidations, _ := confProvider.GetBool("cleanupValidations")
-			cleanupChangesets, _ := confProvider.GetBool("cleanupChangesets")
-			cleanupReconciliationResults, _ := confProvider.GetBool("cleanupReconciliationResults")
-			cleanupEvents, _ := confProvider.GetBool("cleanupEvents")
-
-			noFlagsProvided := !cleanupValidations && !cleanupChangesets &&
-				!cleanupReconciliationResults && !cleanupEvents
-
 			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 			headlessMode := !inTerminal
 
-			if noFlagsProvided && headlessMode {
-				cleanupValidations = true
-				cleanupChangesets = true
-				cleanupReconciliationResults = true
-				cleanupEvents = true
-			}
+			flags := readCleanupFlags(confProvider).resolveForHeadless(headlessMode)
 
 			if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
 				log.Fatal(err)
@@ -82,32 +104,23 @@ Examples:
 				cfg.Palette,
 			)
 
-			showOptionsForm := noFlagsProvided && !headlessMode
-
-			app, err := cleanupui.NewCleanupApp(
-				deployEngine,
-				logger,
-				cleanupValidations,
-				cleanupChangesets,
-				cleanupReconciliationResults,
-				cleanupEvents,
-				showOptionsForm,
-				styles,
-				headlessMode,
-				os.Stdout,
-			)
+			app, err := cleanupui.NewCleanupApp(cleanupui.CleanupAppConfig{
+				Engine:                       deployEngine,
+				Logger:                       logger,
+				CleanupValidations:           flags.validations,
+				CleanupChangesets:            flags.changesets,
+				CleanupReconciliationResults: flags.reconciliationResults,
+				CleanupEvents:                flags.events,
+				ShowOptionsForm:              flags.noFlagsProvided() && !headlessMode,
+				Styles:                       styles,
+				Headless:                     headlessMode,
+				HeadlessWriter:               os.Stdout,
+			})
 			if err != nil {
 				return err
 			}
 
-			options := []tea.ProgramOption{}
-			if !headlessMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
+			finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
 			if err != nil {
 				return err
 			}

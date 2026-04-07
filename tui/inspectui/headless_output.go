@@ -11,6 +11,8 @@ import (
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
 )
 
+const fmtIndentedValue = "%s  %s\n"
+
 func (m *InspectModel) printHeadlessInstanceState() {
 	if m.printer == nil {
 		return
@@ -26,13 +28,19 @@ func (m *InspectModel) printHeadlessInstanceState() {
 		return
 	}
 
-	// Basic info
 	w.Printf("Instance ID: %s\n", m.instanceState.InstanceID)
 	w.Printf("Instance Name: %s\n", m.instanceState.InstanceName)
 	w.Printf("Status: %s\n", shared.InstanceStatusHeadlessText(m.instanceState.Status))
 	w.PrintlnEmpty()
 
-	// Resources (with spec and outputs)
+	m.printHeadlessStateSections()
+	m.printHeadlessDurations()
+	m.printHeadlessStateSummary()
+}
+
+func (m *InspectModel) printHeadlessStateSections() {
+	w := m.printer.Writer()
+
 	if len(m.instanceState.Resources) > 0 {
 		w.Printf("Resources (%d):\n", len(m.instanceState.Resources))
 		w.SingleSeparator(72)
@@ -40,7 +48,6 @@ func (m *InspectModel) printHeadlessInstanceState() {
 		w.PrintlnEmpty()
 	}
 
-	// Child Blueprints (with nested resources)
 	if len(m.instanceState.ChildBlueprints) > 0 {
 		w.Printf("Child Blueprints (%d):\n", len(m.instanceState.ChildBlueprints))
 		w.SingleSeparator(72)
@@ -48,7 +55,6 @@ func (m *InspectModel) printHeadlessInstanceState() {
 		w.PrintlnEmpty()
 	}
 
-	// Links
 	if len(m.instanceState.Links) > 0 {
 		w.Printf("Links (%d):\n", len(m.instanceState.Links))
 		w.SingleSeparator(72)
@@ -58,7 +64,6 @@ func (m *InspectModel) printHeadlessInstanceState() {
 		w.PrintlnEmpty()
 	}
 
-	// Exports
 	if len(m.instanceState.Exports) > 0 {
 		w.Println("Exports:")
 		w.SingleSeparator(72)
@@ -68,19 +73,25 @@ func (m *InspectModel) printHeadlessInstanceState() {
 		}
 		w.PrintlnEmpty()
 	}
+}
 
-	// Durations
-	if m.instanceState.Durations != nil {
-		durations := m.instanceState.Durations
-		if durations.PrepareDuration != nil && *durations.PrepareDuration > 0 {
-			w.Printf("Prepare Duration: %s\n", outpututil.FormatDuration(*durations.PrepareDuration))
-		}
-		if durations.TotalDuration != nil && *durations.TotalDuration > 0 {
-			w.Printf("Total Duration: %s\n", outpututil.FormatDuration(*durations.TotalDuration))
-		}
+func (m *InspectModel) printHeadlessDurations() {
+	if m.instanceState.Durations == nil {
+		return
 	}
 
-	// Summary
+	w := m.printer.Writer()
+	durations := m.instanceState.Durations
+	if durations.PrepareDuration != nil && *durations.PrepareDuration > 0 {
+		w.Printf("Prepare Duration: %s\n", outpututil.FormatDuration(*durations.PrepareDuration))
+	}
+	if durations.TotalDuration != nil && *durations.TotalDuration > 0 {
+		w.Printf("Total Duration: %s\n", outpututil.FormatDuration(*durations.TotalDuration))
+	}
+}
+
+func (m *InspectModel) printHeadlessStateSummary() {
+	w := m.printer.Writer()
 	w.DoubleSeparator(72)
 	resourceCount := len(m.instanceState.Resources)
 	childCount := len(m.instanceState.ChildBlueprints)
@@ -108,7 +119,7 @@ func (m *InspectModel) printHeadlessResourcesWithDetails(resources map[string]*s
 
 func (m *InspectModel) printHeadlessResourceWithDetails(resourceState *state.ResourceState, indent string) {
 	w := m.printer.Writer()
-	w.Printf("%s  %s\n", indent, resourceState.Name)
+	w.Printf(fmtIndentedValue, indent, resourceState.Name)
 	w.Printf("%s    ID: %s\n", indent, resourceState.ResourceID)
 	w.Printf("%s    Type: %s\n", indent, resourceState.Type)
 	w.Printf("%s    Status: %s\n", indent, resourceState.Status.String())
@@ -141,7 +152,7 @@ func (m *InspectModel) printHeadlessSpecField(field outpututil.OutputField, inde
 	if strings.ContainsRune(field.Value, '\n') {
 		w.Printf("%s%s:\n", indent, field.Name)
 		for _, line := range strings.Split(field.Value, "\n") {
-			w.Printf("%s  %s\n", indent, line)
+			w.Printf(fmtIndentedValue, indent, line)
 		}
 	} else {
 		w.Printf("%s%s: %s\n", indent, field.Name, field.Value)
@@ -160,7 +171,7 @@ func (m *InspectModel) printHeadlessChildBlueprintsRecursive(children map[string
 
 	for _, name := range childNames {
 		childState := children[name]
-		w.Printf("%s  %s\n", indent, name)
+		w.Printf(fmtIndentedValue, indent, name)
 		w.Printf("%s    Instance ID: %s\n", indent, childState.InstanceID)
 		w.Printf("%s    Status: %s\n", indent, childState.Status.String())
 

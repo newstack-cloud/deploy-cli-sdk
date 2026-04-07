@@ -48,26 +48,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_stage_first_flow() {
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",    // changesetID (none, will stage first)
-		"",    // instanceID
-		"",    // instanceName (will be entered via form)
-		"",    // blueprintFile (will be selected via message)
-		true,  // isDefaultBlueprintFile
-		false, // autoRollback
-		false, // force
-		true,  // stageFirst (default in form)
-		false, // autoApprove
-		false, // autoApproveCodeOnly
-		false, // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -133,26 +133,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_existing_changeset_flo
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",    // changesetID (will be entered via form)
-		"",    // instanceID
-		"",    // instanceName (will be entered via form)
-		"",    // blueprintFile
-		true,  // isDefaultBlueprintFile
-		false, // autoRollback
-		false, // force
-		false, // stageFirst (will be set to No)
-		false, // autoApprove
-		false, // autoApproveCodeOnly
-		false, // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             false,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -207,26 +207,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_with_instance_id_shows
 		"existing-instance-123",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",                      // changesetID
-		"existing-instance-123", // instanceID provided
-		"my-instance",           // instanceName
-		"",                      // blueprintFile
-		true,                    // isDefaultBlueprintFile
-		false,                   // autoRollback
-		false,                   // force
-		true,                    // stageFirst
-		false,                   // autoApprove
-		false,                   // autoApproveCodeOnly
-		false,                   // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "existing-instance-123",
+		InstanceName:           "my-instance",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -295,26 +295,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_skipped_in_headless_mo
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",                   // changesetID
-		"",                   // instanceID
-		"headless-instance",  // instanceName
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // autoRollback
-		false, // force
-		true,  // stageFirst
-		true,  // autoApprove (required for headless)
-		false, // autoApproveCodeOnly
-		false, // skipPrompts
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "headless-instance",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            true,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// In headless mode with stageFirst, should start in deployStaging state
@@ -330,26 +330,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_skipped_with_skip_prom
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"existing-changeset", // changesetID provided
-		"",                   // instanceID
-		"skip-prompts-inst",  // instanceName provided
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // autoRollback
-		false, // force
-		false, // stageFirst
-		false, // autoApprove
-		false, // autoApproveCodeOnly
-		true,  // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "existing-changeset",
+		InstanceID:             "",
+		InstanceName:           "skip-prompts-inst",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             false,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            true,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// With skipPrompts and all values provided, should skip to deployExecute
@@ -364,26 +364,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_instance_name_validati
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",
-		"",
-		"",
-		"",
-		true,
-		false,
-		false,
-		true,
-		false,
-		false, // autoApproveCodeOnly
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -428,26 +428,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_auto_approve_enabled()
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",
-		"",
-		"",
-		"",
-		true,
-		false,
-		false,
-		true,
-		false, // autoApprove starts as false, will be set via form
-		false, // autoApproveCodeOnly
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -502,26 +502,26 @@ func (s *DeployOptionsFormSuite) Test_deploy_options_form_auto_rollback_enabled(
 		"test-instance-id",
 	)
 
-	model, err := NewDeployApp(
-		mockEngine,
-		zap.NewNop(),
-		"",
-		"",
-		"",
-		"",
-		true,
-		false, // autoRollback starts as false
-		false,
-		true,
-		true,  // autoApprove to skip confirmation
-		false, // autoApproveCodeOnly
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-		nil,
-	)
+	model, err := NewDeployApp(DeployAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		AutoRollback:           false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            true,
+		AutoApproveCodeOnly:    false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(

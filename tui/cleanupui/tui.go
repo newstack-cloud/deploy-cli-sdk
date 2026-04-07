@@ -67,17 +67,17 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cleanupReconciliationResults = msg.ReconciliationResults
 		m.cleanupEvents = msg.Events
 
-		m.cleanup = NewCleanupModel(
-			m.engine,
-			m.logger,
-			m.cleanupValidations,
-			m.cleanupChangesets,
-			m.cleanupReconciliationResults,
-			m.cleanupEvents,
-			m.headless,
-			m.headlessWriter,
-			m.styles,
-		)
+		m.cleanup = NewCleanupModel(CleanupModelConfig{
+			Engine:                       m.engine,
+			Logger:                       m.logger,
+			CleanupValidations:           m.cleanupValidations,
+			CleanupChangesets:            m.cleanupChangesets,
+			CleanupReconciliationResults: m.cleanupReconciliationResults,
+			CleanupEvents:                m.cleanupEvents,
+			Headless:                     m.headless,
+			HeadlessWriter:               m.headlessWriter,
+			Styles:                       m.styles,
+		})
 		m.sessionState = cleanupExecuting
 		return m, m.cleanup.Init()
 
@@ -141,48 +141,51 @@ func (m MainModel) View() string {
 	return ""
 }
 
+// CleanupAppConfig holds configuration for creating a new cleanup application.
+type CleanupAppConfig struct {
+	Engine                       engine.DeployEngine
+	Logger                       *zap.Logger
+	CleanupValidations           bool
+	CleanupChangesets            bool
+	CleanupReconciliationResults bool
+	CleanupEvents                bool
+	ShowOptionsForm              bool
+	Styles                       *stylespkg.Styles
+	Headless                     bool
+	HeadlessWriter               io.Writer
+}
+
 // NewCleanupApp creates a new cleanup TUI application.
-func NewCleanupApp(
-	engine engine.DeployEngine,
-	logger *zap.Logger,
-	cleanupValidations bool,
-	cleanupChangesets bool,
-	cleanupReconciliationResults bool,
-	cleanupEvents bool,
-	showOptionsForm bool,
-	styles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-) (*MainModel, error) {
+func NewCleanupApp(cfg CleanupAppConfig) (*MainModel, error) {
 	model := &MainModel{
-		cleanupValidations:           cleanupValidations,
-		cleanupChangesets:            cleanupChangesets,
-		cleanupReconciliationResults: cleanupReconciliationResults,
-		cleanupEvents:                cleanupEvents,
-		showOptionsForm:              showOptionsForm,
-		styles:                       styles,
-		engine:                       engine,
-		logger:                       logger,
-		headless:                     headless,
-		headlessWriter:               headlessWriter,
+		cleanupValidations:           cfg.CleanupValidations,
+		cleanupChangesets:            cfg.CleanupChangesets,
+		cleanupReconciliationResults: cfg.CleanupReconciliationResults,
+		cleanupEvents:                cfg.CleanupEvents,
+		showOptionsForm:              cfg.ShowOptionsForm,
+		styles:                       cfg.Styles,
+		engine:                       cfg.Engine,
+		logger:                       cfg.Logger,
+		headless:                     cfg.Headless,
+		headlessWriter:               cfg.HeadlessWriter,
 	}
 
-	if showOptionsForm {
+	if cfg.ShowOptionsForm {
 		model.sessionState = cleanupOptionsForm
-		model.optionsForm = NewCleanupOptionsFormModel(styles)
+		model.optionsForm = NewCleanupOptionsFormModel(cfg.Styles)
 	} else {
 		model.sessionState = cleanupExecuting
-		model.cleanup = NewCleanupModel(
-			engine,
-			logger,
-			cleanupValidations,
-			cleanupChangesets,
-			cleanupReconciliationResults,
-			cleanupEvents,
-			headless,
-			headlessWriter,
-			styles,
-		)
+		model.cleanup = NewCleanupModel(CleanupModelConfig{
+			Engine:                       cfg.Engine,
+			Logger:                       cfg.Logger,
+			CleanupValidations:           cfg.CleanupValidations,
+			CleanupChangesets:            cfg.CleanupChangesets,
+			CleanupReconciliationResults: cfg.CleanupReconciliationResults,
+			CleanupEvents:                cfg.CleanupEvents,
+			Headless:                     cfg.Headless,
+			HeadlessWriter:               cfg.HeadlessWriter,
+			Styles:                       cfg.Styles,
+		})
 	}
 
 	return model, nil

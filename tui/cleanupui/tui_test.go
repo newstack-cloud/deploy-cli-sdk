@@ -18,18 +18,18 @@ type CleanupTUISuite struct {
 }
 
 func (s *CleanupTUISuite) Test_successful_cleanup_all_types() {
-	mainModel, err := NewCleanupApp(
-		testutils.NewTestDeployEngine(nil),
-		zap.NewNop(),
-		true,  // cleanupValidations
-		true,  // cleanupChangesets
-		true,  // cleanupReconciliationResults
-		true,  // cleanupEvents
-		false, // showOptionsForm
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false, // headless
-		os.Stdout,
-	)
+	mainModel, err := NewCleanupApp(CleanupAppConfig{
+		Engine:                       testutils.NewTestDeployEngine(nil),
+		Logger:                       zap.NewNop(),
+		CleanupValidations:           true,
+		CleanupChangesets:            true,
+		CleanupReconciliationResults: true,
+		CleanupEvents:                true,
+		ShowOptionsForm:              false,
+		Styles:                       stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:                     false,
+		HeadlessWriter:               os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -59,18 +59,18 @@ func (s *CleanupTUISuite) Test_successful_cleanup_all_types() {
 }
 
 func (s *CleanupTUISuite) Test_successful_cleanup_specific_types() {
-	mainModel, err := NewCleanupApp(
-		testutils.NewTestDeployEngine(nil),
-		zap.NewNop(),
-		true,  // cleanupValidations
-		false, // cleanupChangesets
-		false, // cleanupReconciliationResults
-		true,  // cleanupEvents
-		false, // showOptionsForm
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false, // headless
-		os.Stdout,
-	)
+	mainModel, err := NewCleanupApp(CleanupAppConfig{
+		Engine:                       testutils.NewTestDeployEngine(nil),
+		Logger:                       zap.NewNop(),
+		CleanupValidations:           true,
+		CleanupChangesets:            false,
+		CleanupReconciliationResults: false,
+		CleanupEvents:                true,
+		ShowOptionsForm:              false,
+		Styles:                       stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:                     false,
+		HeadlessWriter:               os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -98,18 +98,18 @@ func (s *CleanupTUISuite) Test_successful_cleanup_specific_types() {
 
 func (s *CleanupTUISuite) Test_successful_cleanup_headless() {
 	headlessOutput := testutils.NewSaveBuffer()
-	mainModel, err := NewCleanupApp(
-		testutils.NewTestDeployEngine(nil),
-		zap.NewNop(),
-		true,  // cleanupValidations
-		true,  // cleanupChangesets
-		true,  // cleanupReconciliationResults
-		true,  // cleanupEvents
-		false, // showOptionsForm
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		true, // headless
-		headlessOutput,
-	)
+	mainModel, err := NewCleanupApp(CleanupAppConfig{
+		Engine:                       testutils.NewTestDeployEngine(nil),
+		Logger:                       zap.NewNop(),
+		CleanupValidations:           true,
+		CleanupChangesets:            true,
+		CleanupReconciliationResults: true,
+		CleanupEvents:                true,
+		ShowOptionsForm:              false,
+		Styles:                       stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:                     true,
+		HeadlessWriter:               headlessOutput,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -132,18 +132,18 @@ func (s *CleanupTUISuite) Test_successful_cleanup_headless() {
 }
 
 func (s *CleanupTUISuite) Test_no_cleanup_types_selected() {
-	mainModel, err := NewCleanupApp(
-		testutils.NewTestDeployEngine(nil),
-		zap.NewNop(),
-		false, // cleanupValidations
-		false, // cleanupChangesets
-		false, // cleanupReconciliationResults
-		false, // cleanupEvents
-		false, // showOptionsForm
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false, // headless
-		os.Stdout,
-	)
+	mainModel, err := NewCleanupApp(CleanupAppConfig{
+		Engine:                       testutils.NewTestDeployEngine(nil),
+		Logger:                       zap.NewNop(),
+		CleanupValidations:           false,
+		CleanupChangesets:            false,
+		CleanupReconciliationResults: false,
+		CleanupEvents:                false,
+		ShowOptionsForm:              false,
+		Styles:                       stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:                     false,
+		HeadlessWriter:               os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -168,18 +168,18 @@ func (s *CleanupTUISuite) Test_no_cleanup_types_selected() {
 }
 
 func (s *CleanupTUISuite) Test_options_form_shown_when_configured() {
-	mainModel, err := NewCleanupApp(
-		testutils.NewTestDeployEngine(nil),
-		zap.NewNop(),
-		false, // cleanupValidations (will be set by form)
-		false, // cleanupChangesets (will be set by form)
-		false, // cleanupReconciliationResults (will be set by form)
-		false, // cleanupEvents (will be set by form)
-		true,  // showOptionsForm
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		false, // headless
-		os.Stdout,
-	)
+	mainModel, err := NewCleanupApp(CleanupAppConfig{
+		Engine:                       testutils.NewTestDeployEngine(nil),
+		Logger:                       zap.NewNop(),
+		CleanupValidations:           false,
+		CleanupChangesets:            false,
+		CleanupReconciliationResults: false,
+		CleanupEvents:                false,
+		ShowOptionsForm:              true,
+		Styles:                       stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:                     false,
+		HeadlessWriter:               os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(

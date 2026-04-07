@@ -476,49 +476,65 @@ func (m *StageModel) printHeadlessExportChanges(bc *changes.BlueprintChanges, pr
 		return
 	}
 
-	w := m.printer.Writer()
-
 	newCount, modifiedCount, removedCount, _ := countExportChanges(bc)
 
 	if newCount > 0 || modifiedCount > 0 || removedCount > 0 {
-		if prefix == "" {
-			m.printer.ItemHeader("exports", "(root)", "")
-		} else {
-			m.printer.ItemHeader("exports", prefix, "")
-		}
-		w.SingleSeparator(72)
-
-		if newCount > 0 {
-			w.Println("New Exports:")
-			for name, change := range bc.NewExports {
-				m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, false)
-			}
-			for name, change := range bc.ExportChanges {
-				if change.PrevValue == nil {
-					m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, false)
-				}
-			}
-		}
-
-		if modifiedCount > 0 {
-			w.Println("Modified Exports:")
-			for name, change := range bc.ExportChanges {
-				if change.PrevValue != nil {
-					m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, true)
-				}
-			}
-		}
-
-		if removedCount > 0 {
-			w.Println("Removed Exports:")
-			for _, name := range bc.RemovedExports {
-				m.printer.FieldRemove(name)
-			}
-		}
-
-		w.PrintlnEmpty()
+		m.printHeadlessExportChangesSection(bc, prefix, newCount, modifiedCount, removedCount)
 	}
 
+	m.printHeadlessChildExportChanges(bc, prefix)
+}
+
+func (m *StageModel) printHeadlessExportChangesSection(bc *changes.BlueprintChanges, prefix string, newCount, modifiedCount, removedCount int) {
+	w := m.printer.Writer()
+
+	if prefix == "" {
+		m.printer.ItemHeader("exports", "(root)", "")
+	} else {
+		m.printer.ItemHeader("exports", prefix, "")
+	}
+	w.SingleSeparator(72)
+
+	if newCount > 0 {
+		m.printHeadlessNewExports(bc)
+	}
+
+	if modifiedCount > 0 {
+		m.printHeadlessModifiedExports(bc)
+	}
+
+	if removedCount > 0 {
+		w.Println("Removed Exports:")
+		for _, name := range bc.RemovedExports {
+			m.printer.FieldRemove(name)
+		}
+	}
+
+	w.PrintlnEmpty()
+}
+
+func (m *StageModel) printHeadlessNewExports(bc *changes.BlueprintChanges) {
+	m.printer.Writer().Println("New Exports:")
+	for name, change := range bc.NewExports {
+		m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, false)
+	}
+	for name, change := range bc.ExportChanges {
+		if change.PrevValue == nil {
+			m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, false)
+		}
+	}
+}
+
+func (m *StageModel) printHeadlessModifiedExports(bc *changes.BlueprintChanges) {
+	m.printer.Writer().Println("Modified Exports:")
+	for name, change := range bc.ExportChanges {
+		if change.PrevValue != nil {
+			m.printHeadlessExportField(name, &change, bc.ResolveOnDeploy, true)
+		}
+	}
+}
+
+func (m *StageModel) printHeadlessChildExportChanges(bc *changes.BlueprintChanges, prefix string) {
 	for childName, newChild := range bc.NewChildren {
 		childPrefix := joinExportPath(prefix, childName)
 		childChanges := &changes.BlueprintChanges{

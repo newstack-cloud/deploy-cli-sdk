@@ -101,59 +101,83 @@ func (m MainModel) Init() tea.Cmd {
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	cmds := []tea.Cmd{}
-
 	switch msg := msg.(type) {
 	case sharedui.SelectFileMsg:
-		m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
-		m.sessionState = stateExportRunning
-		m.exportModel.SetFilePath(m.filePath)
-		cmds = append(cmds, m.exportModel.StartExport())
-
+		return m.handleSelectFileMsg(msg)
 	case sharedui.ClearSelectedFileMsg:
-		m.sessionState = stateExportFileSelect
-		m.filePath = ""
-
+		return m.handleClearSelectedFileMsg()
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.exportModel.SetWidth(msg.Width)
-		if m.selectFile != nil {
-			var fileCmd tea.Cmd
-			m.selectFile, fileCmd = m.selectFile.Update(msg)
-			cmds = append(cmds, fileCmd)
-		}
-
+		return m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "q":
-			if (m.sessionState == stateExportComplete && m.exportModel.IsFinished()) || m.Error != nil {
-				m.quitting = true
-				return m, tea.Quit
-			}
-		}
-
+		return m.handleKeyMsg(msg)
 	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.exportModel, cmd = m.exportModel.Update(msg)
-		cmds = append(cmds, cmd)
-
+		return m.handleSpinnerTickMsg(msg)
 	case ExportCompleteMsg:
-		m.sessionState = stateExportComplete
-		var cmd tea.Cmd
-		m.exportModel, cmd = m.exportModel.Update(msg)
-		cmds = append(cmds, cmd)
-		if msg.Err != nil {
-			m.Error = msg.Err
-		}
-		if m.exportModel.headless {
+		return m.handleExportCompleteMsg(msg)
+	}
+
+	return m.handleSessionStateRouting(msg)
+}
+
+func (m MainModel) handleSelectFileMsg(msg sharedui.SelectFileMsg) (tea.Model, tea.Cmd) {
+	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
+	m.sessionState = stateExportRunning
+	m.exportModel.SetFilePath(m.filePath)
+	return m, m.exportModel.StartExport()
+}
+
+func (m MainModel) handleClearSelectedFileMsg() (tea.Model, tea.Cmd) {
+	m.sessionState = stateExportFileSelect
+	m.filePath = ""
+	return m, nil
+}
+
+func (m MainModel) handleWindowSizeMsg(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
+	m.width = msg.Width
+	m.exportModel.SetWidth(msg.Width)
+	if m.selectFile != nil {
+		var fileCmd tea.Cmd
+		m.selectFile, fileCmd = m.selectFile.Update(msg)
+		return m, fileCmd
+	}
+	return m, nil
+}
+
+func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "q":
+		if (m.sessionState == stateExportComplete && m.exportModel.IsFinished()) || m.Error != nil {
 			m.quitting = true
 			return m, tea.Quit
 		}
 	}
+	return m, nil
+}
 
+func (m MainModel) handleSpinnerTickMsg(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.exportModel, cmd = m.exportModel.Update(msg)
+	return m, cmd
+}
+
+func (m MainModel) handleExportCompleteMsg(msg ExportCompleteMsg) (tea.Model, tea.Cmd) {
+	m.sessionState = stateExportComplete
+	var cmd tea.Cmd
+	m.exportModel, cmd = m.exportModel.Update(msg)
+	if msg.Err != nil {
+		m.Error = msg.Err
+	}
+	if m.exportModel.headless {
+		m.quitting = true
+		return m, tea.Quit
+	}
+	return m, cmd
+}
+
+func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.sessionState {
 	case stateExportFileSelect:
 		if m.selectFile != nil {
@@ -163,18 +187,18 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				panic("failed to perform assertion on select file model in state export")
 			}
 			m.selectFile = selectFileModel
-			cmds = append(cmds, newCmd)
+			return m, newCmd
 		}
 	case stateExportRunning, stateExportComplete:
 		var cmd tea.Cmd
 		m.exportModel, cmd = m.exportModel.Update(msg)
-		cmds = append(cmds, cmd)
 		if m.exportModel.err != nil {
 			m.Error = m.exportModel.err
 		}
+		return m, cmd
 	}
 
-	return m, tea.Batch(cmds...)
+	return m, nil
 }
 
 func (m MainModel) View() string {

@@ -575,42 +575,45 @@ func (m MainModel) View() string {
 	}
 }
 
+// DestroyAppConfig holds the configuration for creating a new destroy application.
+type DestroyAppConfig struct {
+	DestroyEngine          engine.DeployEngine
+	Logger                 *zap.Logger
+	ChangesetID            string
+	InstanceID             string
+	InstanceName           string
+	BlueprintFile          string
+	IsDefaultBlueprintFile bool
+	Force                  bool
+	StageFirst             bool
+	AutoApprove            bool
+	SkipPrompts            bool
+	Styles                 *stylespkg.Styles
+	Headless               bool
+	HeadlessWriter         io.Writer
+	JSONMode               bool
+	Preflight              tea.Model
+}
+
 // NewDestroyApp creates a new destroy application with the given configuration.
-func NewDestroyApp(
-	destroyEngine engine.DeployEngine,
-	logger *zap.Logger,
-	changesetID string,
-	instanceID string,
-	instanceName string,
-	blueprintFile string,
-	isDefaultBlueprintFile bool,
-	force bool,
-	stageFirst bool,
-	autoApprove bool,
-	skipPrompts bool,
-	bluelinkStyles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-	preflight tea.Model,
-) (*MainModel, error) {
+func NewDestroyApp(cfg DestroyAppConfig) (*MainModel, error) {
 	sessionState := determineInitialSessionState(
-		blueprintFile, isDefaultBlueprintFile, instanceID, instanceName,
-		changesetID, stageFirst, skipPrompts, headless,
+		cfg.BlueprintFile, cfg.IsDefaultBlueprintFile, cfg.InstanceID, cfg.InstanceName,
+		cfg.ChangesetID, cfg.StageFirst, cfg.SkipPrompts, cfg.Headless,
 	)
 
-	autoSelect := shouldAutoSelect(blueprintFile, isDefaultBlueprintFile, headless, skipPrompts, stageFirst)
+	autoSelect := shouldAutoSelect(cfg.BlueprintFile, cfg.IsDefaultBlueprintFile, cfg.Headless, cfg.SkipPrompts, cfg.StageFirst)
 
-	fp, err := sharedui.BlueprintLocalFilePicker(bluelinkStyles)
+	fp, err := sharedui.BlueprintLocalFilePicker(cfg.Styles)
 	if err != nil {
 		return nil, err
 	}
 
 	selectBlueprint, err := sharedui.NewSelectBlueprint(
-		blueprintFile,
+		cfg.BlueprintFile,
 		autoSelect,
 		"destroy",
-		bluelinkStyles,
+		cfg.Styles,
 		&fp,
 	)
 	if err != nil {
@@ -619,49 +622,49 @@ func NewDestroyApp(
 
 	destroyConfigForm := NewDestroyConfigFormModel(
 		DestroyConfigFormInitialValues{
-			InstanceName: instanceName,
-			InstanceID:   instanceID,
-			ChangesetID:  changesetID,
-			StageFirst:   stageFirst,
-			AutoApprove:  autoApprove,
+			InstanceName: cfg.InstanceName,
+			InstanceID:   cfg.InstanceID,
+			ChangesetID:  cfg.ChangesetID,
+			StageFirst:   cfg.StageFirst,
+			AutoApprove:  cfg.AutoApprove,
 		},
-		bluelinkStyles,
+		cfg.Styles,
 	)
 
-	stagingModel := stageui.NewStageModel(
-		destroyEngine,
-		logger,
-		instanceID,
-		instanceName,
-		true,  // destroy = true for staging destroy changes
-		force, // skipDriftCheck - use force flag to skip drift detection during staging
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		jsonMode,
-	)
+	stagingModel := stageui.NewStageModel(stageui.StageModelConfig{
+		DeployEngine:   cfg.DestroyEngine,
+		Logger:         cfg.Logger,
+		InstanceID:     cfg.InstanceID,
+		InstanceName:   cfg.InstanceName,
+		Destroy:        true,      // staging destroy changes
+		SkipDriftCheck: cfg.Force, // use force flag to skip drift detection during staging
+		Styles:         cfg.Styles,
+		IsHeadless:     cfg.Headless,
+		HeadlessWriter: cfg.HeadlessWriter,
+		JSONMode:       cfg.JSONMode,
+	})
 	staging := &stagingModel
-	staging.SetBlueprintFile(blueprintFile)
-	blueprintSource := shared.BlueprintSourceFromPath(blueprintFile)
+	staging.SetBlueprintFile(cfg.BlueprintFile)
+	blueprintSource := shared.BlueprintSourceFromPath(cfg.BlueprintFile)
 	staging.SetBlueprintSource(blueprintSource)
 	staging.SetDeployFlowMode(true)
 
-	destroy := NewDestroyModel(
-		destroyEngine,
-		logger,
-		changesetID,
-		instanceID,
-		instanceName,
-		force,
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		nil,
-		jsonMode,
-	)
+	destroy := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine:    cfg.DestroyEngine,
+		Logger:           cfg.Logger,
+		ChangesetID:      cfg.ChangesetID,
+		InstanceID:       cfg.InstanceID,
+		InstanceName:     cfg.InstanceName,
+		Force:            cfg.Force,
+		Styles:           cfg.Styles,
+		IsHeadless:       cfg.Headless,
+		HeadlessWriter:   cfg.HeadlessWriter,
+		ChangesetChanges: nil,
+		JSONMode:         cfg.JSONMode,
+	})
 
 	postPreflightState := sessionState
-	if preflight != nil {
+	if cfg.Preflight != nil {
 		sessionState = destroyPreflight
 	}
 
@@ -671,23 +674,23 @@ func NewDestroyApp(
 		destroyConfigForm:  destroyConfigForm,
 		staging:            staging,
 		destroy:            destroy,
-		preflight:          preflight,
+		preflight:          cfg.Preflight,
 		postPreflightState: postPreflightState,
-		changesetID:        changesetID,
-		instanceID:         instanceID,
-		instanceName:       instanceName,
-		blueprintFile:      blueprintFile,
+		changesetID:        cfg.ChangesetID,
+		instanceID:         cfg.InstanceID,
+		instanceName:       cfg.InstanceName,
+		blueprintFile:      cfg.BlueprintFile,
 		blueprintSource:    blueprintSource,
-		isDefaultBlueprint: isDefaultBlueprintFile,
-		force:              force,
-		stageFirst:         stageFirst,
-		autoApprove:        autoApprove,
-		skipPrompts:        skipPrompts,
-		headless:           headless,
-		jsonMode:           jsonMode,
-		engine:             destroyEngine,
-		logger:             logger,
-		styles:             bluelinkStyles,
+		isDefaultBlueprint: cfg.IsDefaultBlueprintFile,
+		force:              cfg.Force,
+		stageFirst:         cfg.StageFirst,
+		autoApprove:        cfg.AutoApprove,
+		skipPrompts:        cfg.SkipPrompts,
+		headless:           cfg.Headless,
+		jsonMode:           cfg.JSONMode,
+		engine:             cfg.DestroyEngine,
+		logger:             cfg.Logger,
+		styles:             cfg.Styles,
 	}, nil
 }
 

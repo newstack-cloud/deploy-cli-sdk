@@ -14,6 +14,12 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
 
+const (
+	labelStatus                  = "Status: "
+	labelDetails                 = "Details: "
+	msgNotAttemptedDeployFailure = "Not attempted due to deployment failure"
+)
+
 // ChangeSummary holds counts of different change types.
 type ChangeSummary struct {
 	Create   int
@@ -89,16 +95,16 @@ func (r *DeployDetailsRenderer) renderResourceDetails(item *DeployItem, width in
 
 	// Status - only show for items that will be/were deployed
 	if res.Action != ActionNoChange {
-		sb.WriteString(s.Muted.Render("Status: "))
+		sb.WriteString(s.Muted.Render(labelStatus))
 		if res.Skipped {
 			sb.WriteString(s.Warning.Render("Skipped"))
 			sb.WriteString("\n")
-			sb.WriteString(s.Muted.Render("Details: "))
-			sb.WriteString("Not attempted due to deployment failure")
+			sb.WriteString(s.Muted.Render(labelDetails))
+			sb.WriteString(msgNotAttemptedDeployFailure)
 		} else {
 			sb.WriteString(shared.RenderResourceStatus(res.Status, s))
 			sb.WriteString("\n")
-			sb.WriteString(s.Muted.Render("Details: "))
+			sb.WriteString(s.Muted.Render(labelDetails))
 			sb.WriteString(shared.FormatPreciseResourceStatus(res.PreciseStatus))
 		}
 		sb.WriteString("\n")
@@ -197,7 +203,7 @@ func (r *DeployDetailsRenderer) getResourceState(res *ResourceDeployItem, path s
 // findResourceStateByPath finds a resource state by traversing the instance state hierarchy
 // using the path. The path format is "childA/childB/resourceName" where the last segment
 // is the resource name and the preceding segments are child blueprint names.
-func findResourceStateByPath(instanceState *state.InstanceState, path string, resourceName string) *state.ResourceState {
+func findResourceStateByPath(instanceState *state.InstanceState, path, resourceName string) *state.ResourceState {
 	if instanceState == nil {
 		return nil
 	}
@@ -245,7 +251,7 @@ func (r *DeployDetailsRenderer) getChildInstanceID(path string) string {
 }
 
 // getLinkID returns the link ID for a link by traversing the instance state hierarchy using the path.
-func (r *DeployDetailsRenderer) getLinkID(path string, linkName string) string {
+func (r *DeployDetailsRenderer) getLinkID(path, linkName string) string {
 	// Try post-deploy state first
 	if r.PostDeployInstanceState != nil {
 		if linkID := shared.FindLinkIDByPath(r.PostDeployInstanceState, path, linkName); linkID != "" {
@@ -354,12 +360,12 @@ func (r *DeployDetailsRenderer) renderChildDetails(item *DeployItem, width int, 
 	}
 
 	// Status
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	if child.Skipped {
 		sb.WriteString(s.Warning.Render("Skipped"))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
-		sb.WriteString("Not attempted due to deployment failure")
+		sb.WriteString(s.Muted.Render(labelDetails))
+		sb.WriteString(msgNotAttemptedDeployFailure)
 		sb.WriteString("\n")
 	} else {
 		sb.WriteString(shared.RenderInstanceStatus(child.Status, s))
@@ -412,17 +418,17 @@ func (r *DeployDetailsRenderer) renderLinkDetails(item *DeployItem, width int, s
 	}, width, s)
 
 	// Status
-	sb.WriteString(s.Muted.Render("Status: "))
+	sb.WriteString(s.Muted.Render(labelStatus))
 	if link.Skipped {
 		sb.WriteString(s.Warning.Render("Skipped"))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
-		sb.WriteString("Not attempted due to deployment failure")
+		sb.WriteString(s.Muted.Render(labelDetails))
+		sb.WriteString(msgNotAttemptedDeployFailure)
 		sb.WriteString("\n")
 	} else {
 		sb.WriteString(shared.RenderLinkStatus(link.Status, s))
 		sb.WriteString("\n")
-		sb.WriteString(s.Muted.Render("Details: "))
+		sb.WriteString(s.Muted.Render(labelDetails))
 		sb.WriteString(shared.FormatPreciseLinkStatus(link.PreciseStatus))
 		sb.WriteString("\n")
 	}

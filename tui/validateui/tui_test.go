@@ -22,16 +22,16 @@ type ValidateTUISuite struct {
 }
 
 func (s *ValidateTUISuite) Test_successful_validation() {
-	mainModel, err := NewValidateApp(
-		testutils.NewTestDeployEngine(testValidationEvents(validationSuccess)),
-		zap.NewNop(),
-		"test.blueprint.yaml",
-		/* isDefaultBlueprintFile */ false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		/* headless */ false,
-		os.Stdout,
-		nil,
-	)
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 testutils.NewTestDeployEngine(testValidationEvents(validationSuccess)),
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		Preflight:              nil,
+	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
 	}
@@ -59,16 +59,16 @@ func (s *ValidateTUISuite) Test_successful_validation() {
 
 func (s *ValidateTUISuite) Test_successful_validation_headless() {
 	headlessOutput := testutils.NewSaveBuffer()
-	mainModel, err := NewValidateApp(
-		testutils.NewTestDeployEngine(testValidationEvents(validationSuccess)),
-		zap.NewNop(),
-		"test.blueprint.yaml",
-		/* isDefaultBlueprintFile */ false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		/* headless */ true,
-		headlessOutput,
-		nil,
-	)
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 testutils.NewTestDeployEngine(testValidationEvents(validationSuccess)),
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		Preflight:              nil,
+	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
 	}
@@ -90,16 +90,16 @@ func (s *ValidateTUISuite) Test_successful_validation_headless() {
 }
 
 func (s *ValidateTUISuite) Test_validation_failed() {
-	mainModel, err := NewValidateApp(
-		testutils.NewTestDeployEngine(testValidationEvents(validationFailed)),
-		zap.NewNop(),
-		"test.blueprint.yaml",
-		/* isDefaultBlueprintFile */ false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		/* headless */ false,
-		os.Stdout,
-		nil,
-	)
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 testutils.NewTestDeployEngine(testValidationEvents(validationFailed)),
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		Preflight:              nil,
+	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
 	}
@@ -133,16 +133,16 @@ func (s *ValidateTUISuite) Test_validation_failed() {
 
 func (s *ValidateTUISuite) Test_validation_failed_headless() {
 	headlessOutput := testutils.NewSaveBuffer()
-	mainModel, err := NewValidateApp(
-		testutils.NewTestDeployEngine(testValidationEvents(validationFailed)),
-		zap.NewNop(),
-		"test.blueprint.yaml",
-		/* isDefaultBlueprintFile */ false,
-		stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
-		/* headless */ true,
-		headlessOutput,
-		nil,
-	)
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 testutils.NewTestDeployEngine(testValidationEvents(validationFailed)),
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		Preflight:              nil,
+	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
 	}

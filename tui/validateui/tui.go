@@ -178,52 +178,55 @@ func (m MainModel) View() string {
 	return selected + m.validate.View()
 }
 
-func NewValidateApp(
-	engine engine.DeployEngine,
-	logger *zap.Logger,
-	blueprintFile string,
-	isDefaultBlueprintFile bool,
-	bluelinkStyles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-	preflight tea.Model,
-) (*MainModel, error) {
+// ValidateAppConfig holds configuration for creating a new validate application.
+type ValidateAppConfig struct {
+	Engine                 engine.DeployEngine
+	Logger                 *zap.Logger
+	BlueprintFile          string
+	IsDefaultBlueprintFile bool
+	Styles                 *stylespkg.Styles
+	Headless               bool
+	HeadlessWriter         io.Writer
+	Preflight              tea.Model
+}
+
+func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
 	sessionState := validateBlueprintSelect
 	// In headless mode, use the default blueprint file
 	// if no explicit file is provided.
-	autoValidate := (blueprintFile != "" && !isDefaultBlueprintFile) || headless
+	autoValidate := (cfg.BlueprintFile != "" && !cfg.IsDefaultBlueprintFile) || cfg.Headless
 
 	if autoValidate {
 		sessionState = validateView
 	}
 
-	if preflight != nil {
+	if cfg.Preflight != nil {
 		sessionState = validatePreflight
 	}
 
-	fp, err := sharedui.BlueprintLocalFilePicker(bluelinkStyles)
+	fp, err := sharedui.BlueprintLocalFilePicker(cfg.Styles)
 	if err != nil {
 		return nil, err
 	}
 
 	selectBlueprint, err := sharedui.NewSelectBlueprint(
-		blueprintFile,
+		cfg.BlueprintFile,
 		autoValidate,
 		"validate",
-		bluelinkStyles,
+		cfg.Styles,
 		&fp,
 	)
 	if err != nil {
 		return nil, err
 	}
-	validate := NewValidateModel(engine, logger, headless, headlessWriter, bluelinkStyles)
+	validate := NewValidateModel(cfg.Engine, cfg.Logger, cfg.Headless, cfg.HeadlessWriter, cfg.Styles)
 	return &MainModel{
 		sessionState:    sessionState,
-		blueprintFile:   blueprintFile,
+		blueprintFile:   cfg.BlueprintFile,
 		selectBlueprint: selectBlueprint,
 		validate:        validate,
-		preflight:       preflight,
+		preflight:       cfg.Preflight,
 		autoValidate:    autoValidate,
-		styles:          bluelinkStyles,
+		styles:          cfg.Styles,
 	}, nil
 }

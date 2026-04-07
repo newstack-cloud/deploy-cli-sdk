@@ -66,230 +66,37 @@ func (m MainModel) Init() tea.Cmd {
 
 // Update handles messages for the main model.
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	cmds := []tea.Cmd{}
-
 	switch msg := msg.(type) {
 	case InstanceInputMsg:
-		m.instanceID = msg.InstanceID
-		m.instanceName = msg.InstanceName
-
-		// Update inspect model with the identifiers
-		m.inspect.instanceID = msg.InstanceID
-		m.inspect.instanceName = msg.InstanceName
-		m.inspect.footerRenderer.InstanceID = msg.InstanceID
-		m.inspect.footerRenderer.InstanceName = msg.InstanceName
-
-		// Transition to loading state and start fetching
-		m.sessionState = inspectLoading
-		cmds = append(cmds, fetchInstanceStateCmd(*m.inspect))
-
+		return m.handleInstanceInputMsg(msg)
 	case InstanceStateFetchedMsg:
-		m.sessionState = inspectViewing
-
-		// Update the inspect model with fetched state
-		m.inspect.SetInstanceState(msg.InstanceState)
-
-		if msg.IsInProgress {
-			// Start streaming events and periodic state refresh
-			m.inspect.streaming = true
-			m.inspect.footerRenderer.Streaming = true
-			cmds = append(cmds, startStreamingCmd(*m.inspect))
-			cmds = append(cmds, startStateRefreshTickerCmd())
-		} else {
-			// Static view - just display the state
-			m.inspect.finished = true
-			m.inspect.footerRenderer.Finished = true
-			m.inspect.detailsRenderer.Finished = true
-
-			// In headless mode, output now and quit
-			if m.headless {
-				if m.jsonMode {
-					m.inspect.outputJSON()
-				} else {
-					m.inspect.printHeadlessInstanceState()
-				}
-				return m, tea.Quit
-			}
-		}
-		// Return early to avoid double-handling by InspectModel
-		return m, tea.Batch(cmds...)
-
+		return m.handleInstanceStateFetchedMsg(msg)
 	case InstanceNotFoundMsg:
-		m.Error = msg.Err
-		if m.headless {
-			if m.jsonMode {
-				m.inspect.outputJSONError(msg.Err)
-			} else {
-				m.inspect.printHeadlessError(msg.Err)
-			}
-			return m, tea.Quit
-		}
-		return m, nil
-
+		return m.handleInstanceNotFoundMsg(msg)
 	case InspectStreamStartedMsg:
-		cmds = append(cmds, waitForNextEventCmd(*m.inspect))
-		return m, tea.Batch(cmds...)
-
+		return m.handleInspectStreamStartedMsg()
 	case StateRefreshTickMsg:
-		// Only refresh if still streaming
-		if m.inspect.streaming && !m.inspect.finished {
-			cmds = append(cmds, refreshInstanceStateCmd(*m.inspect))
-			cmds = append(cmds, startStateRefreshTickerCmd())
-		}
-		return m, tea.Batch(cmds...)
-
+		return m.handleStateRefreshTickMsg()
 	case InstanceStateRefreshedMsg:
-		// Hydrate existing items with updated state
-		// This runs both during streaming (periodic refresh) and after streaming ends (final refresh)
-		if msg.InstanceState != nil {
-			m.inspect.RefreshInstanceState(msg.InstanceState)
-		}
-		return m, tea.Batch(cmds...)
-
+		return m.handleInstanceStateRefreshedMsg(msg)
 	case InspectEventMsg:
-		m.inspect.processEvent(&msg)
-		m.inspect.splitPane.UpdateItems(ToSplitPaneItems(m.inspect.items))
-
-		finishData, isFinish := msg.AsFinish()
-		if isFinish && finishData.EndOfStream {
-			m.inspect.finished = true
-			m.inspect.streaming = false
-			m.inspect.footerRenderer.Streaming = false
-			m.inspect.footerRenderer.Finished = true
-			m.inspect.footerRenderer.CurrentStatus = finishData.Status
-			m.inspect.detailsRenderer.Finished = true
-
-			if m.headless {
-				if m.jsonMode {
-					m.inspect.outputJSON()
-				} else {
-					m.inspect.printHeadlessInstanceState()
-				}
-				return m, tea.Quit
-			}
-
-			// Trigger a final state refresh to hydrate all items with ResourceState
-			// for resources that completed during streaming
-			cmds = append(cmds, refreshInstanceStateCmd(*m.inspect))
-			return m, tea.Batch(cmds...)
-		}
-
-		cmds = append(cmds, waitForNextEventCmd(*m.inspect))
-		return m, tea.Batch(cmds...)
-
+		return m.handleInspectEventMsg(msg)
 	case InspectStreamClosedMsg:
-		m.inspect.streaming = false
-		m.inspect.footerRenderer.Streaming = false
-		if !m.inspect.finished {
-			m.inspect.err = errors.New("event stream closed unexpectedly")
-			m.Error = m.inspect.err
-			if m.headless {
-				if m.jsonMode {
-					m.inspect.outputJSONError(m.inspect.err)
-				} else {
-					m.inspect.printHeadlessError(m.inspect.err)
-				}
-				return m, tea.Quit
-			}
-		}
-		return m, tea.Batch(cmds...)
-
+		return m.handleInspectStreamClosedMsg()
 	case InspectErrorMsg:
-		if msg.Err != nil {
-			m.inspect.err = msg.Err
-			m.Error = msg.Err
-			if m.headless {
-				if m.jsonMode {
-					m.inspect.outputJSONError(msg.Err)
-				} else {
-					m.inspect.printHeadlessError(msg.Err)
-				}
-				return m, tea.Quit
-			}
-		}
-		return m, tea.Batch(cmds...)
-
+		return m.handleInspectErrorMsg(msg)
 	case spinner.TickMsg:
-		// Always forward spinner ticks to the inspect model regardless of session state
-		if m.inspect != nil {
-			var cmd tea.Cmd
-			m.inspect.spinner, cmd = m.inspect.spinner.Update(msg)
-			m.inspect.footerRenderer.SpinnerView = m.inspect.spinner.View()
-			cmds = append(cmds, cmd)
-		}
-		return m, tea.Batch(cmds...)
-
+		return m.handleSpinnerTickMsg(msg)
 	case tea.WindowSizeMsg:
-		if m.instanceForm != nil {
-			var formModel tea.Model
-			var formCmd tea.Cmd
-			formModel, formCmd = m.instanceForm.Update(msg)
-			if fm, ok := formModel.(*InstanceInputFormModel); ok {
-				m.instanceForm = fm
-			}
-			cmds = append(cmds, formCmd)
-		}
-
-		if m.inspect != nil {
-			var inspectCmd tea.Cmd
-			var inspectModel tea.Model
-			inspectModel, inspectCmd = m.inspect.handleWindowSize(msg)
-			if im, ok := inspectModel.(InspectModel); ok {
-				m.inspect = &im
-			}
-			cmds = append(cmds, inspectCmd)
-		}
-
+		return m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "q":
-			if m.sessionState == inspectViewing && m.inspect.finished {
-				m.quitting = true
-				return m, tea.Quit
-			}
-			if m.Error != nil {
-				m.quitting = true
-				return m, tea.Quit
-			}
+		newModel, cmd, handled := m.handleKeyMsg(msg)
+		if handled {
+			return newModel, cmd
 		}
 	}
 
-	// Route messages to the appropriate sub-model based on session state
-	switch m.sessionState {
-	case inspectInstanceInput:
-		if m.instanceForm != nil {
-			var formModel tea.Model
-			var formCmd tea.Cmd
-			formModel, formCmd = m.instanceForm.Update(msg)
-			if fm, ok := formModel.(*InstanceInputFormModel); ok {
-				m.instanceForm = fm
-			}
-			cmds = append(cmds, formCmd)
-		}
-
-	case inspectLoading:
-		// Just waiting for state fetch
-
-	case inspectViewing:
-		if m.inspect != nil {
-			var inspectModel tea.Model
-			var inspectCmd tea.Cmd
-			inspectModel, inspectCmd = m.inspect.Update(msg)
-			if im, ok := inspectModel.(InspectModel); ok {
-				m.inspect = &im
-			}
-			cmds = append(cmds, inspectCmd)
-
-			if m.inspect.err != nil {
-				m.Error = m.inspect.err
-			}
-		}
-	}
-
-	return m, tea.Batch(cmds...)
+	return m.handleSessionStateRouting(msg)
 }
 
 // View renders the main model.
@@ -324,55 +131,58 @@ func (m MainModel) renderLoading() string {
 	return m.styles.Muted.Margin(2, 4).Render("Loading instance state...")
 }
 
+// InspectAppConfig holds configuration for creating a new inspect application.
+type InspectAppConfig struct {
+	DeployEngine   engine.DeployEngine
+	Logger         *zap.Logger
+	InstanceID     string
+	InstanceName   string
+	Styles         *stylespkg.Styles
+	Headless       bool
+	HeadlessWriter io.Writer
+	JSONMode       bool
+}
+
 // NewInspectApp creates a new inspect application with the given configuration.
-func NewInspectApp(
-	deployEngine engine.DeployEngine,
-	logger *zap.Logger,
-	instanceID string,
-	instanceName string,
-	bluelinkStyles *stylespkg.Styles,
-	headless bool,
-	headlessWriter io.Writer,
-	jsonMode bool,
-) (*MainModel, error) {
+func NewInspectApp(cfg InspectAppConfig) (*MainModel, error) {
 	// Determine initial session state
 	sessionState := inspectInstanceInput
-	hasIdentifier := instanceID != "" || instanceName != ""
+	hasIdentifier := cfg.InstanceID != "" || cfg.InstanceName != ""
 
-	if hasIdentifier || headless {
+	if hasIdentifier || cfg.Headless {
 		// Skip input form, go straight to loading
 		sessionState = inspectLoading
 	}
 
 	// Create instance input form (for interactive mode without pre-set identifier)
 	var instanceForm *InstanceInputFormModel
-	if !hasIdentifier && !headless {
-		instanceForm = NewInstanceInputFormModel(bluelinkStyles)
+	if !hasIdentifier && !cfg.Headless {
+		instanceForm = NewInstanceInputFormModel(cfg.Styles)
 	}
 
 	// Create the inspect model
-	inspect := NewInspectModel(
-		deployEngine,
-		logger,
-		instanceID,
-		instanceName,
-		bluelinkStyles,
-		headless,
-		headlessWriter,
-		jsonMode,
-	)
+	inspect := NewInspectModel(InspectModelConfig{
+		DeployEngine:   cfg.DeployEngine,
+		Logger:         cfg.Logger,
+		InstanceID:     cfg.InstanceID,
+		InstanceName:   cfg.InstanceName,
+		Styles:         cfg.Styles,
+		IsHeadless:     cfg.Headless,
+		HeadlessWriter: cfg.HeadlessWriter,
+		JSONMode:       cfg.JSONMode,
+	})
 
 	model := &MainModel{
 		sessionState: sessionState,
 		instanceForm: instanceForm,
 		inspect:      inspect,
-		instanceID:   instanceID,
-		instanceName: instanceName,
-		headless:     headless,
-		jsonMode:     jsonMode,
-		engine:       deployEngine,
-		logger:       logger,
-		styles:       bluelinkStyles,
+		instanceID:   cfg.InstanceID,
+		instanceName: cfg.InstanceName,
+		headless:     cfg.Headless,
+		jsonMode:     cfg.JSONMode,
+		engine:       cfg.DeployEngine,
+		logger:       cfg.Logger,
+		styles:       cfg.Styles,
 	}
 
 	return model, nil

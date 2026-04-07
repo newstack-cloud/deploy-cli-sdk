@@ -43,24 +43,24 @@ func (s *DestroyConfigFormSuite) Test_stage_first_without_blueprint_goes_to_blue
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",    // no changesetID
-		"",    // no instanceID
-		"",    // no instanceName
-		"",    // no blueprintFile
-		true,  // isDefaultBlueprintFile (means use default)
-		false, // force
-		true,  // stageFirst
-		false, // autoApprove
-		false, // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// When staging without a blueprint file, should go to blueprint select
@@ -74,24 +74,24 @@ func (s *DestroyConfigFormSuite) Test_stage_first_with_blueprint_goes_to_config_
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",                    // no changesetID
-		"",                    // no instanceID
-		"",                    // no instanceName
-		"test.blueprint.yaml", // blueprintFile provided
-		false,                 // isDefaultBlueprintFile (explicit file)
-		false,                 // force
-		true,                  // stageFirst
-		false,                 // autoApprove
-		false,                 // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// When staging with a blueprint file but no instance name, should go to config input
@@ -105,24 +105,24 @@ func (s *DestroyConfigFormSuite) Test_skip_prompts_with_changeset_skips_to_execu
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"existing-changeset", // changesetID provided
-		"",                   // instanceID
-		"skip-prompts-inst",  // instanceName provided
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // force
-		false, // stageFirst
-		false, // autoApprove
-		true,  // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "existing-changeset",
+		InstanceID:             "",
+		InstanceName:           "skip-prompts-inst",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             false,
+		AutoApprove:            false,
+		SkipPrompts:            true,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// With skipPrompts and all values provided, should skip to destroyExecute
@@ -136,24 +136,24 @@ func (s *DestroyConfigFormSuite) Test_skip_prompts_with_stage_first_goes_to_stag
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",                    // no changesetID
-		"",                    // no instanceID
-		"skip-prompts-inst",   // instanceName provided
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // force
-		true,  // stageFirst
-		false, // autoApprove
-		true,  // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "skip-prompts-inst",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		SkipPrompts:            true,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// With skipPrompts + stageFirst, should go to staging
@@ -168,24 +168,24 @@ func (s *DestroyConfigFormSuite) Test_headless_with_changeset_skips_to_execute()
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"test-changeset",    // changesetID provided
-		"",                  // instanceID
-		"headless-instance", // instanceName provided
-		"",                  // no blueprint file needed with changeset
-		true,                // isDefaultBlueprintFile
-		false,               // force
-		false,               // stageFirst
-		false,               // autoApprove
-		false,               // skipPrompts
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "test-changeset",
+		InstanceID:             "",
+		InstanceName:           "headless-instance",
+		BlueprintFile:          "",
+		IsDefaultBlueprintFile: true,
+		Force:                  false,
+		StageFirst:             false,
+		AutoApprove:            false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// In headless mode with changeset, should go directly to execute
@@ -201,24 +201,24 @@ func (s *DestroyConfigFormSuite) Test_headless_with_stage_first_goes_to_staging(
 		"test-instance-id",
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",                    // changesetID
-		"",                    // instanceID
-		"headless-instance",   // instanceName
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // force
-		true,  // stageFirst
-		true,  // autoApprove (required for headless)
-		false, // skipPrompts
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "headless-instance",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            true,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// In headless mode with stageFirst, should start in destroyStaging state
@@ -232,24 +232,24 @@ func (s *DestroyConfigFormSuite) Test_interactive_mode_without_required_values_g
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",                    // no changesetID
-		"",                    // no instanceID
-		"",                    // no instanceName
-		"test.blueprint.yaml", // blueprintFile provided
-		false,                 // isDefaultBlueprintFile
-		false,                 // force
-		false,                 // stageFirst (not staging)
-		false,                 // autoApprove
-		false,                 // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "",
+		InstanceName:           "",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             false,
+		AutoApprove:            false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// In interactive mode without all values, should go to config input
@@ -263,24 +263,24 @@ func (s *DestroyConfigFormSuite) Test_with_instance_id_preserves_value() {
 		nil,
 	)
 
-	model, err := NewDestroyApp(
-		mockEngine,
-		nil,
-		"",                      // changesetID
-		"existing-instance-123", // instanceID provided
-		"my-instance",           // instanceName
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		false, // force
-		true,  // stageFirst
-		false, // autoApprove
-		false, // skipPrompts
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewDestroyApp(DestroyAppConfig{
+		DestroyEngine:          mockEngine,
+		Logger:                 nil,
+		ChangesetID:            "",
+		InstanceID:             "existing-instance-123",
+		InstanceName:           "my-instance",
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Force:                  false,
+		StageFirst:             true,
+		AutoApprove:            false,
+		SkipPrompts:            false,
+		Styles:                 s.styles,
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               false,
+		Preflight:              nil,
+	})
 	s.Require().NoError(err)
 
 	// Should preserve the instance ID

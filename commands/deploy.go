@@ -15,6 +15,7 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/term"
 )
 
@@ -25,6 +26,165 @@ func boolToString(b bool) string {
 		return "true"
 	}
 	return ""
+}
+
+type deployFlags struct {
+	changesetID            string
+	changesetIDIsDefault   bool
+	instanceID             string
+	instanceIDIsDefault    bool
+	instanceName           string
+	instanceNameIsDefault  bool
+	blueprintFile          string
+	isDefaultBlueprintFile bool
+	stageFirst             bool
+	autoApprove            bool
+	autoApproveCodeOnly    bool
+	skipPrompts            bool
+	autoRollback           bool
+	force                  bool
+	jsonMode               bool
+}
+
+func readDeployFlags(confProvider *config.Provider, cfg *CLIConfig) deployFlags {
+	changesetID, changesetIDIsDefault := confProvider.GetString("deployChangeSetID")
+	instanceID, instanceIDIsDefault := confProvider.GetString("deployInstanceID")
+	instanceName, instanceNameIsDefault := confProvider.GetString("deployInstanceName")
+	blueprintFile, isDefault := confProvider.GetString("deployBlueprintFile")
+	stageFirst, _ := confProvider.GetBool("deployStage")
+	autoApprove, _ := confProvider.GetBool("deployAutoApprove")
+	skipPrompts, _ := confProvider.GetBool("deploySkipPrompts")
+	autoRollback, _ := confProvider.GetBool("deployAutoRollback")
+	force, _ := confProvider.GetBool("deployForce")
+	jsonMode, _ := confProvider.GetBool("deployJson")
+
+	var autoApproveCodeOnly bool
+	if cfg.EnableCodeOnlyApproval {
+		autoApproveCodeOnly, _ = confProvider.GetBool("deployAutoApproveCodeOnly")
+	}
+
+	if jsonMode {
+		autoApprove = true
+	}
+
+	return deployFlags{
+		changesetID:            changesetID,
+		changesetIDIsDefault:   changesetIDIsDefault,
+		instanceID:             instanceID,
+		instanceIDIsDefault:    instanceIDIsDefault,
+		instanceName:           instanceName,
+		instanceNameIsDefault:  instanceNameIsDefault,
+		blueprintFile:          blueprintFile,
+		isDefaultBlueprintFile: isDefault,
+		stageFirst:             stageFirst,
+		autoApprove:            autoApprove,
+		autoApproveCodeOnly:    autoApproveCodeOnly,
+		skipPrompts:            skipPrompts,
+		autoRollback:           autoRollback,
+		force:                  force,
+		jsonMode:               jsonMode,
+	}
+}
+
+func validateDeployFlags(flags deployFlags) error {
+	return headless.Validate(
+		headless.OneOf(
+			headless.Flag{
+				Name:      flagInstanceName,
+				Value:     flags.instanceName,
+				IsDefault: flags.instanceNameIsDefault,
+			},
+			headless.Flag{
+				Name:      flagInstanceID,
+				Value:     flags.instanceID,
+				IsDefault: flags.instanceIDIsDefault,
+			},
+		),
+		headless.OneOf(
+			headless.Flag{
+				Name:      "stage",
+				Value:     boolToString(flags.stageFirst),
+				IsDefault: !flags.stageFirst,
+			},
+			headless.Flag{
+				Name:      flagChangeSetID,
+				Value:     flags.changesetID,
+				IsDefault: flags.changesetIDIsDefault,
+			},
+		),
+		headless.RequiredIfBool(
+			headless.BoolFlagTrue("stage", flags.stageFirst),
+			"auto-approve or auto-approve-code-only",
+			flags.autoApprove || flags.autoApproveCodeOnly,
+		),
+	)
+}
+
+func runDeployTUI(
+	cmd *cobra.Command,
+	flags deployFlags,
+	cfg *CLIConfig,
+	confProvider *config.Provider,
+	deployEngine engine.DeployEngine,
+	logger *zap.Logger,
+) error {
+	if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
+		log.Fatal(err)
+	}
+
+	cmd.SilenceUsage = true
+
+	styles := stylespkg.NewStyles(
+		lipgloss.NewRenderer(os.Stdout),
+		cfg.Palette,
+	)
+	inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	headlessMode := !inTerminal || flags.jsonMode
+
+	if cfg.PreCommandStep != nil {
+		if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "deploy", styles, headlessMode, os.Stdout); err != nil {
+			return err
+		}
+	}
+
+	preflightModel := createPreflight(cfg, confProvider, "deploy", styles, headlessMode, flags.jsonMode)
+
+	app, err := deployui.NewDeployApp(deployui.DeployAppConfig{
+		DeployEngine:           deployEngine,
+		Logger:                 logger,
+		ChangesetID:            flags.changesetID,
+		InstanceID:             flags.instanceID,
+		InstanceName:           flags.instanceName,
+		BlueprintFile:          flags.blueprintFile,
+		IsDefaultBlueprintFile: flags.isDefaultBlueprintFile,
+		AutoRollback:           flags.autoRollback,
+		Force:                  flags.force,
+		StageFirst:             flags.stageFirst,
+		AutoApprove:            flags.autoApprove,
+		AutoApproveCodeOnly:    flags.autoApproveCodeOnly,
+		SkipPrompts:            flags.skipPrompts,
+		Styles:                 styles,
+		Headless:               headlessMode,
+		HeadlessWriter:         os.Stdout,
+		JSONMode:               flags.jsonMode,
+		Preflight:              preflightModel,
+	})
+	if err != nil {
+		return err
+	}
+
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	if err != nil {
+		return err
+	}
+	finalApp := finalModel.(deployui.MainModel)
+
+	if finalApp.Error != nil {
+		cmd.SilenceErrors = true
+		return errDeploymentFailed
+	}
+
+	return nil
 }
 
 // SetupDeployCommand registers a deploy command on the root command,
@@ -66,166 +226,49 @@ Examples:
 				return err
 			}
 
-			changesetID, changesetIDIsDefault := confProvider.GetString("deployChangeSetID")
-			instanceID, instanceIDIsDefault := confProvider.GetString("deployInstanceID")
-			instanceName, instanceNameIsDefault := confProvider.GetString("deployInstanceName")
-			blueprintFile, isDefault := confProvider.GetString("deployBlueprintFile")
-			stageFirst, _ := confProvider.GetBool("deployStage")
-			autoApprove, _ := confProvider.GetBool("deployAutoApprove")
-			skipPrompts, _ := confProvider.GetBool("deploySkipPrompts")
-			autoRollback, _ := confProvider.GetBool("deployAutoRollback")
-			force, _ := confProvider.GetBool("deployForce")
-			jsonMode, _ := confProvider.GetBool("deployJson")
+			flags := readDeployFlags(confProvider, cfg)
 
-			var autoApproveCodeOnly bool
-			if cfg.EnableCodeOnlyApproval {
-				autoApproveCodeOnly, _ = confProvider.GetBool("deployAutoApproveCodeOnly")
-			}
-
-			if jsonMode {
+			if flags.jsonMode {
 				cmd.SilenceUsage = true
 				cmd.SilenceErrors = true
-				autoApprove = true
 			}
 
-			err = headless.Validate(
-				headless.OneOf(
-					headless.Flag{
-						Name:      "instance-name",
-						Value:     instanceName,
-						IsDefault: instanceNameIsDefault,
-					},
-					headless.Flag{
-						Name:      "instance-id",
-						Value:     instanceID,
-						IsDefault: instanceIDIsDefault,
-					},
-				),
-				headless.OneOf(
-					headless.Flag{
-						Name:      "stage",
-						Value:     boolToString(stageFirst),
-						IsDefault: !stageFirst,
-					},
-					headless.Flag{
-						Name:      "change-set-id",
-						Value:     changesetID,
-						IsDefault: changesetIDIsDefault,
-					},
-				),
-				headless.RequiredIfBool(
-					headless.BoolFlagTrue("stage", stageFirst),
-					"auto-approve or auto-approve-code-only",
-					autoApprove || autoApproveCodeOnly,
-				),
-			)
-			if err != nil {
-				if jsonMode {
+			if err := validateDeployFlags(flags); err != nil {
+				if flags.jsonMode {
 					jsonout.WriteJSON(os.Stdout, jsonout.NewErrorOutput(err))
 					return errDeploymentFailed
 				}
 				return err
 			}
 
-			if _, err := tea.LogToFile(fmt.Sprintf("%s-output.log", cfg.CLIName), "simple"); err != nil {
-				log.Fatal(err)
-			}
-
-			cmd.SilenceUsage = true
-
-			styles := stylespkg.NewStyles(
-				lipgloss.NewRenderer(os.Stdout),
-				cfg.Palette,
-			)
-			inTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-			headlessMode := !inTerminal || jsonMode
-
-			if cfg.PreCommandStep != nil {
-				if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "deploy", styles, headlessMode, os.Stdout); err != nil {
-					return err
-				}
-			}
-
-			var preflightModel tea.Model
-			if cfg.PreflightFactory != nil {
-				skipCheck, _ := confProvider.GetBool("skipPluginCheck")
-				if !skipCheck {
-					preflightModel = cfg.PreflightFactory.CreatePreflight(
-						confProvider, "deploy", styles, headlessMode, os.Stdout, jsonMode,
-					)
-				}
-			}
-
-			app, err := deployui.NewDeployApp(
-				deployEngine,
-				logger,
-				changesetID,
-				instanceID,
-				instanceName,
-				blueprintFile,
-				isDefault,
-				autoRollback,
-				force,
-				stageFirst,
-				autoApprove,
-				autoApproveCodeOnly,
-				skipPrompts,
-				styles,
-				headlessMode,
-				os.Stdout,
-				jsonMode,
-				preflightModel,
-			)
-			if err != nil {
-				return err
-			}
-
-			options := []tea.ProgramOption{}
-			if !headlessMode {
-				options = append(options, tea.WithAltScreen(), tea.WithMouseCellMotion())
-			} else {
-				options = append(options, tea.WithInput(nil), tea.WithoutRenderer())
-			}
-
-			finalModel, err := tea.NewProgram(app, options...).Run()
-			if err != nil {
-				return err
-			}
-			finalApp := finalModel.(deployui.MainModel)
-
-			if finalApp.Error != nil {
-				cmd.SilenceErrors = true
-				return errDeploymentFailed
-			}
-
-			return nil
+			return runDeployTUI(cmd, flags, cfg, confProvider, deployEngine, logger)
 		},
 	}
 
 	prefix := cfg.EnvVarPrefix
 
 	deployCmd.PersistentFlags().String(
-		"change-set-id", "",
+		flagChangeSetID, "",
 		"The ID of the change set to deploy. "+
 			"If not provided, the latest change set for the instance will be used.",
 	)
-	confProvider.BindPFlag("deployChangeSetID", deployCmd.PersistentFlags().Lookup("change-set-id"))
+	confProvider.BindPFlag("deployChangeSetID", deployCmd.PersistentFlags().Lookup(flagChangeSetID))
 	confProvider.BindEnvVar("deployChangeSetID", prefix+"_DEPLOY_CHANGE_SET_ID")
 
 	deployCmd.PersistentFlags().String(
-		"instance-id", "",
+		flagInstanceID, "",
 		"The system-generated ID of the blueprint instance to deploy to. "+
 			"Leave empty if using --instance-name or for new deployments.",
 	)
-	confProvider.BindPFlag("deployInstanceID", deployCmd.PersistentFlags().Lookup("instance-id"))
+	confProvider.BindPFlag("deployInstanceID", deployCmd.PersistentFlags().Lookup(flagInstanceID))
 	confProvider.BindEnvVar("deployInstanceID", prefix+"_DEPLOY_INSTANCE_ID")
 
 	deployCmd.PersistentFlags().String(
-		"instance-name", "",
+		flagInstanceName, "",
 		"The user-defined unique identifier for the target blueprint instance. "+
 			"Leave empty if using --instance-id or for new deployments.",
 	)
-	confProvider.BindPFlag("deployInstanceName", deployCmd.PersistentFlags().Lookup("instance-name"))
+	confProvider.BindPFlag("deployInstanceName", deployCmd.PersistentFlags().Lookup(flagInstanceName))
 	confProvider.BindEnvVar("deployInstanceName", prefix+"_DEPLOY_INSTANCE_NAME")
 
 	deployCmd.PersistentFlags().String(
@@ -260,12 +303,12 @@ Examples:
 	confProvider.BindPFlag("deployStage", deployCmd.PersistentFlags().Lookup("stage"))
 	confProvider.BindEnvVar("deployStage", prefix+"_DEPLOY_STAGE")
 
-	deployCmd.PersistentFlags().Bool("auto-approve", false,
+	deployCmd.PersistentFlags().Bool(flagAutoApprove, false,
 		"Automatically approve staged changes without prompting for confirmation. "+
 			"This is intended for CI/CD pipelines where manual approval is not possible. "+
 			"Only applicable when --stage is set.",
 	)
-	confProvider.BindPFlag("deployAutoApprove", deployCmd.PersistentFlags().Lookup("auto-approve"))
+	confProvider.BindPFlag("deployAutoApprove", deployCmd.PersistentFlags().Lookup(flagAutoApprove))
 	confProvider.BindEnvVar("deployAutoApprove", prefix+"_DEPLOY_AUTO_APPROVE")
 
 	if cfg.EnableCodeOnlyApproval {

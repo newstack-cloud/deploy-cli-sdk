@@ -40,51 +40,53 @@ func (m Model) View() string {
 func (m Model) renderLeftPane() string {
 	sb := strings.Builder{}
 
-	// Use custom header renderer if provided, otherwise use default
 	if m.config.HeaderRenderer != nil {
 		sb.WriteString(m.config.HeaderRenderer.RenderHeader(&m, m.config.Styles))
 	} else {
 		sb.WriteString(m.renderDefaultHeader())
 	}
 
-	// Get items, grouped if SectionGrouper is configured
 	if m.config.SectionGrouper != nil {
-		sections := m.config.SectionGrouper.GroupItems(m.items, m.IsExpanded)
-		itemIndex := 0
-		for i, section := range sections {
-			if len(section.Items) == 0 {
-				continue
-			}
-
-			// Section header
-			sb.WriteString(m.config.Styles.Category.Render(section.Name))
-			sb.WriteString("\n")
-			sb.WriteString(m.config.Styles.Muted.Render(strings.Repeat("─", ui.SafeWidth(m.leftPane.Width-4))))
-			sb.WriteString("\n")
-
-			// Section items
-			for _, item := range section.Items {
-				line := m.renderItemLine(item, itemIndex == m.selectedIndex)
-				sb.WriteString(line)
-				sb.WriteString("\n")
-				itemIndex += 1
-			}
-
-			// Add spacing between sections (not after the last one)
-			if i < len(sections)-1 {
-				sb.WriteString("\n")
-			}
-		}
+		m.renderGroupedItems(&sb)
 	} else {
-		// No grouper - render items flat
-		for i, item := range m.items {
-			line := m.renderItemLine(item, i == m.selectedIndex)
-			sb.WriteString(line)
-			sb.WriteString("\n")
-		}
+		m.renderFlatItems(&sb)
 	}
 
 	return sb.String()
+}
+
+func (m Model) renderGroupedItems(sb *strings.Builder) {
+	sections := m.config.SectionGrouper.GroupItems(m.items, m.IsExpanded)
+	itemIndex := 0
+	for i, section := range sections {
+		if len(section.Items) == 0 {
+			continue
+		}
+
+		sb.WriteString(m.config.Styles.Category.Render(section.Name))
+		sb.WriteString("\n")
+		sb.WriteString(m.config.Styles.Muted.Render(strings.Repeat("─", ui.SafeWidth(m.leftPane.Width-4))))
+		sb.WriteString("\n")
+
+		for _, item := range section.Items {
+			line := m.renderItemLine(item, itemIndex == m.selectedIndex)
+			sb.WriteString(line)
+			sb.WriteString("\n")
+			itemIndex += 1
+		}
+
+		if i < len(sections)-1 {
+			sb.WriteString("\n")
+		}
+	}
+}
+
+func (m Model) renderFlatItems(sb *strings.Builder) {
+	for i, item := range m.items {
+		line := m.renderItemLine(item, i == m.selectedIndex)
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
 }
 
 // renderDefaultHeader renders the default header with title and optional breadcrumb.

@@ -43,21 +43,13 @@ func (s *StageOptionsFormSuite) Test_stage_options_flow_new_instance_skips_optio
 		nil, // No existing instances
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"",    // blueprintFile (will be selected)
-		true,  // isDefaultBlueprintFile
-		"",    // instanceID
-		"",    // instanceName (triggers options form)
-		false, // destroy
-		false, // skipDriftCheck
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		IsDefaultBlueprintFile: true,
+		Styles:                 s.styles,
+		HeadlessWriter:         os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -113,21 +105,13 @@ func (s *StageOptionsFormSuite) Test_stage_options_flow_existing_instance_shows_
 		existingInstances,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"",    // blueprintFile
-		true,  // isDefaultBlueprintFile
-		"",    // instanceID
-		"",    // instanceName (triggers options form)
-		false, // destroy
-		false, // skipDriftCheck
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		IsDefaultBlueprintFile: true,
+		Styles:                 s.styles,
+		HeadlessWriter:         os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -188,21 +172,13 @@ func (s *StageOptionsFormSuite) Test_stage_options_flow_existing_instance_with_d
 		existingInstances,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"",    // blueprintFile
-		true,  // isDefaultBlueprintFile
-		"",    // instanceID
-		"",    // instanceName
-		false, // destroy (initial, will be changed via form)
-		false, // skipDriftCheck
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		IsDefaultBlueprintFile: true,
+		Styles:                 s.styles,
+		HeadlessWriter:         os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -262,21 +238,14 @@ func (s *StageOptionsFormSuite) Test_stage_options_skipped_when_instance_name_pr
 		nil,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"test.blueprint.yaml", // blueprintFile provided
-		false,                 // isDefaultBlueprintFile
-		"",                    // instanceID
-		"provided-instance",   // instanceName provided via flag
-		false,                 // destroy
-		false,                 // skipDriftCheck
-		s.styles,
-		false, // headless
-		os.Stdout,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:   mockEngine,
+		Logger:         zap.NewNop(),
+		BlueprintFile:  "test.blueprint.yaml",
+		InstanceName:   "provided-instance",
+		Styles:         s.styles,
+		HeadlessWriter: os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	// Options form should not be created when instance name is provided
@@ -293,21 +262,14 @@ func (s *StageOptionsFormSuite) Test_stage_options_skipped_in_headless_mode() {
 		nil,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"test.blueprint.yaml",
-		false, // isDefaultBlueprintFile
-		"",    // instanceID
-		"",    // instanceName
-		false, // destroy
-		false, // skipDriftCheck
-		s.styles,
-		true, // headless
-		headlessOutput,
-		false, // jsonMode
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:   mockEngine,
+		Logger:         zap.NewNop(),
+		BlueprintFile:  "test.blueprint.yaml",
+		Styles:         s.styles,
+		Headless:       true,
+		HeadlessWriter: headlessOutput,
+	})
 	s.Require().NoError(err)
 
 	// Options form should not be created in headless mode
@@ -322,21 +284,13 @@ func (s *StageOptionsFormSuite) Test_instance_name_validation_rejects_empty() {
 		nil,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"",
-		true,
-		"",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		IsDefaultBlueprintFile: true,
+		Styles:                 s.styles,
+		HeadlessWriter:         os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
@@ -372,21 +326,13 @@ func (s *StageOptionsFormSuite) Test_instance_name_validation_rejects_short_name
 		nil,
 	)
 
-	model, err := NewStageApp(
-		mockEngine,
-		zap.NewNop(),
-		"",
-		true,
-		"",
-		"",
-		false,
-		false,
-		s.styles,
-		false,
-		os.Stdout,
-		false,
-		nil,
-	)
+	model, err := NewStageApp(StageAppConfig{
+		DeployEngine:           mockEngine,
+		Logger:                 zap.NewNop(),
+		IsDefaultBlueprintFile: true,
+		Styles:                 s.styles,
+		HeadlessWriter:         os.Stdout,
+	})
 	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(

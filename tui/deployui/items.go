@@ -44,37 +44,52 @@ func (i *DeployItem) GetIcon(selected bool) string {
 func (i *DeployItem) getIconChar() string {
 	switch i.Type {
 	case ItemTypeResource:
-		if i.Resource != nil {
-			if i.Resource.Skipped {
-				return shared.IconSkipped
-			}
-			if i.Resource.Action == ActionNoChange {
-				return shared.IconNoChange
-			}
-			return shared.ResourceStatusIcon(i.Resource.Status)
-		}
+		return i.resourceIconChar()
 	case ItemTypeChild:
-		if i.Child != nil {
-			if i.Child.Skipped {
-				return shared.IconSkipped
-			}
-			if i.Child.Action == ActionNoChange {
-				return shared.IconNoChange
-			}
-			return shared.InstanceStatusIcon(i.Child.Status)
-		}
+		return i.childIconChar()
 	case ItemTypeLink:
-		if i.Link != nil {
-			if i.Link.Skipped {
-				return shared.IconSkipped
-			}
-			if i.Link.Action == ActionNoChange {
-				return shared.IconNoChange
-			}
-			return shared.LinkStatusIcon(i.Link.Status)
-		}
+		return i.linkIconChar()
 	}
 	return shared.IconPending
+}
+
+func (i *DeployItem) resourceIconChar() string {
+	if i.Resource == nil {
+		return shared.IconPending
+	}
+	if i.Resource.Skipped {
+		return shared.IconSkipped
+	}
+	if i.Resource.Action == ActionNoChange {
+		return shared.IconNoChange
+	}
+	return shared.ResourceStatusIcon(i.Resource.Status)
+}
+
+func (i *DeployItem) childIconChar() string {
+	if i.Child == nil {
+		return shared.IconPending
+	}
+	if i.Child.Skipped {
+		return shared.IconSkipped
+	}
+	if i.Child.Action == ActionNoChange {
+		return shared.IconNoChange
+	}
+	return shared.InstanceStatusIcon(i.Child.Status)
+}
+
+func (i *DeployItem) linkIconChar() string {
+	if i.Link == nil {
+		return shared.IconPending
+	}
+	if i.Link.Skipped {
+		return shared.IconSkipped
+	}
+	if i.Link.Action == ActionNoChange {
+		return shared.IconNoChange
+	}
+	return shared.LinkStatusIcon(i.Link.Status)
 }
 
 // GetIconStyled returns a styled icon for the item.
@@ -86,37 +101,52 @@ func (i *DeployItem) GetIconStyled(s *styles.Styles, styled bool) string {
 
 	switch i.Type {
 	case ItemTypeResource:
-		if i.Resource != nil {
-			if i.Resource.Skipped {
-				return s.Warning.Render(icon)
-			}
-			if i.Resource.Action == ActionNoChange {
-				return s.Muted.Render(icon)
-			}
-			return shared.StyleResourceIcon(icon, i.Resource.Status, s)
-		}
+		return i.styledResourceIcon(icon, s)
 	case ItemTypeChild:
-		if i.Child != nil {
-			if i.Child.Skipped {
-				return s.Warning.Render(icon)
-			}
-			if i.Child.Action == ActionNoChange {
-				return s.Muted.Render(icon)
-			}
-			return shared.StyleInstanceIcon(icon, i.Child.Status, s)
-		}
+		return i.styledChildIcon(icon, s)
 	case ItemTypeLink:
-		if i.Link != nil {
-			if i.Link.Skipped {
-				return s.Warning.Render(icon)
-			}
-			if i.Link.Action == ActionNoChange {
-				return s.Muted.Render(icon)
-			}
-			return shared.StyleLinkIcon(icon, i.Link.Status, s)
-		}
+		return i.styledLinkIcon(icon, s)
 	}
 	return icon
+}
+
+func (i *DeployItem) styledResourceIcon(icon string, s *styles.Styles) string {
+	if i.Resource == nil {
+		return icon
+	}
+	if i.Resource.Skipped {
+		return s.Warning.Render(icon)
+	}
+	if i.Resource.Action == ActionNoChange {
+		return s.Muted.Render(icon)
+	}
+	return shared.StyleResourceIcon(icon, i.Resource.Status, s)
+}
+
+func (i *DeployItem) styledChildIcon(icon string, s *styles.Styles) string {
+	if i.Child == nil {
+		return icon
+	}
+	if i.Child.Skipped {
+		return s.Warning.Render(icon)
+	}
+	if i.Child.Action == ActionNoChange {
+		return s.Muted.Render(icon)
+	}
+	return shared.StyleInstanceIcon(icon, i.Child.Status, s)
+}
+
+func (i *DeployItem) styledLinkIcon(icon string, s *styles.Styles) string {
+	if i.Link == nil {
+		return icon
+	}
+	if i.Link.Skipped {
+		return s.Warning.Render(icon)
+	}
+	if i.Link.Action == ActionNoChange {
+		return s.Muted.Render(icon)
+	}
+	return shared.StyleLinkIcon(icon, i.Link.Status, s)
 }
 
 // GetAction returns the action badge text.

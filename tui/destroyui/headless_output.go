@@ -14,6 +14,11 @@ import (
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
 )
 
+const (
+	fmtItemError      = "    Error: %s\n"
+	fmtIndentedString = "%s%s\n"
+)
+
 // Headless output methods for DestroyModel.
 
 func (m *DestroyModel) printHeadlessHeader() {
@@ -180,7 +185,7 @@ func (m *DestroyModel) printHeadlessResourceDetailsWithPath(res *ResourceDestroy
 
 	if len(res.FailureReasons) > 0 {
 		for _, reason := range res.FailureReasons {
-			w.Printf("    Error: %s\n", reason)
+			w.Printf(fmtItemError, reason)
 		}
 	}
 }
@@ -199,7 +204,7 @@ func (m *DestroyModel) printHeadlessChildDetailsWithPath(child *ChildDestroyItem
 
 	if len(child.FailureReasons) > 0 {
 		for _, reason := range child.FailureReasons {
-			w.Printf("    Error: %s\n", reason)
+			w.Printf(fmtItemError, reason)
 		}
 	}
 }
@@ -218,7 +223,7 @@ func (m *DestroyModel) printHeadlessLinkDetailsWithPath(link *LinkDestroyItem, d
 
 	if len(link.FailureReasons) > 0 {
 		for _, reason := range link.FailureReasons {
-			w.Printf("    Error: %s\n", reason)
+			w.Printf(fmtItemError, reason)
 		}
 	}
 }
@@ -401,32 +406,35 @@ func printHeadlessResourceStates(w *headless.PrefixedWriter, instanceState *stat
 	for _, name := range resourceNames {
 		resourceID := instanceState.ResourceIDs[name]
 		resourceState := instanceState.Resources[resourceID]
+		printHeadlessSingleResourceState(w, name, resourceID, resourceState, indent)
+	}
+}
 
-		if resourceState != nil && resourceState.Type != "" {
-			w.Printf("%s%s (%s):\n", indent, name, resourceState.Type)
-		} else {
-			w.Printf("%s%s:\n", indent, name)
+func printHeadlessSingleResourceState(w *headless.PrefixedWriter, name, resourceID string, resourceState *state.ResourceState, indent string) {
+	if resourceState != nil && resourceState.Type != "" {
+		w.Printf("%s%s (%s):\n", indent, name, resourceState.Type)
+	} else {
+		w.Printf("%s%s:\n", indent, name)
+	}
+	w.Printf("%s  ID: %s\n", indent, resourceID)
+
+	if resourceState == nil || resourceState.SpecData == nil {
+		return
+	}
+
+	specFields := outpututil.CollectNonComputedFieldsPretty(resourceState.SpecData, resourceState.ComputedFields)
+	if len(specFields) > 0 {
+		w.Printf("%s  Spec:\n", indent)
+		for _, field := range specFields {
+			printHeadlessFieldIndented(w, indent+"    ", field.Name, field.Value)
 		}
-		w.Printf("%s  ID: %s\n", indent, resourceID)
+	}
 
-		if resourceState != nil && resourceState.SpecData != nil {
-			// Show spec (non-computed fields)
-			specFields := outpututil.CollectNonComputedFieldsPretty(resourceState.SpecData, resourceState.ComputedFields)
-			if len(specFields) > 0 {
-				w.Printf("%s  Spec:\n", indent)
-				for _, field := range specFields {
-					printHeadlessFieldIndented(w, indent+"    ", field.Name, field.Value)
-				}
-			}
-
-			// Show outputs (computed fields)
-			outputFields := collectOutputFieldsPretty(resourceState.SpecData, resourceState.ComputedFields)
-			if len(outputFields) > 0 {
-				w.Printf("%s  Outputs:\n", indent)
-				for _, field := range outputFields {
-					printHeadlessFieldIndented(w, indent+"    ", field.Name, field.Value)
-				}
-			}
+	outputFields := collectOutputFieldsPretty(resourceState.SpecData, resourceState.ComputedFields)
+	if len(outputFields) > 0 {
+		w.Printf("%s  Outputs:\n", indent)
+		for _, field := range outputFields {
+			printHeadlessFieldIndented(w, indent+"    ", field.Name, field.Value)
 		}
 	}
 }
@@ -440,7 +448,7 @@ func printHeadlessLinkStates(w *headless.PrefixedWriter, links map[string]*state
 
 	for _, name := range linkNames {
 		linkState := links[name]
-		w.Printf("%s%s\n", indent, name)
+		w.Printf(fmtIndentedString, indent, name)
 		if linkState != nil && linkState.LinkID != "" {
 			w.Printf("%s  ID: %s\n", indent, linkState.LinkID)
 		}
@@ -463,10 +471,10 @@ func printHeadlessExports(w *headless.PrefixedWriter, exports map[string]*state.
 			if valueStr != "" && valueStr != "null" {
 				printHeadlessFieldIndented(w, indent, name, valueStr)
 			} else {
-				w.Printf("%s%s\n", indent, name)
+				w.Printf(fmtIndentedString, indent, name)
 			}
 		} else {
-			w.Printf("%s%s\n", indent, name)
+			w.Printf(fmtIndentedString, indent, name)
 		}
 	}
 }
