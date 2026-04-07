@@ -151,25 +151,29 @@ fi
 echo "" > coverage.txt
 
 echo "Running tests..."
-if [[ -n "$UPDATE_SNAPSHOTS" ]]; then
-  UPDATE_SNAPSHOTS=true go test -count=1 -timeout 90000ms -race \
-    -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
+if [[ -n "$GITHUB_ACTION" ]]; then
+  # In CI, produce both coverage and JSON report in a single test run.
+  if [[ -n "$UPDATE_SNAPSHOTS" ]]; then
+    UPDATE_SNAPSHOTS=true go test -count=1 -timeout 90000ms -race \
+      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic \
+      -json $TEST_PACKAGES | tee report.json
+  else
+    go test -count=1 -timeout 90000ms -race \
+      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic \
+      -json $TEST_PACKAGES | tee report.json
+  fi
 else
-  go test -count=1 -timeout 90000ms -race \
-    -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
-fi
-
-if [[ -z "$GITHUB_ACTION" ]]; then
-  # We are on a dev machine so produce html output of coverage
-  # to get a visual to better reveal uncovered lines.
+  if [[ -n "$UPDATE_SNAPSHOTS" ]]; then
+    UPDATE_SNAPSHOTS=true go test -count=1 -timeout 90000ms -race \
+      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
+  else
+    go test -count=1 -timeout 90000ms -race \
+      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
+  fi
+  # On a dev machine produce html coverage report.
   go tool cover -html=coverage.txt -o coverage.html
   echo ""
   echo "Coverage report: coverage.html"
-fi
-
-if [[ -n "$GITHUB_ACTION" ]]; then
-  # We are in a CI environment so run tests again to generate JSON report.
-  go test -count=1 -timeout 90000ms -json $TEST_PACKAGES > report.json
 fi
 
 echo ""
