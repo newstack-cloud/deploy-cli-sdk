@@ -226,11 +226,13 @@ func (s *DeployTUISuite) Test_successful_deployment_with_resource_create() {
 
 	testModel.Send(StartDeployMsg{})
 
+	// Wait for "complete" in the footer to ensure the finish event has been processed
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
 		"test-resource",
 		"Created",
+		"complete",
 	)
 
 	testutils.KeyQ(testModel)
@@ -271,11 +273,13 @@ func (s *DeployTUISuite) Test_successful_deployment_with_resource_update() {
 
 	testModel.Send(StartDeployMsg{})
 
+	// Wait for "complete" in the footer to ensure the finish event has been processed
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
 		"test-resource",
 		"Updated",
+		"complete",
 	)
 
 	testutils.KeyQ(testModel)
@@ -316,11 +320,14 @@ func (s *DeployTUISuite) Test_deployment_failure_shows_error() {
 
 	testModel.Send(StartDeployMsg{})
 
+	// Wait for "failed" in the footer to ensure the finish event has been processed
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
 		"test-resource",
 		"Create Failed",
+		"Deployment",
+		"failed",
 	)
 
 	testutils.KeyQ(testModel)
@@ -406,11 +413,13 @@ func (s *DeployTUISuite) Test_deployment_with_child_blueprints() {
 
 	testModel.Send(StartDeployMsg{})
 
+	// Wait for "complete" in the footer to ensure the finish event has been processed
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
 		"child-blueprint",
 		"Deployed",
+		"complete",
 	)
 
 	testutils.KeyQ(testModel)
@@ -450,11 +459,13 @@ func (s *DeployTUISuite) Test_deployment_with_links() {
 
 	testModel.Send(StartDeployMsg{})
 
+	// Wait for "complete" in the footer to ensure the finish event has been processed
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
 		"resource-a::resource-b",
 		"Created",
+		"complete",
 	)
 
 	testutils.KeyQ(testModel)
