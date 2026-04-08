@@ -150,27 +150,22 @@ fi
 
 echo "" > coverage.txt
 
+GO_TEST_ARGS="-count=1 -timeout 90000ms -race -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic"
+
 echo "Running tests..."
 if [[ -n "$GITHUB_ACTION" ]]; then
-  # In CI, produce both coverage and JSON report in a single test run.
+  # In CI, use -json for SonarCloud report. Tee to stdout so failures are visible in logs.
   if [[ -n "$UPDATE_SNAPSHOTS" ]]; then
-    UPDATE_SNAPSHOTS=true go test -count=1 -timeout 90000ms -race \
-      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic \
-      -json $TEST_PACKAGES | tee report.json
+    UPDATE_SNAPSHOTS=true go test $GO_TEST_ARGS -json $TEST_PACKAGES | tee report.json
   else
-    go test -count=1 -timeout 90000ms -race \
-      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic \
-      -json $TEST_PACKAGES | tee report.json
+    go test $GO_TEST_ARGS -json $TEST_PACKAGES | tee report.json
   fi
 else
   if [[ -n "$UPDATE_SNAPSHOTS" ]]; then
-    UPDATE_SNAPSHOTS=true go test -count=1 -timeout 90000ms -race \
-      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
+    UPDATE_SNAPSHOTS=true go test $GO_TEST_ARGS $TEST_PACKAGES
   else
-    go test -count=1 -timeout 90000ms -race \
-      -coverprofile=coverage.txt -coverpkg=./... -covermode=atomic $TEST_PACKAGES
+    go test $GO_TEST_ARGS $TEST_PACKAGES
   fi
-  # On a dev machine produce html coverage report.
   go tool cover -html=coverage.txt -o coverage.html
   echo ""
   echo "Coverage report: coverage.html"
