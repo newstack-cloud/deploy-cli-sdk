@@ -59,7 +59,7 @@ if [[ -n "$HELP" ]]; then
   exit 0
 fi
 
-set -e
+set -eo pipefail
 
 cd "$SDK_DIR"
 
