@@ -17,12 +17,13 @@ require (
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20251201173703-9f73bfd934ff
-	github.com/jackc/pgx/v5 v5.7.6
-	github.com/newstack-cloud/bluelink/libs/blueprint v0.40.0
-	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.0
+	github.com/jackc/pgx/v5 v5.8.0
+	github.com/newstack-cloud/bluelink/libs/blueprint v0.42.1
+	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.6.2
 	github.com/newstack-cloud/bluelink/libs/common v0.4.0
-	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.3.0
+	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.3.1
 	github.com/spf13/afero v1.15.0
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
@@ -114,7 +115,6 @@ require (
 	github.com/r3labs/sse/v2 v2.10.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
-	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
@@ -123,7 +123,7 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
 	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.42.0 // indirect
