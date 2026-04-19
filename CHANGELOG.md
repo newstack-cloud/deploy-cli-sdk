@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.2.0...v0.2.1) (2026-04-19)
+
+
+### Dependencies
+
+* update blueprint, state and deploy engine client libs ([466d09e](https://github.com/newstack-cloud/deploy-cli-sdk/commit/466d09ec692f378e7b16d9a9e4aa66e38311661f))
+
 ## [0.2.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.1.6...v0.2.0) (2026-04-07)
 
 
