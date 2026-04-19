@@ -133,10 +133,8 @@ func (s *MainModelTestSuite) Test_MainModel_headless_static_outputs_instance_sta
 		teatest.WithInitialTermSize(300, 100),
 	)
 
-	testModel.Send(InstanceStateFetchedMsg{
-		InstanceState: instanceState,
-		IsInProgress:  false,
-	})
+	// Init() fires fetchInstanceStateCmd which produces InstanceStateFetchedMsg
+	// from the mock engine, so no need to manually send the message.
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
 
 	s.Contains(output.String(), "test-id")
@@ -214,12 +212,19 @@ func (s *MainModelTestSuite) Test_MainModel_instance_not_found_sets_error() {
 
 func (s *MainModelTestSuite) Test_MainModel_headless_instance_not_found_outputs_error() {
 	output := &bytes.Buffer{}
-	instanceState := &state.InstanceState{
-		InstanceID:   "missing-id",
-		InstanceName: "",
-		Status:       core.InstanceStatusDeployed,
-	}
-	app := s.newHeadlessApp(instanceState, nil, output)
+	// Use a "not found" engine so Init()'s fetchInstanceStateCmd
+	// naturally produces InstanceNotFoundMsg instead of racing
+	// with a manually-sent message.
+	app, err := NewInspectApp(InspectAppConfig{
+		DeployEngine:   testutils.NewTestDeployEngineForInspectNotFound(),
+		Logger:         zap.NewNop(),
+		InstanceID:     "missing-id",
+		Styles:         s.styles,
+		Headless:       true,
+		HeadlessWriter: output,
+		JSONMode:       false,
+	})
+	s.Require().NoError(err)
 
 	testModel := teatest.NewTestModel(
 		s.T(),
@@ -227,7 +232,6 @@ func (s *MainModelTestSuite) Test_MainModel_headless_instance_not_found_outputs_
 		teatest.WithInitialTermSize(300, 100),
 	)
 
-	testModel.Send(InstanceNotFoundMsg{Err: errInstanceNotFound("missing-id", "")})
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
 
 	s.Contains(output.String(), "not found")
