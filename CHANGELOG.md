@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.2.1...v0.3.0) (2026-04-21)
+
+
+### Features
+
+* **deploy-cli-sdk:** add support for resource retention via removal policy ([a8c5ea6](https://github.com/newstack-cloud/deploy-cli-sdk/commit/a8c5ea608fe63c884398f1f4a8175a5a0aa260ff))
+
 ## [0.2.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.2.0...v0.2.1) (2026-04-19)
 
 
