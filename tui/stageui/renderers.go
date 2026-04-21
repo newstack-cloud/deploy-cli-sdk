@@ -116,6 +116,12 @@ func (r *StageDetailsRenderer) getResourceID(item *StageItem) string {
 }
 
 func (r *StageDetailsRenderer) renderResourceBody(sb *strings.Builder, item *StageItem, width int, s *styles.Styles) {
+	if item.Retained {
+		sb.WriteString(s.Info.Render("This resource will be retained — removed from management, infrastructure preserved in the provider"))
+		sb.WriteString("\n")
+		return
+	}
+
 	if item.Removed {
 		sb.WriteString(s.Error.Render("This resource will be destroyed"))
 		sb.WriteString("\n")
@@ -541,12 +547,13 @@ func (r *StageDetailsRenderer) renderChildChangesSummary(childChanges *changes.B
 	newCount := len(childChanges.NewResources)
 	updateCount := len(childChanges.ResourceChanges)
 	removeCount := len(childChanges.RemovedResources)
+	retainCount := len(childChanges.RetainedResources)
 
 	newChildren := len(childChanges.NewChildren)
 	childUpdates := len(childChanges.ChildChanges)
 	removedChildren := len(childChanges.RemovedChildren)
 
-	hasResourceChanges := newCount > 0 || updateCount > 0 || removeCount > 0
+	hasResourceChanges := newCount > 0 || updateCount > 0 || removeCount > 0 || retainCount > 0
 	hasChildChanges := newChildren > 0 || childUpdates > 0 || removedChildren > 0
 
 	if !hasResourceChanges && !hasChildChanges {
@@ -559,13 +566,13 @@ func (r *StageDetailsRenderer) renderChildChangesSummary(childChanges *changes.B
 	sb.WriteString(s.Category.Render("Summary:"))
 	sb.WriteString("\n")
 
-	r.renderResourceChangeCounts(&sb, newCount, updateCount, removeCount, successStyle, s)
+	r.renderResourceChangeCounts(&sb, newCount, updateCount, removeCount, retainCount, successStyle, s)
 	r.renderChildChangeCounts(&sb, newChildren, childUpdates, removedChildren, hasResourceChanges, successStyle, s)
 
 	return sb.String()
 }
 
-func (r *StageDetailsRenderer) renderResourceChangeCounts(sb *strings.Builder, newCount, updateCount, removeCount int, successStyle lipgloss.Style, s *styles.Styles) {
+func (r *StageDetailsRenderer) renderResourceChangeCounts(sb *strings.Builder, newCount, updateCount, removeCount, retainCount int, successStyle lipgloss.Style, s *styles.Styles) {
 	if newCount > 0 {
 		sb.WriteString(successStyle.Render(fmt.Sprintf("  %d %s to be created", newCount, sdkstrings.Pluralize(newCount, "resource", "resources"))))
 		sb.WriteString("\n")
@@ -576,6 +583,10 @@ func (r *StageDetailsRenderer) renderResourceChangeCounts(sb *strings.Builder, n
 	}
 	if removeCount > 0 {
 		sb.WriteString(s.Error.Render(fmt.Sprintf("  %d %s to be removed", removeCount, sdkstrings.Pluralize(removeCount, "resource", "resources"))))
+		sb.WriteString("\n")
+	}
+	if retainCount > 0 {
+		sb.WriteString(s.Info.Render(fmt.Sprintf("  %d %s to be retained", retainCount, sdkstrings.Pluralize(retainCount, "resource", "resources"))))
 		sb.WriteString("\n")
 	}
 }
@@ -706,6 +717,7 @@ type StageFooterRenderer struct {
 	UpdateCount   int
 	RecreateCount int
 	DeleteCount   int
+	RetainCount   int
 	// HasExportChanges indicates whether there are export changes to show
 	HasExportChanges bool
 	// Delegate is an optional custom footer renderer that takes precedence when set.
@@ -748,7 +760,8 @@ func (r *StageFooterRenderer) RenderFooter(model *splitpane.Model, s *styles.Sty
 	sb.WriteString("\n")
 
 	// Check if there are any changes
-	hasChanges := r.CreateCount > 0 || r.UpdateCount > 0 || r.DeleteCount > 0 || r.RecreateCount > 0
+	hasChanges := r.CreateCount > 0 || r.UpdateCount > 0 || r.DeleteCount > 0 ||
+		r.RecreateCount > 0 || r.RetainCount > 0
 
 	if hasChanges {
 		// Deploy/destroy instructions
@@ -814,6 +827,14 @@ func (r *StageFooterRenderer) renderChangeSummary(s *styles.Styles) string {
 		}
 		sb.WriteString(s.Error.Render(fmt.Sprintf("%d %s",
 			r.DeleteCount, sdkstrings.Pluralize(r.DeleteCount, "delete", "deletes"))))
+		needsComma = true
+	}
+	if r.RetainCount > 0 {
+		if needsComma {
+			sb.WriteString(s.Muted.Render(", "))
+		}
+		sb.WriteString(s.Info.Render(fmt.Sprintf("%d %s",
+			r.RetainCount, sdkstrings.Pluralize(r.RetainCount, "retain", "retains"))))
 	}
 
 	return sb.String()

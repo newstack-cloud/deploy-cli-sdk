@@ -40,6 +40,7 @@ const (
 	ActionUpdate   = shared.ActionUpdate
 	ActionDelete   = shared.ActionDelete
 	ActionRecreate = shared.ActionRecreate
+	ActionRetain   = shared.ActionRetain
 	ActionNoChange = shared.ActionNoChange
 )
 
@@ -50,6 +51,7 @@ const MaxExpandDepth = 2
 type (
 	ElementFailure     = shared.ElementFailure
 	InterruptedElement = shared.InterruptedElement
+	RetainedElement    = shared.RetainedElement
 )
 
 // DestroyedElement represents an element that was destroyed successfully.
@@ -184,6 +186,7 @@ type DestroyModel struct {
 	elementFailures          []ElementFailure
 	interruptedElements      []InterruptedElement
 	destroyedElements        []DestroyedElement
+	retainedElements         []RetainedElement
 	err                      error
 	deployChangesetError     bool
 	showingOverview          bool
@@ -429,6 +432,7 @@ func (m DestroyModel) handleDestroyEvent(msg DestroyEventMsg) (tea.Model, tea.Cm
 	m.footerRenderer.DestroyedElements = m.destroyedElements
 	m.footerRenderer.ElementFailures = m.elementFailures
 	m.footerRenderer.InterruptedElements = m.interruptedElements
+	m.footerRenderer.RetainedElements = m.retainedElements
 
 	cmds = append(cmds, fetchPostDestroyInstanceStateCmd(m))
 
@@ -916,4 +920,15 @@ func (m *DestroyModel) ResourcesByName() map[string]*ResourceDestroyItem {
 // Force returns whether force mode is enabled.
 func (m *DestroyModel) Force() bool {
 	return m.force
+}
+
+// DestroyedElements returns the elements that completed destruction.
+func (m *DestroyModel) DestroyedElements() []DestroyedElement {
+	return m.destroyedElements
+}
+
+// RetainedElements returns the elements that were retained during destroy
+// (state cleared, underlying infrastructure preserved).
+func (m *DestroyModel) RetainedElements() []RetainedElement {
+	return m.retainedElements
 }

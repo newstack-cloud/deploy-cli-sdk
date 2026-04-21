@@ -114,6 +114,11 @@ func (s *StageItemsTestSuite) Test_GetIcon_returns_icon_for_no_change() {
 	s.Equal("○", item.GetIcon(false))
 }
 
+func (s *StageItemsTestSuite) Test_GetIcon_returns_retained_icon_for_retain() {
+	item := &StageItem{Action: ActionRetain}
+	s.Equal("⊙", item.GetIcon(false))
+}
+
 // --- GetIconStyled tests ---
 
 func (s *StageItemsTestSuite) Test_GetIconStyled_returns_plain_icon_when_not_styled() {
@@ -321,6 +326,29 @@ func (s *StageItemsTestSuite) Test_GetChildren_returns_removed_resources() {
 	s.Equal(ItemTypeResource, resourceItem.Type)
 	s.Equal(ActionDelete, resourceItem.Action)
 	s.True(resourceItem.Removed)
+	s.Equal("child-blueprint", resourceItem.ParentChild)
+	s.Equal(1, resourceItem.Depth)
+}
+
+func (s *StageItemsTestSuite) Test_GetChildren_returns_retained_resources() {
+	item := &StageItem{
+		Type: ItemTypeChild,
+		Name: "child-blueprint",
+		Changes: &changes.BlueprintChanges{
+			RetainedResources: []string{"ordersTable"},
+		},
+		Depth: 0,
+	}
+
+	children := item.GetChildren()
+	s.Len(children, 1)
+
+	resourceItem := children[0].(*StageItem)
+	s.Equal("ordersTable", resourceItem.Name)
+	s.Equal(ItemTypeResource, resourceItem.Type)
+	s.Equal(ActionRetain, resourceItem.Action)
+	s.True(resourceItem.Removed)
+	s.True(resourceItem.Retained)
 	s.Equal("child-blueprint", resourceItem.ParentChild)
 	s.Equal(1, resourceItem.Depth)
 }

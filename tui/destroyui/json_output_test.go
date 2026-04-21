@@ -89,6 +89,61 @@ func (s *JSONOutputSuite) Test_json_output_success() {
 	s.Equal(0, output.Summary.Failed)
 }
 
+func (s *JSONOutputSuite) Test_json_output_includes_retained_elements_and_count() {
+	jsonOutput := &bytes.Buffer{}
+
+	events := []*types.BlueprintInstanceEvent{
+		jsonResourceEvent("ordersQueue", core.ResourceStatusDestroying, core.PreciseResourceStatusDestroying),
+		jsonResourceEvent("ordersQueue", core.ResourceStatusDestroyed, core.PreciseResourceStatusDestroyed),
+		jsonResourceEvent("ordersTable", core.ResourceStatusRetained, core.PreciseResourceStatusRetained),
+		jsonFinishEvent(core.InstanceStatusDestroyed),
+	}
+
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine: testutils.NewTestDeployEngineWithDeployment(
+			events,
+			"test-instance-id",
+			&state.InstanceState{InstanceID: "test-instance-id", Status: core.InstanceStatusDestroyed},
+		),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-retain",
+		InstanceID:       "test-instance-id",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       true,
+		HeadlessWriter:   jsonOutput,
+		ChangesetChanges: nil,
+		JSONMode:         true,
+	})
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		model,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	testModel.Send(StartDestroyMsg{})
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	var output jsonout.DestroyOutput
+	err := json.Unmarshal(jsonOutput.Bytes(), &output)
+	s.Require().NoError(err)
+
+	s.Equal(1, output.Summary.Destroyed)
+	s.Equal(1, output.Summary.RetainedCount)
+	s.Equal(0, output.Summary.Failed)
+
+	var retainedElement *jsonout.DestroyedElement
+	for i, elem := range output.Summary.Elements {
+		if elem.Status == "retained" {
+			retainedElement = &output.Summary.Elements[i]
+		}
+	}
+	s.Require().NotNil(retainedElement, "expected retained element in summary")
+	s.Equal("ordersTable", retainedElement.Name)
+}
+
 func (s *JSONOutputSuite) Test_json_output_with_failures() {
 	jsonOutput := &bytes.Buffer{}
 

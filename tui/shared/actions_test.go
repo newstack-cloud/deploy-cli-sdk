@@ -73,6 +73,7 @@ func (s *ActionsTestSuite) Test_ActionIcon_returns_correct_icons() {
 	s.Equal("±", ActionIcon(ActionUpdate))
 	s.Equal("-", ActionIcon(ActionDelete))
 	s.Equal("↻", ActionIcon(ActionRecreate))
+	s.Equal(IconRetained, ActionIcon(ActionRetain))
 	s.Equal("○", ActionIcon(ActionNoChange))
 }
 
@@ -91,5 +92,6 @@ func (s *ActionsTestSuite) Test_RenderActionBadge_includes_action_text() {
 	s.Contains(RenderActionBadge(ActionUpdate, s.testStyles), "UPDATE")
 	s.Contains(RenderActionBadge(ActionDelete, s.testStyles), "DELETE")
 	s.Contains(RenderActionBadge(ActionRecreate, s.testStyles), "RECREATE")
+	s.Contains(RenderActionBadge(ActionRetain, s.testStyles), "RETAIN")
 	s.Contains(RenderActionBadge(ActionNoChange, s.testStyles), "NO CHANGE")
 }

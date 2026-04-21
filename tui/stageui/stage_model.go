@@ -13,6 +13,7 @@ import (
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/provider"
+	"github.com/newstack-cloud/bluelink/libs/blueprint/schema"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
@@ -43,6 +44,7 @@ const (
 	ActionUpdate   = shared.ActionUpdate
 	ActionDelete   = shared.ActionDelete
 	ActionRecreate = shared.ActionRecreate
+	ActionRetain   = shared.ActionRetain
 	ActionNoChange = shared.ActionNoChange
 )
 
@@ -56,6 +58,7 @@ type StageItem struct {
 	Changes      any // *provider.Changes, *changes.BlueprintChanges, or *provider.LinkChanges
 	New          bool
 	Removed      bool
+	Retained     bool
 	Recreate     bool
 	// For child blueprints: the parent child name (empty for top-level items)
 	ParentChild string
@@ -161,6 +164,7 @@ type ResourceChangeState struct {
 	Changes   *provider.Changes
 	New       bool
 	Removed   bool
+	Retained  bool
 	Recreate  bool
 	Timestamp int64
 }
@@ -302,12 +306,14 @@ func (m *StageModel) processDriftDetected(data *types.DriftDetectedEventData) {
 
 func (m *StageModel) processResourceChanges(data *types.ResourceChangesEventData) {
 	action := m.determineResourceAction(data)
+	retained := isRetainedResource(data.Removed, data.RemovalPolicy)
 	changeState := &ResourceChangeState{
 		Name:      data.ResourceName,
 		Action:    action,
 		Changes:   &data.Changes,
 		New:       data.New,
 		Removed:   data.Removed,
+		Retained:  retained,
 		Recreate:  data.Changes.MustRecreate,
 		Timestamp: data.Timestamp,
 	}
@@ -332,9 +338,17 @@ func (m *StageModel) processResourceChanges(data *types.ResourceChangesEventData
 		Changes:       &data.Changes,
 		New:           data.New,
 		Removed:       data.Removed,
+		Retained:      retained,
 		Recreate:      data.Changes.MustRecreate,
 		ResourceState: resourceState,
 	})
+}
+
+// isRetainedResource returns true when a removed resource carries the
+// retain removal policy, meaning state will be cleared but the underlying
+// infrastructure is left untouched.
+func isRetainedResource(removed bool, removalPolicy string) bool {
+	return removed && removalPolicy == string(schema.RemovalPolicyRetain)
 }
 
 // extractResourceTypeAndDisplayName extracts the resource type and display name
@@ -480,6 +494,9 @@ func (m *StageModel) determineResourceActionFromState(state *ResourceChangeState
 		return ActionCreate
 	}
 	if state.Removed {
+		if state.Retained {
+			return ActionRetain
+		}
 		return ActionDelete
 	}
 	if state.Recreate {
@@ -516,6 +533,25 @@ func (m *StageModel) populateItemsFromCompleteChanges(
 			ResourceType:  resourceType,
 			Action:        ActionDelete,
 			Removed:       true,
+			ResourceState: resourceState,
+		})
+	}
+
+	// Add retained resources — these are removed from state but the
+	// underlying infrastructure is left in the provider untouched.
+	for _, resourceName := range bc.RetainedResources {
+		resourceState := findResourceState(instanceState, resourceName)
+		var resourceType string
+		if resourceState != nil {
+			resourceType = resourceState.Type
+		}
+		m.items = append(m.items, StageItem{
+			Type:          ItemTypeResource,
+			Name:          resourceName,
+			ResourceType:  resourceType,
+			Action:        ActionRetain,
+			Removed:       true,
+			Retained:      true,
 			ResourceState: resourceState,
 		})
 	}
@@ -629,6 +665,9 @@ func (m *StageModel) determineResourceAction(data *types.ResourceChangesEventDat
 		return ActionCreate
 	}
 	if data.Removed {
+		if isRetainedResource(data.Removed, data.RemovalPolicy) {
+			return ActionRetain
+		}
 		return ActionDelete
 	}
 	if data.Changes.MustRecreate {
@@ -1124,7 +1163,7 @@ func NewStageModel(cfg StageModelConfig) StageModel {
 	}
 }
 
-func (m *StageModel) countChangeSummary() (create, update, delete, recreate int) {
+func (m *StageModel) countChangeSummary() (create, update, delete, recreate, retain int) {
 	for _, item := range m.items {
 		switch item.Action {
 		case ActionCreate:
@@ -1135,17 +1174,20 @@ func (m *StageModel) countChangeSummary() (create, update, delete, recreate int)
 			delete += 1
 		case ActionRecreate:
 			recreate += 1
+		case ActionRetain:
+			retain += 1
 		}
 	}
 	return
 }
 
 func (m *StageModel) updateFooterCounts() {
-	create, update, delete, recreate := m.countChangeSummary()
+	create, update, delete, recreate, retain := m.countChangeSummary()
 	m.footerRenderer.CreateCount = create
 	m.footerRenderer.UpdateCount = update
 	m.footerRenderer.DeleteCount = delete
 	m.footerRenderer.RecreateCount = recreate
+	m.footerRenderer.RetainCount = retain
 	// Check if there are export changes to show in the footer
 	m.footerRenderer.HasExportChanges = HasAnyExportChanges(m.completeChanges)
 }
@@ -1191,9 +1233,9 @@ func (m *StageModel) GetError() error {
 	return m.err
 }
 
-// CountChangeSummary returns counts of create, update, delete, recreate actions.
+// CountChangeSummary returns counts of create, update, delete, recreate, retain actions.
 // This is the exported version of countChangeSummary.
-func (m *StageModel) CountChangeSummary() (create, update, delete, recreate int) {
+func (m *StageModel) CountChangeSummary() (create, update, delete, recreate, retain int) {
 	return m.countChangeSummary()
 }
 

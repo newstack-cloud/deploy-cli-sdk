@@ -25,10 +25,11 @@ func (m *DestroyModel) buildDestroySummary() jsonout.DestroySummary {
 	elements := m.buildDestroyedElements()
 
 	return jsonout.DestroySummary{
-		Destroyed:   len(m.destroyedElements),
-		Failed:      len(m.elementFailures),
-		Interrupted: len(m.interruptedElements),
-		Elements:    elements,
+		Destroyed:     len(m.destroyedElements),
+		Failed:        len(m.elementFailures),
+		Interrupted:   len(m.interruptedElements),
+		RetainedCount: len(m.retainedElements),
+		Elements:      elements,
 	}
 }
 
@@ -60,6 +61,15 @@ func (m *DestroyModel) buildDestroyedElements() []jsonout.DestroyedElement {
 			Path:   elem.ElementPath,
 			Type:   elem.ElementType,
 			Status: "interrupted",
+		})
+	}
+
+	for _, elem := range m.retainedElements {
+		elements = append(elements, jsonout.DestroyedElement{
+			Name:   elem.ElementName,
+			Path:   elem.ElementPath,
+			Type:   elem.ElementType,
+			Status: "retained",
 		})
 	}
 

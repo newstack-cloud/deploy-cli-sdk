@@ -45,6 +45,8 @@ func (i *StageItem) getIconChar() string {
 		return "-"
 	case ActionRecreate:
 		return "↻"
+	case ActionRetain:
+		return shared.IconRetained
 	default:
 		return "○"
 	}
@@ -67,6 +69,8 @@ func (i *StageItem) GetIconStyled(s *styles.Styles, styled bool) string {
 	case ActionDelete:
 		return s.Error.Render(icon)
 	case ActionRecreate:
+		return s.Info.Render(icon)
+	case ActionRetain:
 		return s.Info.Render(icon)
 	default:
 		return s.Muted.Render(icon)
@@ -238,6 +242,26 @@ func appendResourceItems(
 			Name:          name,
 			Action:        ActionDelete,
 			Removed:       true,
+			ParentChild:   ctx.parentName,
+			Depth:         ctx.depth,
+			ResourceState: resourceState,
+		})
+		added[name] = true
+	}
+
+	// Retained resources - removed from state but underlying infra preserved.
+	for _, name := range childChanges.RetainedResources {
+		var resourceState *state.ResourceState
+		if ctx.instanceState != nil {
+			resourceState = findResourceState(ctx.instanceState, name)
+		}
+
+		items = append(items, &StageItem{
+			Type:          ItemTypeResource,
+			Name:          name,
+			Action:        ActionRetain,
+			Removed:       true,
+			Retained:      true,
 			ParentChild:   ctx.parentName,
 			Depth:         ctx.depth,
 			ResourceState: resourceState,

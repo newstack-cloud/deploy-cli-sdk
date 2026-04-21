@@ -71,6 +71,34 @@ func (b *itemBuilder) appendResourceItems(items []DestroyItem, bpChanges *change
 		b.addedResources[name] = true
 	}
 
+	// RetainedResources appear alongside RemovedResources but use the
+	// retain action — state is cleared without invoking provider destroy.
+	for _, name := range bpChanges.RetainedResources {
+		if b.addedResources[name] {
+			continue
+		}
+		var resourceState *state.ResourceState
+		if b.instanceState != nil {
+			resourceState = findResourceState(b.instanceState, name)
+		}
+		item := &ResourceDestroyItem{
+			Name:          name,
+			Action:        ActionRetain,
+			ResourceState: resourceState,
+		}
+		if resourceState != nil {
+			item.ResourceType = resourceState.Type
+			item.ResourceID = resourceState.ResourceID
+		}
+		b.resourcesByName[name] = item
+		items = append(items, DestroyItem{
+			Type:          ItemTypeResource,
+			Resource:      item,
+			InstanceState: b.instanceState,
+		})
+		b.addedResources[name] = true
+	}
+
 	// Also handle resources with changes (for partial operations)
 	for name, rc := range bpChanges.ResourceChanges {
 		if b.addedResources[name] {

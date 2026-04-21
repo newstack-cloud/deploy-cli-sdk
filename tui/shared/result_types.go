@@ -23,6 +23,14 @@ type SuccessfulElement struct {
 	Action      string // "created", "updated", "destroyed", etc.
 }
 
+// RetainedElement represents a resource whose state was removed but whose
+// underlying infrastructure was preserved due to a "retain" removal policy.
+type RetainedElement struct {
+	ElementName string
+	ElementPath string // Full path like "children.notifications::resources.ordersTable"
+	ElementType string // The resource type, e.g. "aws/dynamodb/table"
+}
+
 // BuildMapKey builds a path-based key for map lookups.
 func BuildMapKey(prefix, name string) string {
 	if prefix == "" {

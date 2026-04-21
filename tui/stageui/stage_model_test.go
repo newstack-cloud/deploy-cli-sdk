@@ -36,11 +36,12 @@ func (s *StageModelAccessorsSuite) newModel() StageModel {
 
 func (s *StageModelAccessorsSuite) Test_CountChangeSummary_returns_zeros_for_empty_items() {
 	m := s.newModel()
-	create, update, del, recreate := m.CountChangeSummary()
+	create, update, del, recreate, retain := m.CountChangeSummary()
 	s.Equal(0, create)
 	s.Equal(0, update)
 	s.Equal(0, del)
 	s.Equal(0, recreate)
+	s.Equal(0, retain)
 }
 
 func (s *StageModelAccessorsSuite) Test_CountChangeSummary_counts_all_action_types() {
@@ -51,13 +52,44 @@ func (s *StageModelAccessorsSuite) Test_CountChangeSummary_counts_all_action_typ
 		{Action: ActionUpdate},
 		{Action: ActionDelete},
 		{Action: ActionRecreate},
+		{Action: ActionRetain},
+		{Action: ActionRetain},
 		{Action: ActionNoChange},
 	}
-	create, update, del, recreate := m.CountChangeSummary()
+	create, update, del, recreate, retain := m.CountChangeSummary()
 	s.Equal(2, create)
 	s.Equal(1, update)
 	s.Equal(1, del)
 	s.Equal(1, recreate)
+	s.Equal(2, retain)
+}
+
+func (s *StageModelAccessorsSuite) Test_populateItemsFromCompleteChanges_routes_retained_resources_to_retain() {
+	m := s.newModel()
+	m.populateItemsFromCompleteChanges(&changes.BlueprintChanges{
+		RemovedResources:  []string{"ordersQueue"},
+		RetainedResources: []string{"ordersTable"},
+	}, nil)
+
+	var deleted, retained *StageItem
+	for i := range m.items {
+		switch m.items[i].Name {
+		case "ordersQueue":
+			deleted = &m.items[i]
+		case "ordersTable":
+			retained = &m.items[i]
+		}
+	}
+	s.Require().NotNil(deleted)
+	s.Require().NotNil(retained)
+
+	s.Equal(ActionDelete, deleted.Action)
+	s.True(deleted.Removed)
+	s.False(deleted.Retained)
+
+	s.Equal(ActionRetain, retained.Action)
+	s.True(retained.Removed)
+	s.True(retained.Retained)
 }
 
 func (s *StageModelAccessorsSuite) Test_GetChanges_returns_complete_changes() {
@@ -70,7 +102,6 @@ func (s *StageModelAccessorsSuite) Test_GetChanges_returns_complete_changes() {
 	m.completeChanges = bc
 	s.Equal(bc, m.GetChanges())
 }
-
 
 func (s *StageModelAccessorsSuite) Test_StageExportsInstanceItem_implements_splitpane_Item() {
 	var _ splitpane.Item = (*StageExportsInstanceItem)(nil)

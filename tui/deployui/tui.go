@@ -198,7 +198,7 @@ func (m *MainModel) showStagingConfirmationFooter(
 	msg stageui.StageCompleteMsg,
 	opts ...StagingFooterOption,
 ) {
-	create, update, del, recreate := m.staging.CountChangeSummary()
+	create, update, del, recreate, _ := m.staging.CountChangeSummary()
 	footer := &DeployStagingFooterRenderer{
 		ChangesetID:      msg.ChangesetID,
 		Summary:          ChangeSummary{Create: create, Update: update, Delete: del, Recreate: recreate},

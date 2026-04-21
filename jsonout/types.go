@@ -172,18 +172,19 @@ type DestroyOutput struct {
 
 // DestroySummary contains destroy operation summary.
 type DestroySummary struct {
-	Destroyed   int                `json:"destroyed"`
-	Failed      int                `json:"failed"`
-	Interrupted int                `json:"interrupted"`
-	Elements    []DestroyedElement `json:"elements"`
+	Destroyed     int                `json:"destroyed"`
+	Failed        int                `json:"failed"`
+	Interrupted   int                `json:"interrupted"`
+	RetainedCount int                `json:"retainedCount"`
+	Elements      []DestroyedElement `json:"elements"`
 }
 
 // DestroyedElement represents an element in the destroy result.
 type DestroyedElement struct {
 	Name           string   `json:"name"`
 	Path           string   `json:"path"`
-	Type           string   `json:"type"` // "resource", "child", "link"
-	Status         string   `json:"status"`
+	Type           string   `json:"type"`   // "resource", "child", "link"
+	Status         string   `json:"status"` // "destroyed", "failed", "interrupted", or "retained"
 	FailureReasons []string `json:"failureReasons,omitempty"`
 }
 

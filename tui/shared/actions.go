@@ -23,6 +23,7 @@ const (
 	ActionUpdate   ActionType = "UPDATE"
 	ActionDelete   ActionType = "DELETE"
 	ActionRecreate ActionType = "RECREATE"
+	ActionRetain   ActionType = "RETAIN"
 	ActionNoChange ActionType = "NO CHANGE"
 	// ActionInspect indicates the item is being viewed in inspect mode.
 	// The icon will be rendered based on the item's actual status rather than its action.
@@ -57,6 +58,8 @@ func ActionIcon(action ActionType) string {
 		return "-"
 	case ActionRecreate:
 		return "↻"
+	case ActionRetain:
+		return IconRetained
 	default:
 		return "○"
 	}
@@ -80,6 +83,8 @@ func StyledActionIcon(action ActionType, s *styles.Styles, applyStyle bool) stri
 		return s.Error.Render(icon)
 	case ActionRecreate:
 		return s.Info.Render(icon)
+	case ActionRetain:
+		return s.Info.Render(icon)
 	default:
 		return s.Muted.Render(icon)
 	}
@@ -99,6 +104,8 @@ func RenderActionBadge(action ActionType, s *styles.Styles) string {
 	case ActionDelete:
 		return s.Error.Bold(true).Render(string(action))
 	case ActionRecreate:
+		return s.Info.Bold(true).Render(string(action))
+	case ActionRetain:
 		return s.Info.Bold(true).Render(string(action))
 	case ActionNoChange:
 		return s.Muted.Render(string(action))

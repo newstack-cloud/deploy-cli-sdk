@@ -27,6 +27,7 @@ type ChangeSummary struct {
 	Update   int
 	Delete   int
 	Recreate int
+	Retain   int
 }
 
 // DestroyDetailsRenderer implements splitpane.DetailsRenderer for destroy UI.
@@ -156,6 +157,15 @@ func (r *DestroyDetailsRenderer) renderResourceDetails(item *DestroyItem, width 
 		sb.WriteString("\n")
 	}
 
+	if res.Action == ActionRetain {
+		sb.WriteString("\n")
+		sb.WriteString(s.Info.Render(fmt.Sprintf(
+			"Resource %q was retained — underlying infrastructure preserved in the provider.",
+			res.Name,
+		)))
+		sb.WriteString("\n")
+	}
+
 	shared.RenderFailureReasons(&sb, res.FailureReasons, width, s)
 
 	return sb.String()
@@ -264,6 +274,7 @@ type DestroyFooterRenderer struct {
 	DestroyedElements   []DestroyedElement
 	ElementFailures     []ElementFailure
 	InterruptedElements []InterruptedElement
+	RetainedElements    []RetainedElement
 }
 
 var _ splitpane.FooterRenderer = (*DestroyFooterRenderer)(nil)
@@ -344,6 +355,7 @@ func (r *DestroyFooterRenderer) renderFinishedFooter(s *styles.Styles) string {
 		SuccessLabel:     "destroyed",
 		FailureCount:     len(r.ElementFailures),
 		InterruptedCount: len(r.InterruptedElements),
+		RetainedCount:    len(r.RetainedElements),
 	}, s)
 
 	return sb.String()
@@ -385,9 +397,13 @@ func (r *DestroyStagingFooterRenderer) RenderFooter(model *splitpane.Model, s *s
 
 	shared.RenderStagingCompleteHeader(&sb, r.ChangesetID, s)
 
-	// Delete summary
+	// Delete + retain summary
 	sb.WriteString("  ")
 	sb.WriteString(s.Error.Render(fmt.Sprintf("%d to delete", r.Summary.Delete)))
+	if r.Summary.Retain > 0 {
+		sb.WriteString(s.Muted.Render(", "))
+		sb.WriteString(s.Info.Render(fmt.Sprintf("%d to retain", r.Summary.Retain)))
+	}
 	sb.WriteString("\n")
 
 	shared.RenderConfirmationPrompt(&sb, "Destroy these resources?", s)

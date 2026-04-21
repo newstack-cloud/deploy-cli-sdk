@@ -18,6 +18,7 @@ const (
 	IconInterrupted      = "⏹"
 	IconSkipped          = "⊘"
 	IconNoChange         = "─"
+	IconRetained         = "⊙"
 )
 
 // ResourceStatusIcon returns an icon character for the given resource status.
@@ -38,6 +39,8 @@ func ResourceStatusIcon(status core.ResourceStatus) string {
 		return IconRollbackComplete
 	case core.ResourceStatusCreateInterrupted, core.ResourceStatusUpdateInterrupted, core.ResourceStatusDestroyInterrupted:
 		return IconInterrupted
+	case core.ResourceStatusRetained:
+		return IconRetained
 	default:
 		return IconPending
 	}
@@ -107,6 +110,8 @@ func StyleResourceIcon(icon string, status core.ResourceStatus, s *styles.Styles
 		return s.Warning.Render(icon)
 	case core.ResourceStatusRollbackComplete:
 		return s.Muted.Render(icon)
+	case core.ResourceStatusRetained:
+		return s.Info.Render(icon)
 	default:
 		return s.Muted.Render(icon)
 	}

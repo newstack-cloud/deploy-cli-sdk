@@ -13,6 +13,7 @@ type resultCollector struct {
 	destroyed       []DestroyedElement
 	failures        []ElementFailure
 	interrupted     []InterruptedElement
+	retained        []RetainedElement
 }
 
 // Scans all items to collect destroyed elements,
@@ -30,6 +31,7 @@ func (m *DestroyModel) collectDestroyResults() {
 	m.destroyedElements = collector.destroyed
 	m.elementFailures = collector.failures
 	m.interruptedElements = collector.interrupted
+	m.retainedElements = collector.retained
 }
 
 // Recursively collects destroyed, failed, and interrupted elements,
@@ -151,6 +153,14 @@ func (c *resultCollector) collectResourceResult(item *ResourceDestroyItem, path 
 	}
 	if IsInterruptedResourceStatus(item.Status) {
 		c.interrupted = append(c.interrupted, InterruptedElement{
+			ElementName: item.Name,
+			ElementPath: path,
+			ElementType: item.ResourceType,
+		})
+		return
+	}
+	if IsRetainedResourceStatus(item.Status) {
+		c.retained = append(c.retained, RetainedElement{
 			ElementName: item.Name,
 			ElementPath: path,
 			ElementType: item.ResourceType,

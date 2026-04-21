@@ -136,11 +136,19 @@ func IsInterruptedLinkStatus(status core.LinkStatus) bool {
 var successResourceStatuses = map[core.ResourceStatus]bool{
 	core.ResourceStatusDestroyed:        true,
 	core.ResourceStatusRollbackComplete: true,
+	core.ResourceStatusRetained:         true,
 }
 
 // IsSuccessResourceStatus returns true if the resource completed successfully.
 func IsSuccessResourceStatus(status core.ResourceStatus) bool {
 	return successResourceStatuses[status]
+}
+
+// IsRetainedResourceStatus returns true if the resource was retained — its
+// state was removed from the blueprint instance but the underlying
+// infrastructure was preserved in the provider.
+func IsRetainedResourceStatus(status core.ResourceStatus) bool {
+	return status == core.ResourceStatusRetained
 }
 
 var successInstanceStatuses = map[core.InstanceStatus]bool{
@@ -166,6 +174,7 @@ func IsSuccessLinkStatus(status core.LinkStatus) bool {
 var resourceStatusActions = map[core.ResourceStatus]string{
 	core.ResourceStatusDestroyed:        "destroyed",
 	core.ResourceStatusRollbackComplete: "rolled back",
+	core.ResourceStatusRetained:         "retained",
 }
 
 // ResourceStatusToAction converts a resource status to a human-readable action string.

@@ -237,6 +237,64 @@ func (s *DestroyTUISuite) Test_successful_destroy_single_resource() {
 	s.Equal(core.InstanceStatusDestroyed, finalModel.FinalStatus())
 }
 
+func (s *DestroyTUISuite) Test_destroy_with_retained_resource_surfaces_retain_results() {
+	events := []*types.BlueprintInstanceEvent{
+		resourceEvent("ordersQueue", core.ResourceStatusDestroying, core.PreciseResourceStatusDestroying),
+		resourceEvent("ordersQueue", core.ResourceStatusDestroyed, core.PreciseResourceStatusDestroyed),
+		resourceEvent("ordersTable", core.ResourceStatusRetained, core.PreciseResourceStatusRetained),
+		finishEvent(core.InstanceStatusDestroyed),
+	}
+
+	model := NewDestroyModel(DestroyModelConfig{
+		DestroyEngine: testutils.NewTestDeployEngineWithDeployment(
+			events,
+			"test-instance-id",
+			testInstanceState(core.InstanceStatusDestroyed),
+		),
+		Logger:           zap.NewNop(),
+		ChangesetID:      "test-changeset-retain",
+		InstanceID:       "",
+		InstanceName:     "test-instance",
+		Force:            false,
+		Styles:           s.styles,
+		IsHeadless:       false,
+		HeadlessWriter:   os.Stdout,
+		ChangesetChanges: nil,
+		JSONMode:         false,
+	})
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		model,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	testModel.Send(StartDestroyMsg{})
+
+	testutils.WaitForContainsAll(
+		s.T(),
+		testModel.Output(),
+		"ordersTable",
+		"retained", // summary line
+		"complete",
+	)
+
+	testutils.KeyQ(testModel)
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	finalModel := testModel.FinalModel(s.T()).(DestroyModel)
+	s.Nil(finalModel.Err())
+	s.Equal(core.InstanceStatusDestroyed, finalModel.FinalStatus())
+
+	retained := finalModel.RetainedElements()
+	s.Require().Len(retained, 1)
+	s.Equal("ordersTable", retained[0].ElementName)
+
+	destroyed := finalModel.DestroyedElements()
+	s.Require().Len(destroyed, 1)
+	s.Equal("ordersQueue", destroyed[0].ElementName)
+}
+
 func (s *DestroyTUISuite) Test_successful_destroy_multiple_resources() {
 	model := NewDestroyModel(DestroyModelConfig{
 		DestroyEngine:    testutils.NewTestDeployEngineWithDeployment(

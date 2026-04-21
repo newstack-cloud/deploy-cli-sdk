@@ -311,11 +311,13 @@ type ElementSummary struct {
 	SuccessLabel     string // e.g., "successful" or "destroyed"
 	FailureCount     int
 	InterruptedCount int
+	RetainedCount    int
 }
 
-// RenderElementSummary renders a summary line of element counts (successful/destroyed, failures, interrupted).
+// RenderElementSummary renders a summary line of element counts (successful/destroyed, failures, interrupted, retained).
 func RenderElementSummary(sb *strings.Builder, summary ElementSummary, s *styles.Styles) {
-	hasSummary := summary.SuccessCount > 0 || summary.FailureCount > 0 || summary.InterruptedCount > 0
+	hasSummary := summary.SuccessCount > 0 || summary.FailureCount > 0 ||
+		summary.InterruptedCount > 0 || summary.RetainedCount > 0
 	if !hasSummary {
 		return
 	}
@@ -344,6 +346,13 @@ func RenderElementSummary(sb *strings.Builder, summary ElementSummary, s *styles
 			sb.WriteString(s.Muted.Render(", "))
 		}
 		sb.WriteString(s.Warning.Render(fmt.Sprintf("%d interrupted", summary.InterruptedCount)))
+		needsComma = true
+	}
+	if summary.RetainedCount > 0 {
+		if needsComma {
+			sb.WriteString(s.Muted.Render(", "))
+		}
+		sb.WriteString(s.Info.Render(fmt.Sprintf("%d retained", summary.RetainedCount)))
 	}
 	sb.WriteString("\n")
 }

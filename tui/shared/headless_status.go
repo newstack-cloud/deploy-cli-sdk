@@ -26,6 +26,7 @@ var resourceStatusIcons = map[core.ResourceStatus]string{
 	core.ResourceStatusCreateInterrupted: "INT",
 	core.ResourceStatusUpdateInterrupted: "INT",
 	core.ResourceStatusDestroyInterrupted: "INT",
+	core.ResourceStatusRetained:          "RET",
 }
 
 // Resource status text mappings for headless output
@@ -45,6 +46,7 @@ var resourceStatusText = map[core.ResourceStatus]string{
 	core.ResourceStatusCreateInterrupted:  "create interrupted",
 	core.ResourceStatusUpdateInterrupted:  statusUpdateInterrupted,
 	core.ResourceStatusDestroyInterrupted: statusDestroyInterrupted,
+	core.ResourceStatusRetained:           "retained",
 }
 
 // Instance status icon mappings for headless output

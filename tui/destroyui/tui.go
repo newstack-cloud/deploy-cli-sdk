@@ -261,7 +261,7 @@ func (m MainModel) handleStageComplete(msg stageui.StageCompleteMsg) (tea.Model,
 		m.sessionState = destroyExecute
 		cmds = append(cmds, m.triggerDestroyWithChangeset(msg.ChangesetID, msg.Changes))
 	} else {
-		create, update, del, recreate := m.staging.CountChangeSummary()
+		create, update, del, recreate, retain := m.staging.CountChangeSummary()
 		m.staging.SetFooterRenderer(&DestroyStagingFooterRenderer{
 			ChangesetID: msg.ChangesetID,
 			Summary: ChangeSummary{
@@ -269,6 +269,7 @@ func (m MainModel) handleStageComplete(msg stageui.StageCompleteMsg) (tea.Model,
 				Update:   update,
 				Delete:   del,
 				Recreate: recreate,
+				Retain:   retain,
 			},
 			HasExportChanges: stageui.HasAnyExportChanges(msg.Changes),
 		})

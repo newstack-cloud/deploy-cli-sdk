@@ -44,6 +44,8 @@ func RenderResourceStatus(status core.ResourceStatus, s *styles.Styles) string {
 		core.ResourceStatusUpdateInterrupted,
 		core.ResourceStatusDestroyInterrupted:
 		return s.Warning.Render("Interrupted")
+	case core.ResourceStatusRetained:
+		return s.Info.Render("Retained")
 	default:
 		return s.Muted.Render("Unknown")
 	}
@@ -228,6 +230,8 @@ func FormatPreciseResourceStatus(status core.PreciseResourceStatus) string {
 		return "Resource update was interrupted (actual state unknown)"
 	case core.PreciseResourceStatusDestroyInterrupted:
 		return "Resource destruction was interrupted (actual state unknown)"
+	case core.PreciseResourceStatusRetained:
+		return "Resource retained — underlying infrastructure preserved in the provider"
 	default:
 		return "Pending"
 	}

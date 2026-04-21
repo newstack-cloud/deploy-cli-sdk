@@ -67,8 +67,8 @@ func (m *StageModel) printHeadlessSummary() {
 	m.printHeadlessGroupedItems()
 
 	resources, children, links := m.countByType()
-	create, update, delete, recreate := m.countChangeSummary()
-	hasDeploymentChanges := create > 0 || update > 0 || delete > 0 || recreate > 0
+	create, update, delete, recreate, retain := m.countChangeSummary()
+	hasDeploymentChanges := create > 0 || update > 0 || delete > 0 || recreate > 0 || retain > 0
 
 	if m.completeChanges != nil {
 		showExports := HasAnyExportChanges(m.completeChanges) ||
@@ -83,13 +83,12 @@ func (m *StageModel) printHeadlessSummary() {
 		resources, sdkstrings.Pluralize(resources, "resource", "resources"),
 		children, sdkstrings.Pluralize(children, "child", "children"),
 		links, sdkstrings.Pluralize(links, "link", "links"))
-	w.Printf("Actions: %d create, %d update, %d delete, %d recreate\n", create, update, delete, recreate)
+	w.Printf("Actions: %d create, %d update, %d delete, %d recreate, %d retain\n", create, update, delete, recreate, retain)
 	w.PrintlnEmpty()
 	w.Printf("Changeset ID: %s\n", m.changesetID)
 	w.PrintlnEmpty()
 
-	hasChanges := create > 0 || update > 0 || delete > 0 || recreate > 0
-	if !hasChanges {
+	if !hasDeploymentChanges {
 		w.Println("No changes to apply.")
 		return
 	}
