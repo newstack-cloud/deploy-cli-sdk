@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.3.0...v0.3.1) (2026-04-26)
+
+
+### Dependencies
+
+* bump up bluelink libs including various fixes ([9f5627c](https://github.com/newstack-cloud/deploy-cli-sdk/commit/9f5627cf2b121a5a7b5648312c95cb61f98111c0))
+
 ## [0.3.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.2.1...v0.3.0) (2026-04-21)
 
 
