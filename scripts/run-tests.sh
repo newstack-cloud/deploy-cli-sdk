@@ -70,18 +70,17 @@ get_docker_container_status() {
 }
 
 if [[ -n "$INTEGRATION" ]]; then
-  # Pull postgres migrations from the blueprint-state module if not already present.
+  # Sync postgres migrations from the resolved blueprint-state module version.
+  # Always re-syncs so dep bumps that add migrations don't leave the local copy stale.
   MIGRATIONS_DIR="$SDK_DIR/stateio/postgres/migrations"
-  if [[ ! -d "$MIGRATIONS_DIR" ]]; then
-    echo "Pulling postgres migrations from blueprint-state module..."
-    go mod download github.com/newstack-cloud/bluelink/libs/blueprint-state
-    BLUEPRINT_STATE_DIR="$(go env GOMODCACHE)/$(go list -m -f '{{.Path}}@{{.Version}}' github.com/newstack-cloud/bluelink/libs/blueprint-state)"
-    mkdir -p "$MIGRATIONS_DIR"
-    cp "$BLUEPRINT_STATE_DIR/postgres/migrations/"*.sql "$MIGRATIONS_DIR/"
-    echo "Copied $(ls "$MIGRATIONS_DIR" | wc -l | tr -d ' ') migration files."
-  else
-    echo "Postgres migrations already present, skipping download."
-  fi
+  echo "Syncing postgres migrations from blueprint-state module..."
+  go mod download github.com/newstack-cloud/bluelink/libs/blueprint-state
+  BLUEPRINT_STATE_DIR="$(go env GOMODCACHE)/$(go list -m -f '{{.Path}}@{{.Version}}' github.com/newstack-cloud/bluelink/libs/blueprint-state)"
+  rm -rf "$MIGRATIONS_DIR"
+  mkdir -p "$MIGRATIONS_DIR"
+  cp "$BLUEPRINT_STATE_DIR/postgres/migrations/"*.sql "$MIGRATIONS_DIR/"
+  chmod 644 "$MIGRATIONS_DIR/"*.sql
+  echo "Copied $(ls "$MIGRATIONS_DIR" | wc -l | tr -d ' ') migration files."
 
   echo "Starting stateio integration test dependencies (cloud storage emulators + postgres)..."
   docker compose --env-file "$SDK_DIR/.env.test" \

@@ -185,10 +185,12 @@ func (s *MainModelInteractiveSuite) Test_View_interactive_mode_shows_file_select
 // Test_export_error_tui verifies the non-headless error display path.
 func (s *MainModelInteractiveSuite) Test_export_error_tui_shows_failure() {
 	// Use a bad engine config to force an export error.
+	// Use an unsupported storage engine to force an export error.
+	// Loading a missing memfile dir is no longer an error in
+	// blueprint-state v0.8.0+ — it's treated as empty state.
 	badConfig := &stateio.EngineConfig{
 		State: stateio.StateConfig{
-			StorageEngine:   stateio.StorageEngineMemfile,
-			MemFileStateDir: "/nonexistent/path/that/does/not/exist",
+			StorageEngine: "unsupported-engine-type",
 		},
 	}
 
@@ -221,10 +223,12 @@ func (s *MainModelInteractiveSuite) Test_export_error_tui_shows_failure() {
 
 // Test_headless_export_with_error verifies error output in text headless mode.
 func (s *MainModelInteractiveSuite) Test_headless_export_with_error_text_output() {
+	// Use an unsupported storage engine to force an export error.
+	// Loading a missing memfile dir is no longer an error in
+	// blueprint-state v0.8.0+ — it's treated as empty state.
 	badConfig := &stateio.EngineConfig{
 		State: stateio.StateConfig{
-			StorageEngine:   stateio.StorageEngineMemfile,
-			MemFileStateDir: "/nonexistent/path/that/does/not/exist",
+			StorageEngine: "unsupported-engine-type",
 		},
 	}
 
@@ -254,10 +258,12 @@ func (s *MainModelInteractiveSuite) Test_headless_export_with_error_text_output(
 
 // Test_headless_export_with_error_json verifies JSON error output branch.
 func (s *MainModelInteractiveSuite) Test_headless_export_with_error_json_output() {
+	// Use an unsupported storage engine to force an export error.
+	// Loading a missing memfile dir is no longer an error in
+	// blueprint-state v0.8.0+ — it's treated as empty state.
 	badConfig := &stateio.EngineConfig{
 		State: stateio.StateConfig{
-			StorageEngine:   stateio.StorageEngineMemfile,
-			MemFileStateDir: "/nonexistent/path/that/does/not/exist",
+			StorageEngine: "unsupported-engine-type",
 		},
 	}
 
