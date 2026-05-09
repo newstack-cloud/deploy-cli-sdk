@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.3.1...v0.4.0) (2026-05-09)
+
+
+### Features
+
+* add support for transform validation options ([0750b07](https://github.com/newstack-cloud/deploy-cli-sdk/commit/0750b07bf7e68a62f58bf8797ec4c5b4f1cdab01))
+
 ## [0.3.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.3.0...v0.3.1) (2026-04-26)
 
 
