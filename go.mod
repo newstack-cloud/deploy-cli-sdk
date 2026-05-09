@@ -18,10 +18,10 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20251201173703-9f73bfd934ff
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/newstack-cloud/bluelink/libs/blueprint v0.44.0
+	github.com/newstack-cloud/bluelink/libs/blueprint v0.46.0
 	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.8.2
 	github.com/newstack-cloud/bluelink/libs/common v0.4.0
-	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.4.3
+	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.0
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

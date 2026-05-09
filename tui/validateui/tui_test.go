@@ -31,6 +31,8 @@ func (s *ValidateTUISuite) Test_successful_validation() {
 		Headless:               false,
 		HeadlessWriter:         os.Stdout,
 		Preflight:              nil,
+		TransformSpec:          ptr(true),
+		ValidateAfterTransform: ptr(false),
 	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
@@ -99,6 +101,8 @@ func (s *ValidateTUISuite) Test_validation_failed() {
 		Headless:               false,
 		HeadlessWriter:         os.Stdout,
 		Preflight:              nil,
+		TransformSpec:          ptr(true),
+		ValidateAfterTransform: ptr(false),
 	})
 	if err != nil {
 		s.FailNow("failed to create main model: %v", err)
@@ -225,4 +229,144 @@ func testValidationEvents(validationType testValidationType) []*types.BlueprintV
 
 func TestValidateTUISuite(t *testing.T) {
 	suite.Run(t, new(ValidateTUISuite))
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func (s *ValidateTUISuite) Test_options_form_drives_loader_config() {
+	eng := testutils.NewTestDeployEngine(testValidationEvents(validationSuccess))
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 eng,
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		Preflight:              nil,
+		// TransformSpec / ValidateAfterTransform left unset -> form should appear
+	})
+	if err != nil {
+		s.FailNow("failed to create main model: %v", err)
+	}
+
+	s.True(mainModel.needsOptionsInput, "form should be required when no explicit options are set")
+	s.NotNil(mainModel.validateOptionsForm, "options form should be constructed")
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		mainModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	// Wait for the form to render before sending keystrokes.
+	testutils.WaitForContainsAll(s.T(), testModel.Output(), "Run Transformer Plugins")
+
+	// Defaults are TransformSpec=true (Yes) / ValidateAfterTransform=false (No).
+	// Submit each huh.NewConfirm by pressing Enter — keeping defaults.
+	testutils.KeyEnter(testModel)
+	testutils.KeyEnter(testModel)
+
+	testutils.WaitForContainsAll(
+		s.T(),
+		testModel.Output(),
+		"This is a test informational diagnostic",
+		"This is a test warning diagnostic",
+	)
+
+	testutils.KeyQ(testModel)
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	payload := testutils.LastValidationPayloadFromEngine(eng)
+	s.NotNil(payload, "engine should have received a validation payload")
+	s.NotNil(payload.LoaderConfig, "loader config should be populated")
+	s.NotNil(payload.LoaderConfig.TransformSpec)
+	s.NotNil(payload.LoaderConfig.ValidateAfterTransform)
+	s.True(*payload.LoaderConfig.TransformSpec, "default TransformSpec should be true")
+	s.False(*payload.LoaderConfig.ValidateAfterTransform, "default ValidateAfterTransform should be false")
+}
+
+func (s *ValidateTUISuite) Test_loader_config_sent_in_headless_with_defaults() {
+	eng := testutils.NewTestDeployEngine(testValidationEvents(validationSuccess))
+	headlessOutput := testutils.NewSaveBuffer()
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 eng,
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               true,
+		HeadlessWriter:         headlessOutput,
+		Preflight:              nil,
+	})
+	if err != nil {
+		s.FailNow("failed to create main model: %v", err)
+	}
+	s.False(mainModel.needsOptionsInput, "headless mode should never prompt for options")
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		mainModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	testutils.WaitForContainsAll(
+		s.T(),
+		headlessOutput,
+		"This is a test informational diagnostic",
+		"This is a test warning diagnostic",
+	)
+
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	payload := testutils.LastValidationPayloadFromEngine(eng)
+	s.NotNil(payload)
+	s.NotNil(payload.LoaderConfig)
+	s.True(*payload.LoaderConfig.TransformSpec)
+	s.False(*payload.LoaderConfig.ValidateAfterTransform)
+}
+
+func (s *ValidateTUISuite) Test_loader_config_explicit_overrides_skip_form() {
+	eng := testutils.NewTestDeployEngine(testValidationEvents(validationSuccess))
+	mainModel, err := NewValidateApp(ValidateAppConfig{
+		Engine:                 eng,
+		Logger:                 zap.NewNop(),
+		BlueprintFile:          "test.blueprint.yaml",
+		IsDefaultBlueprintFile: false,
+		Styles:                 stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		Headless:               false,
+		HeadlessWriter:         os.Stdout,
+		Preflight:              nil,
+		TransformSpec:          ptr(false),
+		ValidateAfterTransform: ptr(true),
+	})
+	if err != nil {
+		s.FailNow("failed to create main model: %v", err)
+	}
+	s.False(mainModel.needsOptionsInput, "explicit values should skip the form")
+	s.Nil(mainModel.validateOptionsForm, "no form should be constructed when both options are explicit")
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		mainModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	testutils.WaitForContainsAll(
+		s.T(),
+		testModel.Output(),
+		"This is a test informational diagnostic",
+		"This is a test warning diagnostic",
+	)
+
+	testutils.KeyQ(testModel)
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	payload := testutils.LastValidationPayloadFromEngine(eng)
+	s.NotNil(payload)
+	s.NotNil(payload.LoaderConfig)
+	s.False(*payload.LoaderConfig.TransformSpec)
+	s.True(*payload.LoaderConfig.ValidateAfterTransform)
 }

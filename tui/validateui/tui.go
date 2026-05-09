@@ -33,6 +33,7 @@ type validateSessionState uint32
 const (
 	validatePreflight validateSessionState = iota
 	validateBlueprintSelect
+	validateOptionsInput
 	validateView
 )
 
@@ -40,11 +41,14 @@ type MainModel struct {
 	sessionState validateSessionState
 	// validateStage   ValidateStage
 	blueprintFile        string
+	pendingSelectMsg     *sharedui.SelectBlueprintMsg
 	quitting             bool
 	selectBlueprint      tea.Model
 	validate             tea.Model
+	validateOptionsForm  *ValidateOptionsFormModel
 	preflight            tea.Model
 	autoValidate         bool
+	needsOptionsInput    bool
 	restartInstructions  string
 	installedPlugins     []string
 	preflightCommandName string
@@ -56,9 +60,11 @@ func (m MainModel) Init() tea.Cmd {
 	if m.sessionState == validatePreflight && m.preflight != nil {
 		return m.preflight.Init()
 	}
-	bpCmd := m.selectBlueprint.Init()
-	validateCmd := m.validate.Init()
-	return tea.Batch(bpCmd, validateCmd)
+	cmds := []tea.Cmd{m.selectBlueprint.Init(), m.validate.Init()}
+	if m.validateOptionsForm != nil {
+		cmds = append(cmds, m.validateOptionsForm.Init())
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -68,11 +74,29 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := []tea.Cmd{}
 	switch msg := msg.(type) {
 	case sharedui.SelectBlueprintMsg:
-		m.sessionState = validateView
 		m.blueprintFile = sharedui.ToFullBlueprintPath(msg.BlueprintFile, msg.Source)
-		var cmd tea.Cmd
-		m.validate, cmd = m.validate.Update(msg)
-		cmds = append(cmds, cmd)
+		captured := msg
+		m.pendingSelectMsg = &captured
+		if m.needsOptionsInput {
+			m.sessionState = validateOptionsInput
+		} else {
+			m.sessionState = validateView
+			var cmd tea.Cmd
+			m.validate, cmd = m.validate.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case ValidateOptionsSelectedMsg:
+		m.sessionState = validateView
+		validateModel := m.validate.(ValidateModel)
+		validateModel.SetTransformSpec(msg.TransformSpec)
+		validateModel.SetValidateAfterTransform(msg.ValidateAfterTransform)
+		m.validate = validateModel
+		if m.pendingSelectMsg != nil {
+			selectMsg := *m.pendingSelectMsg
+			var cmd tea.Cmd
+			m.validate, cmd = m.validate.Update(selectMsg)
+			cmds = append(cmds, cmd)
+		}
 	case sharedui.ClearSelectedBlueprintMsg:
 		m.sessionState = validateBlueprintSelect
 		m.blueprintFile = ""
@@ -103,6 +127,12 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.selectBlueprint = selectBlueprintModel
 		cmds = append(cmds, newCmd)
+	case validateOptionsInput:
+		if m.validateOptionsForm != nil {
+			var cmd tea.Cmd
+			m.validateOptionsForm, cmd = m.validateOptionsForm.Update(msg)
+			cmds = append(cmds, cmd)
+		}
 	case validateView:
 		newValidate, newCmd := m.validate.Update(msg)
 		validateModel, ok := newValidate.(ValidateModel)
@@ -130,6 +160,9 @@ func (m MainModel) updatePreflight(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sessionState = validateBlueprintSelect
 		}
 		cmds := []tea.Cmd{m.selectBlueprint.Init(), m.validate.Init()}
+		if m.validateOptionsForm != nil {
+			cmds = append(cmds, m.validateOptionsForm.Init())
+		}
 		return m, tea.Batch(cmds...)
 	case preflight.InstalledMsg:
 		m.restartInstructions = msg.RestartInstructions
@@ -173,6 +206,13 @@ func (m MainModel) View() string {
 	if m.sessionState == validateBlueprintSelect {
 		return m.selectBlueprint.View()
 	}
+	if m.sessionState == validateOptionsInput {
+		selected := "\n  You selected blueprint: " + m.styles.Selected.Render(m.blueprintFile) + "\n\n"
+		if m.validateOptionsForm != nil {
+			return selected + m.validateOptionsForm.View()
+		}
+		return selected
+	}
 
 	selected := "\n  You selected blueprint: " + m.styles.Selected.Render(m.blueprintFile) + "\n"
 	return selected + m.validate.View()
@@ -188,6 +228,15 @@ type ValidateAppConfig struct {
 	Headless               bool
 	HeadlessWriter         io.Writer
 	Preflight              tea.Model
+	// TransformSpec, when non-nil, sets the validation loader's transform-spec
+	// option directly and skips the interactive options form. When nil, the
+	// SDK default of true is used and (in interactive mode) the form is shown.
+	TransformSpec *bool
+	// ValidateAfterTransform, when non-nil, sets the validation loader's
+	// validate-after-transform option directly and skips the interactive
+	// options form. When nil, the SDK default of false is used and (in
+	// interactive mode) the form is shown.
+	ValidateAfterTransform *bool
 }
 
 func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
@@ -219,14 +268,47 @@ func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
 	if err != nil {
 		return nil, err
 	}
-	validate := NewValidateModel(cfg.Engine, cfg.Logger, cfg.Headless, cfg.HeadlessWriter, cfg.Styles)
+
+	transformSpec := boolFromPtr(cfg.TransformSpec, true)
+	validateAfterTransform := boolFromPtr(cfg.ValidateAfterTransform, false)
+	needsOptionsInput := !cfg.Headless &&
+		cfg.TransformSpec == nil &&
+		cfg.ValidateAfterTransform == nil
+
+	validate := NewValidateModel(ValidateModelConfig{
+		Engine:                 cfg.Engine,
+		Logger:                 cfg.Logger,
+		Headless:               cfg.Headless,
+		HeadlessWriter:         cfg.HeadlessWriter,
+		Styles:                 cfg.Styles,
+		TransformSpec:          transformSpec,
+		ValidateAfterTransform: validateAfterTransform,
+	})
+
+	var optionsForm *ValidateOptionsFormModel
+	if needsOptionsInput {
+		optionsForm = NewValidateOptionsFormModel(cfg.Styles, ValidateOptionsFormConfig{
+			InitialTransformSpec:          transformSpec,
+			InitialValidateAfterTransform: validateAfterTransform,
+		})
+	}
+
 	return &MainModel{
-		sessionState:    sessionState,
-		blueprintFile:   cfg.BlueprintFile,
-		selectBlueprint: selectBlueprint,
-		validate:        validate,
-		preflight:       cfg.Preflight,
-		autoValidate:    autoValidate,
-		styles:          cfg.Styles,
+		sessionState:        sessionState,
+		blueprintFile:       cfg.BlueprintFile,
+		selectBlueprint:     selectBlueprint,
+		validate:            validate,
+		validateOptionsForm: optionsForm,
+		preflight:           cfg.Preflight,
+		autoValidate:        autoValidate,
+		needsOptionsInput:   needsOptionsInput,
+		styles:              cfg.Styles,
 	}, nil
+}
+
+func boolFromPtr(p *bool, defaultValue bool) bool {
+	if p == nil {
+		return defaultValue
+	}
+	return *p
 }

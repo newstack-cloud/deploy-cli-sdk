@@ -14,18 +14,19 @@ import (
 )
 
 type testDeployEngine struct {
-	validationEvents    []*types.BlueprintValidationEvent
-	stagingEvents       []*types.ChangeStagingEvent
-	deploymentEvents    []*types.BlueprintInstanceEvent
-	changesetID         string
-	changesetChanges    *changes.BlueprintChanges
-	instanceID          string
-	instanceState       *state.InstanceState
-	createError         error
-	createInstanceErr   error
-	updateInstanceErr   error
-	destroyInstanceErr  error
-	getInstanceStateErr error
+	validationEvents       []*types.BlueprintValidationEvent
+	stagingEvents          []*types.ChangeStagingEvent
+	deploymentEvents       []*types.BlueprintInstanceEvent
+	changesetID            string
+	changesetChanges       *changes.BlueprintChanges
+	instanceID             string
+	instanceState          *state.InstanceState
+	createError            error
+	createInstanceErr      error
+	updateInstanceErr      error
+	destroyInstanceErr     error
+	getInstanceStateErr    error
+	lastValidationPayload  *types.CreateBlueprintValidationPayload
 }
 
 func NewTestDeployEngine(stubValidationEvents []*types.BlueprintValidationEvent) engine.DeployEngine {
@@ -116,6 +117,7 @@ func (d *testDeployEngine) CreateBlueprintValidation(
 	payload *types.CreateBlueprintValidationPayload,
 	query *types.CreateBlueprintValidationQuery,
 ) (*types.BlueprintValidationResponse, error) {
+	d.lastValidationPayload = payload
 	return &types.BlueprintValidationResponse{
 		Data: &manage.BlueprintValidation{
 			ID:                "test-validation-id",
@@ -125,6 +127,16 @@ func (d *testDeployEngine) CreateBlueprintValidation(
 		},
 		LastEventID: "",
 	}, nil
+}
+
+// LastValidationPayloadFromEngine returns the last CreateBlueprintValidation
+// payload received by the test engine, if any. Returns nil if the engine
+// is not a test engine, or if no validation has been created.
+func LastValidationPayloadFromEngine(eng engine.DeployEngine) *types.CreateBlueprintValidationPayload {
+	if d, ok := eng.(*testDeployEngine); ok {
+		return d.lastValidationPayload
+	}
+	return nil
 }
 
 func (d *testDeployEngine) GetBlueprintValidation(

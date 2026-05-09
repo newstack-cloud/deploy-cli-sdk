@@ -47,12 +47,14 @@ type ValidateModel struct {
 	// exits with a non-zero exit code.
 	// This is separate from the err field so that it allows us to render the
 	// diagnostics in the TUI before exiting.
-	validationFailed bool
-	logger           *zap.Logger
-	renderer         *glamour.TermRenderer
-	headless         bool
-	headlessWriter   io.Writer
-	styles           *stylespkg.Styles
+	validationFailed       bool
+	logger                 *zap.Logger
+	renderer               *glamour.TermRenderer
+	headless               bool
+	headlessWriter         io.Writer
+	styles                 *stylespkg.Styles
+	transformSpec          bool
+	validateAfterTransform bool
 }
 
 func (m ValidateModel) Init() tea.Cmd {
@@ -392,31 +394,58 @@ func renderDiagnosticLevel(level bpcore.DiagnosticLevel, styles *stylespkg.Style
 	}
 }
 
-func NewValidateModel(
-	engine engine.DeployEngine,
-	logger *zap.Logger,
-	headless bool,
-	headlessWriter io.Writer,
-	styles *stylespkg.Styles,
-) ValidateModel {
+// ValidateModelConfig holds the configuration for creating a new ValidateModel.
+type ValidateModelConfig struct {
+	Engine                 engine.DeployEngine
+	Logger                 *zap.Logger
+	Headless               bool
+	HeadlessWriter         io.Writer
+	Styles                 *stylespkg.Styles
+	TransformSpec          bool
+	ValidateAfterTransform bool
+}
+
+func NewValidateModel(cfg ValidateModelConfig) ValidateModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = styles.Spinner
+	s.Style = cfg.Styles.Spinner
 	renderer, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(80),
 	)
 	return ValidateModel{
-		spinner:        s,
-		engine:         engine,
-		logger:         logger,
-		resultStream:   make(chan types.BlueprintValidationEvent),
-		errStream:      make(chan error),
-		renderer:       renderer,
-		headless:       headless,
-		headlessWriter: headlessWriter,
-		styles:         styles,
+		spinner:                s,
+		engine:                 cfg.Engine,
+		logger:                 cfg.Logger,
+		resultStream:           make(chan types.BlueprintValidationEvent),
+		errStream:              make(chan error),
+		renderer:               renderer,
+		headless:               cfg.Headless,
+		headlessWriter:         cfg.HeadlessWriter,
+		styles:                 cfg.Styles,
+		transformSpec:          cfg.TransformSpec,
+		validateAfterTransform: cfg.ValidateAfterTransform,
 	}
+}
+
+// SetTransformSpec sets the transform spec option.
+func (m *ValidateModel) SetTransformSpec(transformSpec bool) {
+	m.transformSpec = transformSpec
+}
+
+// SetValidateAfterTransform sets the validate after transform option.
+func (m *ValidateModel) SetValidateAfterTransform(validateAfterTransform bool) {
+	m.validateAfterTransform = validateAfterTransform
+}
+
+// TransformSpec returns whether the transform spec option is enabled.
+func (m ValidateModel) TransformSpec() bool {
+	return m.transformSpec
+}
+
+// ValidateAfterTransform returns whether the validate-after-transform option is enabled.
+func (m ValidateModel) ValidateAfterTransform() bool {
+	return m.validateAfterTransform
 }
 
 func diagnosticLevelName(level bpcore.DiagnosticLevel) string {

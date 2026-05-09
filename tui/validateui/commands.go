@@ -70,6 +70,7 @@ func createValidationPayloadForLocalFile(
 			Directory:        directory,
 			BlueprintFile:    file,
 		},
+		LoaderConfig: buildLoaderConfig(model),
 	}, nil
 }
 
@@ -103,6 +104,7 @@ func createValidationPayloadForObjectStorage(
 			Directory:        directory,
 			BlueprintFile:    file,
 		},
+		LoaderConfig: buildLoaderConfig(model),
 	}, nil
 }
 
@@ -128,7 +130,17 @@ func createValidationPayloadForHTTPS(
 				"host": url.Host,
 			},
 		},
+		LoaderConfig: buildLoaderConfig(model),
 	}, nil
+}
+
+func buildLoaderConfig(model ValidateModel) *types.ValidationLoaderConfig {
+	transformSpec := model.transformSpec
+	validateAfterTransform := model.validateAfterTransform
+	return &types.ValidationLoaderConfig{
+		TransformSpec:          &transformSpec,
+		ValidateAfterTransform: &validateAfterTransform,
+	}
 }
 
 func waitForNextResultCmd(model ValidateModel) tea.Cmd {
