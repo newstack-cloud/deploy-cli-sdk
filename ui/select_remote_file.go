@@ -22,7 +22,7 @@ type SelectRemoteFileConfig struct {
 	// Defaults to "The public URL of the file to download."
 	URLDescription string
 	// URLPlaceholder is the placeholder for the HTTPS URL input field.
-	// Defaults to "https://assets.example.com/project.blueprint.yaml".
+	// Defaults to "https://assets.example.com/project.blueprint".
 	URLPlaceholder string
 	// BucketNameTitle overrides the bucket name title for a specific source.
 	// Map keys are source constants (e.g., consts.FileSourceS3).
@@ -131,7 +131,7 @@ func NewSelectRemoteFile(
 	}
 	urlPlaceholder := config.URLPlaceholder
 	if urlPlaceholder == "" {
-		urlPlaceholder = "https://assets.example.com/project.blueprint.yaml"
+		urlPlaceholder = "https://assets.example.com/project.blueprint"
 	}
 
 	model.urlForm = huh.NewForm(

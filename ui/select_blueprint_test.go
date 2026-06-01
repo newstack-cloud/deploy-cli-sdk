@@ -304,6 +304,19 @@ func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_https_file() {
 func (s *SelectBlueprintSuite) Test_select_blueprint_from_remote_azure_blob_file() {
 }
 
+// The blueprint library (>=0.47.0) recognises the blueprint language format by the
+// ".bp" and ".blueprint" extensions, so the local file picker must allow selecting them
+// alongside the YAML and JSON formats.
+func (s *SelectBlueprintSuite) Test_local_file_picker_allows_blueprint_language_files() {
+	styles := styles.NewStyles(lipgloss.NewRenderer(os.Stdout), styles.NewBluelinkPalette())
+	fp, err := BlueprintLocalFilePicker(styles)
+	s.NoError(err)
+
+	for _, ext := range []string{".yaml", ".yml", ".json", ".jsonc", ".bp", ".blueprint"} {
+		s.Assert().Contains(fp.AllowedTypes, ext)
+	}
+}
+
 func TestSelectBlueprintSuite(t *testing.T) {
 	suite.Run(t, new(SelectBlueprintSuite))
 }

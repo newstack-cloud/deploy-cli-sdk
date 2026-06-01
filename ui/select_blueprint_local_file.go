@@ -21,7 +21,7 @@ func customFilePickerStyles(styles *stylespkg.Styles) filepicker.Styles {
 func BlueprintLocalFilePicker(styles *stylespkg.Styles) (filepicker.Model, error) {
 	fp := filepicker.New()
 	fp.Styles = customFilePickerStyles(styles)
-	fp.AllowedTypes = []string{".yaml", ".yml", ".json", ".jsonc"}
+	fp.AllowedTypes = []string{".yaml", ".yml", ".json", ".jsonc", ".bp", ".blueprint"}
 
 	currentDir, err := os.Getwd()
 	if err != nil {

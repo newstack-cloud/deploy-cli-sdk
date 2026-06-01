@@ -120,7 +120,7 @@ func NewSelectBlueprint(
 			RemoteFileConfig: &SelectRemoteFileConfig{
 				URLTitle:       "HTTPS resource URL blueprint file location",
 				URLDescription: "The public URL of the blueprint to download.",
-				URLPlaceholder: "https://assets.example.com/project.blueprint.yml",
+				URLPlaceholder: "https://assets.example.com/project.blueprint",
 				BucketNameDescription: map[string]string{
 					consts.FileSourceS3:        "The name of the S3 bucket containing the blueprint file.",
 					consts.FileSourceGCS:       "The name of the GCS bucket containing the blueprint file.",
