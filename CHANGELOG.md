@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.4.0...v0.5.0) (2026-06-01)
+
+
+### Features
+
+* add support for blueprint language ([9efaff6](https://github.com/newstack-cloud/deploy-cli-sdk/commit/9efaff696dc00f20769701a6b6156fa8fb292f1e))
+
 ## [0.4.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.3.1...v0.4.0) (2026-05-09)
 
 
