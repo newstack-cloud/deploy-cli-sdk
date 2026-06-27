@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
+	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/provider"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
@@ -656,37 +657,95 @@ func (r *StageDetailsRenderer) renderLinkChanges(linkChanges *provider.LinkChang
 
 	successStyle := lipgloss.NewStyle().Foreground(s.Palette.Success())
 
-	hasChanges := len(linkChanges.NewFields) > 0 || len(linkChanges.ModifiedFields) > 0 || len(linkChanges.RemovedFields) > 0
+	// Link-owned intermediary resources (e.g. an aws/lambda/permission) are projected
+	// into link data under an "intermediaries" map; pull them out so they render as a
+	// dedicated, grouped section rather than raw bracketed field paths.
+	regular, intermediaries := SplitIntermediaryChanges(linkChanges)
 
-	if !hasChanges {
+	hasFieldChanges := len(regular.NewFields) > 0 || len(regular.ModifiedFields) > 0 || len(regular.RemovedFields) > 0
+
+	if !hasFieldChanges && len(intermediaries) == 0 {
 		sb.WriteString(s.Muted.Render("No field changes"))
 		return sb.String()
 	}
 
-	sb.WriteString(s.Category.Render("Changes:"))
+	if hasFieldChanges {
+		sb.WriteString(s.Category.Render("Changes:"))
+		sb.WriteString("\n")
+
+		// New fields (additions)
+		for _, field := range regular.NewFields {
+			line := fmt.Sprintf("  + %s: %s", field.FieldPath, headless.FormatMappingNode(field.NewValue))
+			sb.WriteString(successStyle.Render(line))
+			sb.WriteString("\n")
+		}
+
+		// Modified fields
+		for _, field := range regular.ModifiedFields {
+			prevValue := headless.FormatMappingNode(field.PrevValue)
+			newValue := headless.FormatMappingNode(field.NewValue)
+			line := fmt.Sprintf("  ± %s: %s -> %s", field.FieldPath, prevValue, newValue)
+			sb.WriteString(s.Warning.Render(line))
+			sb.WriteString("\n")
+		}
+
+		// Removed fields
+		for _, fieldPath := range regular.RemovedFields {
+			line := fmt.Sprintf("  - %s", fieldPath)
+			sb.WriteString(s.Error.Render(line))
+			sb.WriteString("\n")
+		}
+	}
+
+	if len(intermediaries) > 0 {
+		if hasFieldChanges {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(r.renderIntermediaryChanges(intermediaries, s))
+	}
+
+	return sb.String()
+}
+
+// Renders the grouped "Intermediary Resources" section: one entry
+// per link-owned intermediary, labelled by its type/identity with a create/update/destroy
+// symbol, and its changed leaves (and known-on-deploy leaves) indented beneath.
+func (r *StageDetailsRenderer) renderIntermediaryChanges(groups []intermediaryGroup, s *styles.Styles) string {
+	sb := strings.Builder{}
+	successStyle := lipgloss.NewStyle().Foreground(s.Palette.Success())
+
+	sb.WriteString(s.Category.Render("Intermediary Resources:"))
 	sb.WriteString("\n")
 
-	// New fields (additions)
-	for _, field := range linkChanges.NewFields {
-		line := fmt.Sprintf("  + %s: %s", field.FieldPath, headless.FormatMappingNode(field.NewValue))
-		sb.WriteString(successStyle.Render(line))
-		sb.WriteString("\n")
-	}
+	for _, group := range groups {
+		symbol, headerStyle := "±", s.Warning
+		switch {
+		case group.created:
+			symbol, headerStyle = "+", successStyle
+		case group.destroyed:
+			symbol, headerStyle = "-", s.Error
+		}
 
-	// Modified fields
-	for _, field := range linkChanges.ModifiedFields {
-		prevValue := headless.FormatMappingNode(field.PrevValue)
-		newValue := headless.FormatMappingNode(field.NewValue)
-		line := fmt.Sprintf("  ± %s: %s -> %s", field.FieldPath, prevValue, newValue)
-		sb.WriteString(s.Warning.Render(line))
+		label := group.id
+		if group.resourceType != "" {
+			label = fmt.Sprintf("%s (%s)", group.resourceType, group.id)
+		}
+		sb.WriteString(headerStyle.Render(fmt.Sprintf("  %s %s", symbol, label)))
 		sb.WriteString("\n")
-	}
 
-	// Removed fields
-	for _, fieldPath := range linkChanges.RemovedFields {
-		line := fmt.Sprintf("  - %s", fieldPath)
-		sb.WriteString(s.Error.Render(line))
-		sb.WriteString("\n")
+		for _, leaf := range group.leaves {
+			switch leaf.kind {
+			case leafNew:
+				sb.WriteString(successStyle.Render(fmt.Sprintf("      + %s: %s", leaf.name, leaf.newValue)))
+			case leafModified:
+				sb.WriteString(s.Warning.Render(fmt.Sprintf("      ± %s: %s -> %s", leaf.name, leaf.prevValue, leaf.newValue)))
+			case leafRemoved:
+				sb.WriteString(s.Error.Render(fmt.Sprintf("      - %s", leaf.name)))
+			case leafKnownOnDeploy:
+				sb.WriteString(s.Muted.Render(fmt.Sprintf("      • %s: known on deploy", leaf.name)))
+			}
+			sb.WriteString("\n")
+		}
 	}
 
 	return sb.String()
@@ -694,6 +753,163 @@ func (r *StageDetailsRenderer) renderLinkChanges(linkChanges *provider.LinkChang
 
 func renderActionBadge(action ActionType, s *styles.Styles) string {
 	return shared.RenderActionBadge(action, s)
+}
+
+const (
+	leafNew           = "new"
+	leafModified      = "modified"
+	leafRemoved       = "removed"
+	leafKnownOnDeploy = "known"
+
+	intermediaryPathPrefix = "[\"intermediaries\"][\""
+	intermediaryLeafSep    = "\"][\""
+	intermediaryPathSuffix = "\"]"
+	intermediaryTypeLeaf   = "resourceType"
+)
+
+type intermediaryLeafChange struct {
+	name      string
+	kind      string
+	newValue  string
+	prevValue string
+}
+
+type intermediaryGroup struct {
+	id           string
+	resourceType string
+	created      bool
+	destroyed    bool
+	leaves       []intermediaryLeafChange
+}
+
+// Extracts the intermediary id and leaf name from a link-data
+// field path of the form ["intermediaries"]["<id>"]["<leaf>"]. Returns ok=false for any
+// path that is not an intermediary projection.
+func parseIntermediaryLeafPath(path string) (id, leaf string, ok bool) {
+	if !strings.HasPrefix(path, intermediaryPathPrefix) {
+		return "", "", false
+	}
+	rest := path[len(intermediaryPathPrefix):]
+	before, after, found := strings.Cut(rest, intermediaryLeafSep)
+	if !found {
+		return "", "", false
+	}
+	id = before
+	leaf = strings.TrimSuffix(after, intermediaryPathSuffix)
+	return id, leaf, true
+}
+
+// SplitIntermediaryChanges partitions link-data field changes into regular changes
+// and per-intermediary groups while preserving first-seen ordering of group ids.
+func SplitIntermediaryChanges(linkChanges *provider.LinkChanges) (*provider.LinkChanges, []intermediaryGroup) {
+	c := newIntermediaryCollector()
+	c.collectNewFields(linkChanges.NewFields)
+	c.collectModifiedFields(linkChanges.ModifiedFields)
+	c.collectRemovedFields(linkChanges.RemovedFields)
+	c.collectKnownOnDeploy(linkChanges.FieldChangesKnownOnDeploy)
+	return c.regular, c.sortedGroups()
+}
+
+// intermediaryCollector partitions link-data field changes into regular changes
+// and per-intermediary groups while preserving first-seen ordering of group ids.
+type intermediaryCollector struct {
+	regular *provider.LinkChanges
+	groups  map[string]*intermediaryGroup
+	order   []string
+}
+
+func newIntermediaryCollector() *intermediaryCollector {
+	return &intermediaryCollector{
+		regular: &provider.LinkChanges{},
+		groups:  map[string]*intermediaryGroup{},
+	}
+}
+
+func (c *intermediaryCollector) groupFor(id string) *intermediaryGroup {
+	group, ok := c.groups[id]
+	if !ok {
+		group = &intermediaryGroup{id: id}
+		c.groups[id] = group
+		c.order = append(c.order, id)
+	}
+	return group
+}
+
+func (c *intermediaryCollector) collectNewFields(fields []*provider.FieldChange) {
+	for _, field := range fields {
+		id, leaf, ok := parseIntermediaryLeafPath(field.FieldPath)
+		if !ok {
+			c.regular.NewFields = append(c.regular.NewFields, field)
+			continue
+		}
+		group := c.groupFor(id)
+		if leaf == intermediaryTypeLeaf {
+			group.created = true
+			group.resourceType = core.StringValue(field.NewValue)
+			continue
+		}
+		group.leaves = append(group.leaves, intermediaryLeafChange{
+			name: leaf, kind: leafNew, newValue: headless.FormatMappingNode(field.NewValue),
+		})
+	}
+}
+
+func (c *intermediaryCollector) collectModifiedFields(fields []*provider.FieldChange) {
+	for _, field := range fields {
+		id, leaf, ok := parseIntermediaryLeafPath(field.FieldPath)
+		if !ok {
+			c.regular.ModifiedFields = append(c.regular.ModifiedFields, field)
+			continue
+		}
+		group := c.groupFor(id)
+		if leaf == intermediaryTypeLeaf {
+			group.resourceType = core.StringValue(field.NewValue)
+		}
+		group.leaves = append(group.leaves, intermediaryLeafChange{
+			name: leaf, kind: leafModified,
+			prevValue: headless.FormatMappingNode(field.PrevValue),
+			newValue:  headless.FormatMappingNode(field.NewValue),
+		})
+	}
+}
+
+func (c *intermediaryCollector) collectRemovedFields(paths []string) {
+	for _, path := range paths {
+		id, leaf, ok := parseIntermediaryLeafPath(path)
+		if !ok {
+			c.regular.RemovedFields = append(c.regular.RemovedFields, path)
+			continue
+		}
+		group := c.groupFor(id)
+		if leaf == intermediaryTypeLeaf {
+			group.destroyed = true
+			continue
+		}
+		group.leaves = append(group.leaves, intermediaryLeafChange{name: leaf, kind: leafRemoved})
+	}
+}
+
+func (c *intermediaryCollector) collectKnownOnDeploy(paths []string) {
+	for _, path := range paths {
+		id, leaf, ok := parseIntermediaryLeafPath(path)
+		if !ok {
+			c.regular.FieldChangesKnownOnDeploy = append(c.regular.FieldChangesKnownOnDeploy, path)
+			continue
+		}
+		group := c.groupFor(id)
+		group.leaves = append(group.leaves, intermediaryLeafChange{name: leaf, kind: leafKnownOnDeploy})
+	}
+}
+
+func (c *intermediaryCollector) sortedGroups() []intermediaryGroup {
+	sort.Strings(c.order)
+	result := make([]intermediaryGroup, 0, len(c.order))
+	for _, id := range c.order {
+		group := c.groups[id]
+		sort.Slice(group.leaves, func(i, j int) bool { return group.leaves[i].name < group.leaves[j].name })
+		result = append(result, *group)
+	}
+	return result
 }
 
 // StageSectionGrouper implements splitpane.SectionGrouper for stage UI.

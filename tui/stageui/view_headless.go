@@ -354,20 +354,24 @@ func (m *StageModel) printHeadlessChildChanges(childChanges *changes.BlueprintCh
 }
 
 func (m *StageModel) printHeadlessLinkChanges(linkChanges *provider.LinkChanges) {
-	hasChanges := len(linkChanges.NewFields) > 0 ||
-		len(linkChanges.ModifiedFields) > 0 ||
-		len(linkChanges.RemovedFields) > 0
+	// Link-owned intermediary resources are projected into link data under an
+	// "intermediaries" map; render them as a dedicated grouped section.
+	regular, intermediaries := SplitIntermediaryChanges(linkChanges)
 
-	if !hasChanges {
+	hasFieldChanges := len(regular.NewFields) > 0 ||
+		len(regular.ModifiedFields) > 0 ||
+		len(regular.RemovedFields) > 0
+
+	if !hasFieldChanges && len(intermediaries) == 0 {
 		m.printer.NoChanges()
 		return
 	}
 
-	for _, field := range linkChanges.NewFields {
+	for _, field := range regular.NewFields {
 		m.printer.FieldAdd(field.FieldPath, headless.FormatMappingNode(field.NewValue))
 	}
 
-	for _, field := range linkChanges.ModifiedFields {
+	for _, field := range regular.ModifiedFields {
 		m.printer.FieldModify(
 			field.FieldPath,
 			headless.FormatMappingNode(field.PrevValue),
@@ -375,8 +379,46 @@ func (m *StageModel) printHeadlessLinkChanges(linkChanges *provider.LinkChanges)
 		)
 	}
 
-	for _, fieldPath := range linkChanges.RemovedFields {
+	for _, fieldPath := range regular.RemovedFields {
 		m.printer.FieldRemove(fieldPath)
+	}
+
+	m.printHeadlessIntermediaryChanges(intermediaries)
+}
+
+func (m *StageModel) printHeadlessIntermediaryChanges(groups []intermediaryGroup) {
+	if len(groups) == 0 {
+		return
+	}
+
+	w := m.printer.Writer()
+	w.Println("Intermediary Resources:")
+	for _, group := range groups {
+		symbol := "~"
+		switch {
+		case group.created:
+			symbol = "+"
+		case group.destroyed:
+			symbol = "-"
+		}
+		label := group.id
+		if group.resourceType != "" {
+			label = group.resourceType + " (" + group.id + ")"
+		}
+		w.Printf("  %s %s\n", symbol, label)
+
+		for _, leaf := range group.leaves {
+			switch leaf.kind {
+			case leafNew:
+				w.Printf("      + %s: %s\n", leaf.name, leaf.newValue)
+			case leafModified:
+				w.Printf("      ~ %s: %s -> %s\n", leaf.name, leaf.prevValue, leaf.newValue)
+			case leafRemoved:
+				w.Printf("      - %s\n", leaf.name)
+			case leafKnownOnDeploy:
+				w.Printf("      • %s: known on deploy\n", leaf.name)
+			}
+		}
 	}
 }
 
