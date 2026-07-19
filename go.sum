@@ -240,8 +240,8 @@ github.com/newstack-cloud/bluelink/libs/blueprint-state v0.8.3 h1:KqtXGArwDOdwYL
 github.com/newstack-cloud/bluelink/libs/blueprint-state v0.8.3/go.mod h1:Z/QAsktiZUzOceFvAUqlwS7QR23wgxyWAl1s4tBiS1w=
 github.com/newstack-cloud/bluelink/libs/common v0.4.0 h1:E72YAjex+VydpaYJXaAwlqeII7jVugEKsfVjHFLaJJY=
 github.com/newstack-cloud/bluelink/libs/common v0.4.0/go.mod h1:09jWAU7PMDJSW0zokebgDZCr59Gg4JpqgF0Yq6kQ8gY=
-github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.0 h1:W8BCipliy89Jd0D3HQKdOZIzMFwD0+LSRVWRsO4klts=
-github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.0/go.mod h1:jHkXTsevDAR0wRGnbFJP/4toh54JcDqom2v84G3xkMs=
+github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.1 h1:nr99xrQWfEd3lsOMb6YqIw+Dlb8ODcR9Fumx+fzAhoQ=
+github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.1/go.mod h1:P4BowC1Io/mF/kP3cQ2ondQRYvZ/ca/eyVghI/KBWXc=
 github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c h1:+mdjkGKdHQG3305AYmdv1U2eRNDiU2ErMBj1gwrq8eQ=
 github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c/go.mod h1:7rwL4CYBLnjLxUqIJNnCWiEdr3bn6IUYi15bNlnbCCU=
 github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 h1:GFCKgmp0tecUJ0sJuv4pzYCqS9+RGSn52M3FUwPs+uo=

@@ -21,7 +21,7 @@ require (
 	github.com/newstack-cloud/bluelink/libs/blueprint v0.51.2
 	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.8.3
 	github.com/newstack-cloud/bluelink/libs/common v0.4.0
-	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.0
+	github.com/newstack-cloud/bluelink/libs/deploy-engine-client v0.5.1
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
