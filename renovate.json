@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>newstack-cloud/renovate-config",
+    "github>newstack-cloud/bluelink//renovate/bluelink-consumers"
+  ],
+  "packageRules": [
+    {
+      "description": "Single-package release-please repo,  deps: commit type with no scope, matching the existing convention.",
+      "matchManagers": ["gomod"],
+      "semanticCommitScope": null
+    }
+  ]
+}
