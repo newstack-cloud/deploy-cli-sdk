@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.5.0...v0.6.0) (2026-07-19)
+
+
+### Features
+
+* add support for rendering link intermediary changes as distinct section ([86130cb](https://github.com/newstack-cloud/deploy-cli-sdk/commit/86130cb0974a84e08c34882a89fedd465553e479))
+
+
+### Bug Fixes
+
+* update module github.com/newstack-cloud/bluelink/libs/blueprint to v0.51.2 ([a338284](https://github.com/newstack-cloud/deploy-cli-sdk/commit/a338284ad3e151f5d577713ec6fe57546d38266c))
+* update module github.com/newstack-cloud/bluelink/libs/blueprint-state to v0.8.3 ([#22](https://github.com/newstack-cloud/deploy-cli-sdk/issues/22)) ([63884dd](https://github.com/newstack-cloud/deploy-cli-sdk/commit/63884ddb6fd01d38da97179c80f12b9d5522a208))
+
 ## [0.5.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.4.0...v0.5.0) (2026-06-01)
 
 
