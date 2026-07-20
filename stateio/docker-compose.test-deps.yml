@@ -15,7 +15,7 @@ services:
 
   fake_gcs_server:
     container_name: "fake_gcs_server_deploy_cli_sdk_stateio_tests"
-    image: fsouza/fake-gcs-server:1.50.2
+    image: fsouza/fake-gcs-server:1.55.1
     ports:
       - "8185:8000"
     command:
