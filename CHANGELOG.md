@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.6.0...v0.6.1) (2026-07-20)
+
+
+### Dependencies
+
+* update aws-sdk-go-v2 monorepo ([#29](https://github.com/newstack-cloud/deploy-cli-sdk/issues/29)) ([7c4166b](https://github.com/newstack-cloud/deploy-cli-sdk/commit/7c4166bfc38b7e11d1770368929a7d1bda7c38bf))
+* update azure-sdk-for-go monorepo ([#30](https://github.com/newstack-cloud/deploy-cli-sdk/issues/30)) ([90f2040](https://github.com/newstack-cloud/deploy-cli-sdk/commit/90f2040fa9aa3ff3eda8acf7db573654c317f59f))
+* update fsouza/fake-gcs-server docker tag to v1.55.1 ([#31](https://github.com/newstack-cloud/deploy-cli-sdk/issues/31)) ([8b03a5c](https://github.com/newstack-cloud/deploy-cli-sdk/commit/8b03a5c2c17121271a52e65b5a6fd85dd0097983))
+* update github.com/charmbracelet/x/exp/teatest digest to bb9a970 ([#27](https://github.com/newstack-cloud/deploy-cli-sdk/issues/27)) ([44f44d0](https://github.com/newstack-cloud/deploy-cli-sdk/commit/44f44d033060f89d1ada96a5cfd0cef433ee6249))
+* update localstack/localstack docker tag to v4.14.0 ([#32](https://github.com/newstack-cloud/deploy-cli-sdk/issues/32)) ([f2d9e49](https://github.com/newstack-cloud/deploy-cli-sdk/commit/f2d9e49721ad7c37e493e2b9a05c7dc323582995))
+* update migrate/migrate docker tag to v4.19.1 ([#33](https://github.com/newstack-cloud/deploy-cli-sdk/issues/33)) ([9881bfb](https://github.com/newstack-cloud/deploy-cli-sdk/commit/9881bfb5916a6988ed53e3551f9c769b2fd45bf6))
+* update module cloud.google.com/go/storage to v1.63.1 ([#34](https://github.com/newstack-cloud/deploy-cli-sdk/issues/34)) ([c6099d8](https://github.com/newstack-cloud/deploy-cli-sdk/commit/c6099d84c43877fc6052549cde7657a31a469711))
+* update module github.com/burntsushi/toml to v1.6.0 ([#35](https://github.com/newstack-cloud/deploy-cli-sdk/issues/35)) ([e068e6c](https://github.com/newstack-cloud/deploy-cli-sdk/commit/e068e6c231e0011ff9a8a3e5c79a56bf50416b66))
+* update module github.com/charmbracelet/bubbles to v0.21.1 ([#28](https://github.com/newstack-cloud/deploy-cli-sdk/issues/28)) ([22ae3ff](https://github.com/newstack-cloud/deploy-cli-sdk/commit/22ae3ff5a1be43a0d97ea012d0df434cd01db2a4))
+* update module github.com/jackc/pgx/v5 to v5.10.0 ([#36](https://github.com/newstack-cloud/deploy-cli-sdk/issues/36)) ([2752d41](https://github.com/newstack-cloud/deploy-cli-sdk/commit/2752d415804403bc52a04321b9c0cfd9abaddff0))
+* update module github.com/newstack-cloud/bluelink/libs/deploy-engine-client to v0.5.1 ([#25](https://github.com/newstack-cloud/deploy-cli-sdk/issues/25)) ([c270665](https://github.com/newstack-cloud/deploy-cli-sdk/commit/c270665c188b2486eb41886d3684acf6fbb126e9))
+
 ## [0.6.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.5.0...v0.6.0) (2026-07-19)
 
 
