@@ -17,7 +17,7 @@ require (
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20260719004043-bb9a97036f23
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/newstack-cloud/bluelink/libs/blueprint v0.51.2
 	github.com/newstack-cloud/bluelink/libs/blueprint-state v0.8.3
 	github.com/newstack-cloud/bluelink/libs/common v0.4.0
