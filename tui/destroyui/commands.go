@@ -5,14 +5,14 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 )
 
 // DestroyEventMsg is a message containing a destroy event.
@@ -69,7 +69,7 @@ func startDestroyCmd(model DestroyModel) tea.Cmd {
 		}
 
 		err = model.engine.StreamBlueprintInstanceEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.InstanceID,
 			response.LastEventID,
 			model.eventStream,
@@ -88,7 +88,7 @@ func executeDestroy(
 	payload *types.DestroyBlueprintInstancePayload,
 ) (*types.BlueprintInstanceResponse, error) {
 	instanceID := shared.GetEffectiveInstanceID(model.instanceID, model.instanceName)
-	return model.engine.DestroyBlueprintInstance(context.TODO(), instanceID, payload)
+	return model.engine.DestroyBlueprintInstance(model.reqCtx(), instanceID, payload)
 }
 
 func handleDestroyError(err error, fallbackInstanceID string) tea.Msg {
@@ -149,7 +149,7 @@ func checkForDestroyErrCmd(model DestroyModel) tea.Cmd {
 // resolveInstanceIdentifiersCmd resolves instance identifiers for staging in the destroy context.
 func resolveInstanceIdentifiersCmd(model MainModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceID, instanceName := shared.ResolveInstanceIdentifiers(model)
+		instanceID, instanceName := shared.ResolveInstanceIdentifiers(context.Background(), model)
 		return InstanceResolvedMsg{
 			InstanceID:   instanceID,
 			InstanceName: instanceName,
@@ -166,7 +166,7 @@ func applyReconciliationCmd(model DestroyModel) tea.Cmd {
 		payload := buildAcceptExternalPayload(model.driftResult)
 		instanceID := shared.GetEffectiveInstanceID(model.instanceID, model.instanceName)
 
-		_, err := model.engine.ApplyReconciliation(context.TODO(), instanceID, payload)
+		_, err := model.engine.ApplyReconciliation(model.reqCtx(), instanceID, payload)
 		if err != nil {
 			return driftui.ReconciliationErrorMsg{Err: err}
 		}
@@ -197,7 +197,7 @@ func continueDestroyCmd(model DestroyModel) tea.Cmd {
 		}
 
 		err = model.engine.StreamBlueprintInstanceEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.InstanceID,
 			response.LastEventID,
 			model.eventStream,
@@ -213,7 +213,7 @@ func continueDestroyCmd(model DestroyModel) tea.Cmd {
 
 func fetchPostDestroyInstanceStateCmd(model DestroyModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 		return PostDestroyInstanceStateFetchedMsg{
 			InstanceState: instanceState,
 		}
@@ -222,7 +222,7 @@ func fetchPostDestroyInstanceStateCmd(model DestroyModel) tea.Cmd {
 
 func fetchPreDestroyInstanceStateCmd(model DestroyModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 		return PreDestroyInstanceStateFetchedMsg{
 			InstanceState: instanceState,
 		}
@@ -240,7 +240,7 @@ func fetchChangesetChangesCmd(model DestroyModel) tea.Cmd {
 			return ChangesetFetchedMsg{Changes: nil}
 		}
 
-		changeset, err := model.engine.GetChangeset(context.TODO(), model.changesetID)
+		changeset, err := model.engine.GetChangeset(model.reqCtx(), model.changesetID)
 		if err != nil || changeset == nil {
 			return ChangesetFetchedMsg{Changes: nil}
 		}

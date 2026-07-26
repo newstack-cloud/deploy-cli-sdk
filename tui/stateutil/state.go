@@ -11,7 +11,7 @@ import (
 
 // FetchInstanceState attempts to fetch the instance state for an existing deployment.
 // Returns nil if the instance doesn't exist or if there's an error (new deployment case).
-func FetchInstanceState(eng engine.DeployEngine, instanceID, instanceName string) *state.InstanceState {
+func FetchInstanceState(ctx context.Context, eng engine.DeployEngine, instanceID, instanceName string) *state.InstanceState {
 	identifier := instanceID
 	if identifier == "" {
 		identifier = instanceName
@@ -20,7 +20,7 @@ func FetchInstanceState(eng engine.DeployEngine, instanceID, instanceName string
 		return nil
 	}
 
-	instanceState, err := eng.GetBlueprintInstance(context.TODO(), identifier)
+	instanceState, err := eng.GetBlueprintInstance(ctx, identifier)
 	if err != nil {
 		return nil
 	}

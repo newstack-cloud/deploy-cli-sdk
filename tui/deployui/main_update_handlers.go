@@ -247,7 +247,8 @@ func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newSelectBlueprint, newCmd := m.selectBlueprint.Update(msg)
 		selectBlueprintModel, ok := newSelectBlueprint.(sharedui.SelectBlueprintModel)
 		if !ok {
-			panic("failed to perform assertion on select blueprint model in deploy")
+			m.Error = errors.New("internal error: unexpected select blueprint model type in deploy")
+			return m, tea.Quit
 		}
 		m.selectBlueprint = selectBlueprintModel
 		cmds = append(cmds, newCmd)
@@ -291,7 +292,8 @@ func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 			newDeploy, newCmd := m.deploy.Update(msg)
 			deployModel, ok := newDeploy.(DeployModel)
 			if !ok {
-				panic("failed to perform assertion on deploy model")
+				m.Error = errors.New("internal error: unexpected deploy model type")
+				return m, tea.Quit
 			}
 			m.deploy = deployModel
 			cmds = append(cmds, newCmd)
@@ -306,4 +308,3 @@ func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	return m, tea.Batch(cmds...)
 }
-

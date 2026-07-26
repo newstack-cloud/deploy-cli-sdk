@@ -55,15 +55,29 @@ const (
 	DriftContextDestroy DriftContext = "destroy"
 )
 
+// The CLI binary name used in user-facing hints. It defaults to
+// "bluelink" and is overridden per binary via SetCLIName (the SDK sets it from
+// CLIConfig.CLIName at command setup). A package-level value is safe here
+// because each consuming CLI is a separate process.
+var cliName = "bluelink"
+
+// SetCLIName overrides the CLI name used in drift hints. Empty values are
+// ignored so the "bluelink" default is preserved.
+func SetCLIName(name string) {
+	if name != "" {
+		cliName = name
+	}
+}
+
 // HintForContext returns the appropriate hint text for the given drift context.
 func HintForContext(ctx DriftContext) string {
 	switch ctx {
 	case DriftContextStage, DriftContextDeployStage:
-		return "Run bluelink stage --skip-drift-check to skip drift detection"
+		return "Run " + cliName + " stage --skip-drift-check to skip drift detection"
 	case DriftContextDeploy:
-		return "Run bluelink deploy --force to override drift check"
+		return "Run " + cliName + " deploy --force to override drift check"
 	case DriftContextDestroy:
-		return "Run bluelink destroy --force to override drift check"
+		return "Run " + cliName + " destroy --force to override drift check"
 	default:
 		return ""
 	}

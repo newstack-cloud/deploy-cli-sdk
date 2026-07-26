@@ -120,7 +120,7 @@ Examples:
 				return err
 			}
 
-			finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+			finalModel, err := tea.NewProgram(app, newTUIProgramOptions(cmd.Context(), headlessMode)...).Run()
 			if err != nil {
 				return err
 			}

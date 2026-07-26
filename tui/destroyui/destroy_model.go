@@ -1,6 +1,7 @@
 package destroyui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,8 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
@@ -19,6 +18,8 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 	"go.uber.org/zap"
@@ -81,9 +82,9 @@ type ResourceDestroyItem struct {
 	ResourceState  *state.ResourceState
 }
 
-func (r *ResourceDestroyItem) GetAction() shared.ActionType        { return shared.ActionType(r.Action) }
+func (r *ResourceDestroyItem) GetAction() shared.ActionType           { return shared.ActionType(r.Action) }
 func (r *ResourceDestroyItem) GetResourceStatus() core.ResourceStatus { return r.Status }
-func (r *ResourceDestroyItem) SetSkipped(skipped bool)             { r.Skipped = skipped }
+func (r *ResourceDestroyItem) SetSkipped(skipped bool)                { r.Skipped = skipped }
 
 // ChildDestroyItem represents a child blueprint being destroyed.
 type ChildDestroyItem struct {
@@ -101,9 +102,9 @@ type ChildDestroyItem struct {
 	Changes          *changes.BlueprintChanges
 }
 
-func (c *ChildDestroyItem) GetAction() shared.ActionType       { return shared.ActionType(c.Action) }
+func (c *ChildDestroyItem) GetAction() shared.ActionType        { return shared.ActionType(c.Action) }
 func (c *ChildDestroyItem) GetChildStatus() core.InstanceStatus { return c.Status }
-func (c *ChildDestroyItem) SetSkipped(skipped bool)            { c.Skipped = skipped }
+func (c *ChildDestroyItem) SetSkipped(skipped bool)             { c.Skipped = skipped }
 
 // LinkDestroyItem represents a link being destroyed.
 type LinkDestroyItem struct {
@@ -196,6 +197,7 @@ type DestroyModel struct {
 	preDestroyInstanceState  *state.InstanceState
 	postDestroyInstanceState *state.InstanceState
 
+	ctx         context.Context
 	engine      engine.DeployEngine
 	eventStream chan types.BlueprintInstanceEvent
 	errStream   chan error
@@ -711,6 +713,7 @@ func (m *DestroyModel) SetPreDestroyInstanceState(instanceState *state.InstanceS
 
 // DestroyModelConfig holds the configuration for creating a new DestroyModel.
 type DestroyModelConfig struct {
+	Context          context.Context
 	DestroyEngine    engine.DeployEngine
 	Logger           *zap.Logger
 	ChangesetID      string
@@ -722,6 +725,15 @@ type DestroyModelConfig struct {
 	HeadlessWriter   io.Writer
 	ChangesetChanges *changes.BlueprintChanges
 	JSONMode         bool
+}
+
+// Returns the model's bound context, defaulting to context.Background()
+// when none was supplied (e.g. models constructed directly in tests).
+func (m DestroyModel) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
 }
 
 // NewDestroyModel creates a new destroy model.
@@ -748,6 +760,7 @@ func NewDestroyModel(cfg DestroyModelConfig) DestroyModel {
 		driftDetailsRenderer:    driftDetailsRenderer,
 		driftSectionGrouper:     driftSectionGrouper,
 		driftFooterRenderer:     driftFooterRenderer,
+		ctx:                     cfg.Context,
 		engine:                  cfg.DestroyEngine,
 		logger:                  cfg.Logger,
 		changesetID:             cfg.ChangesetID,
@@ -894,8 +907,6 @@ func (m *DestroyModel) markInProgressItemsAsInterrupted() {
 		}
 	}
 }
-
-// Test accessor methods - these provide read-only access for testing purposes.
 
 // Err returns the error stored in the model.
 func (m *DestroyModel) Err() error {

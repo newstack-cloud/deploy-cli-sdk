@@ -1,6 +1,7 @@
 package inspectui
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -133,6 +134,9 @@ func (m MainModel) renderLoading() string {
 
 // InspectAppConfig holds configuration for creating a new inspect application.
 type InspectAppConfig struct {
+	// Context is bound to the engine calls the inspect model makes so they are
+	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
+	Context        context.Context
 	DeployEngine   engine.DeployEngine
 	Logger         *zap.Logger
 	InstanceID     string
@@ -162,6 +166,7 @@ func NewInspectApp(cfg InspectAppConfig) (*MainModel, error) {
 
 	// Create the inspect model
 	inspect := NewInspectModel(InspectModelConfig{
+		Context:        cfg.Context,
 		DeployEngine:   cfg.DeployEngine,
 		Logger:         cfg.Logger,
 		InstanceID:     cfg.InstanceID,

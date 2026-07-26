@@ -35,6 +35,7 @@ type stepDoneMsg struct {
 // Model is a bubbletea sub-model that runs a PreCommandStep and
 // displays progress with a spinner.
 type Model struct {
+	ctx          context.Context
 	step         Step
 	confProvider *config.Provider
 	commandName  string
@@ -55,6 +56,7 @@ type Model struct {
 
 // Options for creating a new pre-command step model.
 type Options struct {
+	Context      context.Context
 	Step         Step
 	ConfProvider *config.Provider
 	CommandName  string
@@ -71,6 +73,7 @@ func NewModel(opts Options) *Model {
 	}
 
 	return &Model{
+		ctx:          opts.Context,
 		step:         opts.Step,
 		confProvider: opts.ConfProvider,
 		commandName:  opts.CommandName,
@@ -161,10 +164,17 @@ func (m Model) View() string {
 	return fmt.Sprintf("\n  %s %s\n", m.spinner.View(), phase)
 }
 
+func (m Model) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
+}
+
 func (m Model) startStep(progressCh chan ProgressMsg) tea.Cmd {
 	return func() tea.Msg {
 		err := m.step.Run(
-			context.TODO(),
+			m.reqCtx(),
 			m.confProvider,
 			m.commandName,
 			progressCh,

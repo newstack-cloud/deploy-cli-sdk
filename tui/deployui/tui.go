@@ -1,6 +1,7 @@
 package deployui
 
 import (
+	"context"
 	"io"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -316,6 +317,9 @@ func (m MainModel) View() string {
 
 // DeployAppConfig holds the configuration for creating a new deploy application.
 type DeployAppConfig struct {
+	// Context is bound to the engine calls the deploy model makes so they are
+	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
+	Context                context.Context
 	DeployEngine           engine.DeployEngine
 	Logger                 *zap.Logger
 	ChangesetID            string
@@ -414,6 +418,7 @@ func NewDeployApp(cfg DeployAppConfig) (*MainModel, error) {
 
 	blueprintSource := shared.BlueprintSourceFromPath(cfg.BlueprintFile)
 	deploy := NewDeployModel(DeployModelConfig{
+		Context:          cfg.Context,
 		DeployEngine:     cfg.DeployEngine,
 		Logger:           cfg.Logger,
 		ChangesetID:      cfg.ChangesetID,

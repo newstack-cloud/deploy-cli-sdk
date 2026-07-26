@@ -1,6 +1,7 @@
 package stageui
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -114,6 +115,7 @@ type StageModel struct {
 	instanceState *state.InstanceState
 
 	// Streaming
+	ctx         context.Context
 	engine      engine.DeployEngine
 	eventStream chan types.ChangeStagingEvent
 	errStream   chan error
@@ -1055,6 +1057,7 @@ func (m StageModel) renderDiagnostic(diag *core.Diagnostic) string {
 
 // StageModelConfig holds the configuration for creating a new StageModel.
 type StageModelConfig struct {
+	Context        context.Context
 	DeployEngine   engine.DeployEngine
 	Logger         *zap.Logger
 	InstanceID     string
@@ -1065,6 +1068,15 @@ type StageModelConfig struct {
 	IsHeadless     bool
 	HeadlessWriter io.Writer
 	JSONMode       bool
+}
+
+// Returns the model's bound context, defaulting to context.Background()
+// when none was supplied (e.g. models constructed directly in tests).
+func (m StageModel) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
 }
 
 // NewStageModel creates a new stage model with the given configuration.
@@ -1142,6 +1154,7 @@ func NewStageModel(cfg StageModelConfig) StageModel {
 		driftDetailsRenderer: driftDetailsRenderer,
 		driftSectionGrouper:  driftSectionGrouper,
 		driftFooterRenderer:  driftFooterRenderer,
+		ctx:                  cfg.Context,
 		engine:               cfg.DeployEngine,
 		logger:               cfg.Logger,
 		instanceID:           cfg.InstanceID,

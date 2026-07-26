@@ -8,7 +8,8 @@
     {
       "description": "Single-package release-please repo,  deps: commit type with no scope, matching the existing convention.",
       "matchManagers": ["gomod"],
-      "semanticCommitScope": null
+      "semanticCommitScope": null,
+      "groupName": "go dependencies"
     }
   ]
 }

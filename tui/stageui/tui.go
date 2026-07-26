@@ -1,6 +1,8 @@
 package stageui
 
 import (
+	"context"
+	"errors"
 	"io"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -123,7 +125,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newSelectBlueprint, newCmd := m.selectBlueprint.Update(msg)
 		selectBlueprintModel, ok := newSelectBlueprint.(sharedui.SelectBlueprintModel)
 		if !ok {
-			panic("failed to perform assertion on select blueprint model in stage")
+			m.Error = errors.New("internal error: unexpected select blueprint model type in stage")
+			return m, tea.Quit
 		}
 		m.selectBlueprint = selectBlueprintModel
 		cmds = append(cmds, newCmd)
@@ -137,7 +140,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newStage, newCmd := m.stage.Update(msg)
 		stageModel, ok := newStage.(StageModel)
 		if !ok {
-			panic("failed to perform assertion on stage model")
+			m.Error = errors.New("internal error: unexpected stage model type")
+			return m, tea.Quit
 		}
 		m.stage = stageModel
 		cmds = append(cmds, newCmd)
@@ -223,6 +227,9 @@ func (m MainModel) View() string {
 
 // StageAppConfig holds the configuration for creating a new stage application.
 type StageAppConfig struct {
+	// Context is bound to the engine calls the stage model makes so they are
+	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
+	Context                context.Context
 	DeployEngine           engine.DeployEngine
 	Logger                 *zap.Logger
 	BlueprintFile          string
@@ -272,6 +279,7 @@ func NewStageApp(cfg StageAppConfig) (*MainModel, error) {
 	}
 
 	stage := NewStageModel(StageModelConfig{
+		Context:        cfg.Context,
 		DeployEngine:   cfg.DeployEngine,
 		Logger:         cfg.Logger,
 		InstanceID:     cfg.InstanceID,

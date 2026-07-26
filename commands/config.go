@@ -3,6 +3,7 @@
 package commands
 
 import (
+	"context"
 	"io"
 	"os"
 
@@ -21,17 +22,23 @@ const (
 )
 
 // newTUIProgramOptions returns the standard tea.ProgramOption slice
-// for headless vs interactive mode.
-func newTUIProgramOptions(headlessMode bool) []tea.ProgramOption {
+// for headless vs interactive mode. The context is bound to the program so the
+// TUI (and the engine calls it drives) is cancelled when ctx is cancelled
+// (e.g. on Ctrl+C via the root signal context).
+func newTUIProgramOptions(ctx context.Context, headlessMode bool) []tea.ProgramOption {
 	if headlessMode {
-		return []tea.ProgramOption{tea.WithInput(nil), tea.WithoutRenderer()}
+		return []tea.ProgramOption{tea.WithContext(ctx), tea.WithInput(nil), tea.WithoutRenderer()}
 	}
-	return []tea.ProgramOption{tea.WithAltScreen(), tea.WithMouseCellMotion()}
+	return []tea.ProgramOption{tea.WithContext(ctx), tea.WithAltScreen(), tea.WithMouseCellMotion()}
 }
 
 // createPreflight builds the preflight model when a PreflightFactory is
-// configured and the user has not opted out via --skip-plugin-check.
+// configured and the user has not opted out via --skip-plugin-check. The
+// context is passed to the factory so preflight operations (e.g. plugin
+// dependency resolution and installation) can be cancelled when the command
+// context is cancelled.
 func createPreflight(
+	ctx context.Context,
 	cfg *CLIConfig,
 	confProvider *config.Provider,
 	commandName string,
@@ -47,7 +54,7 @@ func createPreflight(
 		return nil
 	}
 	return cfg.PreflightFactory.CreatePreflight(
-		confProvider, commandName, s, headless, os.Stdout, jsonMode,
+		ctx, confProvider, commandName, s, headless, os.Stdout, jsonMode,
 	)
 }
 
@@ -96,8 +103,11 @@ type CLIConfig struct {
 // verification or other pre-command checks.
 type PreflightFactory interface {
 	// CreatePreflight creates a bubbletea model for preflight checks.
-	// Returns nil if no preflight checks are needed.
+	// Returns nil if no preflight checks are needed. The context should be
+	// bound to any long-running work the preflight model performs (e.g. plugin
+	// dependency resolution/installation) so it is cancellable.
 	CreatePreflight(
+		ctx context.Context,
 		confProvider *config.Provider,
 		commandName string,
 		styles *styles.Styles,

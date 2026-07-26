@@ -1,21 +1,22 @@
 package inspectui
 
 import (
+	"context"
 	"errors"
 	"io"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 	"go.uber.org/zap"
 )
@@ -24,6 +25,7 @@ var errStreamClosedUnexpectedly = errors.New("event stream closed unexpectedly")
 
 // InspectModelConfig holds configuration for creating a new inspect model.
 type InspectModelConfig struct {
+	Context        context.Context
 	DeployEngine   engine.DeployEngine
 	Logger         *zap.Logger
 	InstanceID     string
@@ -72,6 +74,7 @@ type InspectModel struct {
 	exportsModel     deployui.ExportsModel
 
 	// Streaming channels
+	ctx         context.Context
 	engine      engine.DeployEngine
 	eventStream chan types.BlueprintInstanceEvent
 	errStream   chan error
@@ -524,6 +527,15 @@ func (m *InspectModel) processEvent(event *InspectEventMsg) {
 	}
 }
 
+// Returns the model's bound context, defaulting to context.Background()
+// when none was supplied (e.g. models constructed directly in tests).
+func (m *InspectModel) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
+}
+
 // NewInspectModel creates a new inspect model.
 func NewInspectModel(cfg InspectModelConfig) *InspectModel {
 	detailsRenderer, sectionGrouper, footerRenderer := createInspectRenderers(cfg.InstanceID, cfg.InstanceName)
@@ -540,6 +552,7 @@ func NewInspectModel(cfg InspectModelConfig) *InspectModel {
 		detailsRenderer:         detailsRenderer,
 		sectionGrouper:          sectionGrouper,
 		footerRenderer:          footerRenderer,
+		ctx:                     cfg.Context,
 		engine:                  cfg.DeployEngine,
 		logger:                  cfg.Logger,
 		instanceID:              cfg.InstanceID,

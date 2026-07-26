@@ -1,6 +1,7 @@
 package deployui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -217,6 +218,7 @@ type DeployModel struct {
 	skippedRollbackItems     []container.SkippedRollbackItem    // Items skipped during rollback due to unsafe state
 
 	// Streaming channels
+	ctx         context.Context
 	engine      engine.DeployEngine
 	eventStream chan types.BlueprintInstanceEvent
 	errStream   chan error
@@ -983,6 +985,7 @@ func (m *DeployModel) SetPreDeployInstanceState(instanceState *state.InstanceSta
 
 // DeployModelConfig holds the configuration for creating a new DeployModel.
 type DeployModelConfig struct {
+	Context          context.Context
 	DeployEngine     engine.DeployEngine
 	Logger           *zap.Logger
 	ChangesetID      string
@@ -997,6 +1000,15 @@ type DeployModelConfig struct {
 	HeadlessWriter   io.Writer
 	ChangesetChanges *changes.BlueprintChanges
 	JSONMode         bool
+}
+
+// reqCtx returns the model's bound context, defaulting to context.Background()
+// when none was supplied (e.g. models constructed directly in tests).
+func (m DeployModel) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
 }
 
 // NewDeployModel creates a new deploy model.
@@ -1023,6 +1035,7 @@ func NewDeployModel(cfg DeployModelConfig) DeployModel {
 		driftDetailsRenderer:    driftDetailsRenderer,
 		driftSectionGrouper:     driftSectionGrouper,
 		driftFooterRenderer:     driftFooterRenderer,
+		ctx:                     cfg.Context,
 		engine:                  cfg.DeployEngine,
 		logger:                  cfg.Logger,
 		changesetID:             cfg.ChangesetID,

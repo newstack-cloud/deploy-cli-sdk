@@ -1,6 +1,7 @@
 package destroyui
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -62,13 +63,13 @@ type MainModel struct {
 	postPreflightState destroySessionState
 
 	// Runtime state
-	headless            bool
-	jsonMode            bool
-	restartInstructions    string
-	installedPlugins       []string
-	preflightCommandName   string
-	engine                 engine.DeployEngine
-	logger              *zap.Logger
+	headless             bool
+	jsonMode             bool
+	restartInstructions  string
+	installedPlugins     []string
+	preflightCommandName string
+	engine               engine.DeployEngine
+	logger               *zap.Logger
 
 	styles *stylespkg.Styles
 	Error  error
@@ -421,7 +422,8 @@ func (m MainModel) handleSessionStateUpdate(msg tea.Msg, cmds []tea.Cmd) (tea.Mo
 		newSelectBlueprint, newCmd := m.selectBlueprint.Update(msg)
 		selectBlueprintModel, ok := newSelectBlueprint.(sharedui.SelectBlueprintModel)
 		if !ok {
-			panic("failed to perform assertion on select blueprint model in destroy")
+			m.Error = errors.New("internal error: unexpected select blueprint model type in destroy")
+			return m, tea.Quit
 		}
 		m.selectBlueprint = selectBlueprintModel
 		cmds = append(cmds, newCmd)
@@ -461,7 +463,8 @@ func (m MainModel) handleSessionStateUpdate(msg tea.Msg, cmds []tea.Cmd) (tea.Mo
 			newDestroy, newCmd := m.destroy.Update(msg)
 			destroyModel, ok := newDestroy.(DestroyModel)
 			if !ok {
-				panic("failed to perform assertion on destroy model")
+				m.Error = errors.New("internal error: unexpected destroy model type")
+				return m, tea.Quit
 			}
 			m.destroy = destroyModel
 			cmds = append(cmds, newCmd)
@@ -578,6 +581,9 @@ func (m MainModel) View() string {
 
 // DestroyAppConfig holds the configuration for creating a new destroy application.
 type DestroyAppConfig struct {
+	// Context is bound to the engine calls the destroy model makes so they are
+	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
+	Context context.Context
 	DestroyEngine          engine.DeployEngine
 	Logger                 *zap.Logger
 	ChangesetID            string
@@ -651,6 +657,7 @@ func NewDestroyApp(cfg DestroyAppConfig) (*MainModel, error) {
 	staging.SetDeployFlowMode(true)
 
 	destroy := NewDestroyModel(DestroyModelConfig{
+		Context:          cfg.Context,
 		DestroyEngine:    cfg.DestroyEngine,
 		Logger:           cfg.Logger,
 		ChangesetID:      cfg.ChangesetID,
@@ -735,4 +742,3 @@ func shouldAutoSelect(
 	}
 	return (blueprintFile != "" && !isDefaultBlueprintFile) || headless || skipPrompts
 }
-

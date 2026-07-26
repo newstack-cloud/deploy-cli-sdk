@@ -1,6 +1,7 @@
 package stateimportui
 
 import (
+	"errors"
 	"io"
 	"os"
 
@@ -186,7 +187,8 @@ func (m MainModel) handleSessionStateRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 			newSelectFile, newCmd := m.selectFile.Update(msg)
 			selectFileModel, ok := newSelectFile.(sharedui.SelectFileModel)
 			if !ok {
-				panic("failed to perform assertion on select file model in state import")
+				m.Error = errors.New("internal error: unexpected select file model type in state import")
+				return m, tea.Quit
 			}
 			m.selectFile = selectFileModel
 			return m, newCmd

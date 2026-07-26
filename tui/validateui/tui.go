@@ -1,6 +1,7 @@
 package validateui
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -123,7 +124,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newSelectBlueprint, newCmd := m.selectBlueprint.Update(msg)
 		selectBlueprintModel, ok := newSelectBlueprint.(sharedui.SelectBlueprintModel)
 		if !ok {
-			panic("failed to perform assertion on select blueprint model in validate")
+			m.Error = errors.New("internal error: unexpected select blueprint model type in validate")
+			return m, tea.Quit
 		}
 		m.selectBlueprint = selectBlueprintModel
 		cmds = append(cmds, newCmd)
@@ -137,7 +139,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newValidate, newCmd := m.validate.Update(msg)
 		validateModel, ok := newValidate.(ValidateModel)
 		if !ok {
-			panic("failed to perform assertion on validate model")
+			m.Error = errors.New("internal error: unexpected validate model type")
+			return m, tea.Quit
 		}
 		m.validate = validateModel
 		cmds = append(cmds, newCmd)
@@ -220,6 +223,9 @@ func (m MainModel) View() string {
 
 // ValidateAppConfig holds configuration for creating a new validate application.
 type ValidateAppConfig struct {
+	// Context is bound to the engine calls the validate model makes so they are
+	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
+	Context                context.Context
 	Engine                 engine.DeployEngine
 	Logger                 *zap.Logger
 	BlueprintFile          string
@@ -276,6 +282,7 @@ func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
 		cfg.ValidateAfterTransform == nil
 
 	validate := NewValidateModel(ValidateModelConfig{
+		Context:                cfg.Context,
 		Engine:                 cfg.Engine,
 		Logger:                 cfg.Logger,
 		Headless:               cfg.Headless,

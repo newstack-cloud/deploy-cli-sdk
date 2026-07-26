@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -16,6 +17,7 @@ import (
 // This runs before the main TUI starts, so the pre-command step can
 // modify the deploy config that the TUI/engine will read.
 func RunPreCommandStep(
+	ctx context.Context,
 	step precommand.Step,
 	confProvider *config.Provider,
 	commandName string,
@@ -24,6 +26,7 @@ func RunPreCommandStep(
 	writer io.Writer,
 ) error {
 	model := precommand.NewModel(precommand.Options{
+		Context:      ctx,
 		Step:         step,
 		ConfProvider: confProvider,
 		CommandName:  commandName,
@@ -32,7 +35,7 @@ func RunPreCommandStep(
 		Writer:       writer,
 	})
 
-	opts := []tea.ProgramOption{}
+	opts := []tea.ProgramOption{tea.WithContext(ctx)}
 	if headless {
 		opts = append(opts, tea.WithInput(nil), tea.WithoutRenderer())
 	}

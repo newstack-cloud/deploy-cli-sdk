@@ -1,7 +1,6 @@
 package inspectui
 
 import (
-	"context"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -63,6 +62,7 @@ func FetchInstanceStateCmd(model InspectModel) tea.Cmd {
 func fetchInstanceStateCmd(model InspectModel) tea.Cmd {
 	return func() tea.Msg {
 		instanceState := stateutil.FetchInstanceState(
+			model.reqCtx(),
 			model.engine,
 			model.instanceID,
 			model.instanceName,
@@ -86,7 +86,7 @@ func fetchInstanceStateCmd(model InspectModel) tea.Cmd {
 func startStreamingCmd(model InspectModel) tea.Cmd {
 	return func() tea.Msg {
 		err := model.engine.StreamBlueprintInstanceEvents(
-			context.TODO(),
+			model.reqCtx(),
 			model.instanceID,
 			"", // Start from beginning
 			model.eventStream,
@@ -139,6 +139,7 @@ func startStateRefreshTickerCmd() tea.Cmd {
 func refreshInstanceStateCmd(model InspectModel) tea.Cmd {
 	return func() tea.Msg {
 		instanceState := stateutil.FetchInstanceState(
+			model.reqCtx(),
 			model.engine,
 			model.instanceID,
 			model.instanceName,

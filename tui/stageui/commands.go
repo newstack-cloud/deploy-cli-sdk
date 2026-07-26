@@ -49,7 +49,7 @@ func startStagingCmd(model StageModel) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch instance state if we have an instance ID or name
 		// This is used to show all resources (including those with no changes) in the UI
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 
 		payload, err := createChangesetPayload(model)
 		if err != nil {
@@ -57,7 +57,7 @@ func startStagingCmd(model StageModel) tea.Cmd {
 		}
 
 		response, err := model.engine.CreateChangeset(
-			context.TODO(),
+			model.reqCtx(),
 			payload,
 		)
 		if err != nil {
@@ -68,7 +68,7 @@ func startStagingCmd(model StageModel) tea.Cmd {
 
 		// Start streaming events
 		err = model.engine.StreamChangeStagingEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.ID,
 			response.LastEventID,
 			model.eventStream,
@@ -141,7 +141,7 @@ func applyReconciliationCmd(model StageModel) tea.Cmd {
 
 		payload := buildAcceptExternalPayload(model.driftResult, model)
 		result, err := model.engine.ApplyReconciliation(
-			context.TODO(),
+			model.reqCtx(),
 			model.instanceID,
 			payload,
 		)
@@ -184,7 +184,7 @@ func checkInstanceExistsCmd(model *StageOptionsFormModel) tea.Cmd {
 			return instanceExistsMsg{exists: false}
 		}
 
-		instance, err := model.engine.GetBlueprintInstance(context.TODO(), model.instanceName)
+		instance, err := model.engine.GetBlueprintInstance(context.Background(), model.instanceName)
 		if err != nil || instance == nil {
 			return instanceExistsMsg{exists: false}
 		}

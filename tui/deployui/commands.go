@@ -5,13 +5,13 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
 )
 
 // DeployEventMsg is a message containing a deployment event.
@@ -64,7 +64,7 @@ func startDeploymentCmd(model DeployModel) tea.Cmd {
 		}
 
 		err = model.engine.StreamBlueprintInstanceEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.InstanceID,
 			response.LastEventID,
 			model.eventStream,
@@ -85,12 +85,12 @@ func createOrUpdateInstance(
 ) (*types.BlueprintInstanceResponse, error) {
 	if model.instanceID != "" {
 		return model.engine.UpdateBlueprintInstance(
-			context.TODO(),
+			model.reqCtx(),
 			model.instanceID,
 			payload,
 		)
 	}
-	return model.engine.CreateBlueprintInstance(context.TODO(), payload)
+	return model.engine.CreateBlueprintInstance(model.reqCtx(), payload)
 }
 
 // handleDeployError converts deployment errors to appropriate messages,
@@ -135,7 +135,6 @@ func createDeployPayload(model DeployModel) (*types.BlueprintInstancePayload, er
 	}, nil
 }
 
-
 func waitForNextDeployEventCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-model.eventStream
@@ -166,7 +165,7 @@ func checkForErrCmd(model DeployModel) tea.Cmd {
 // If it exists, we use the instance ID for staging against the existing instance.
 func resolveInstanceIdentifiersCmd(model MainModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceID, instanceName := shared.ResolveInstanceIdentifiers(model)
+		instanceID, instanceName := shared.ResolveInstanceIdentifiers(context.Background(), model)
 		return InstanceResolvedMsg{
 			InstanceID:   instanceID,
 			InstanceName: instanceName,
@@ -184,7 +183,7 @@ func applyReconciliationCmd(model DeployModel) tea.Cmd {
 		payload := buildAcceptExternalPayload(model.driftResult, model)
 		instanceID := shared.GetEffectiveInstanceID(model.instanceID, model.instanceName)
 
-		_, err := model.engine.ApplyReconciliation(context.TODO(), instanceID, payload)
+		_, err := model.engine.ApplyReconciliation(model.reqCtx(), instanceID, payload)
 		if err != nil {
 			return driftui.ReconciliationErrorMsg{Err: err}
 		}
@@ -232,7 +231,7 @@ func continueDeploymentCmd(model DeployModel) tea.Cmd {
 		}
 
 		err = model.engine.StreamBlueprintInstanceEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.InstanceID,
 			response.LastEventID,
 			model.eventStream,
@@ -272,7 +271,7 @@ func startDeployStateRefreshTickerCmd() tea.Cmd {
 // refreshDeployInstanceStateCmd refreshes the instance state during deployment.
 func refreshDeployInstanceStateCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 		if instanceState == nil {
 			return nil
 		}
@@ -286,7 +285,7 @@ func refreshDeployInstanceStateCmd(model DeployModel) tea.Cmd {
 // This is used to get updated computed fields (outputs) for display in the UI.
 func fetchPostDeployInstanceStateCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 		return PostDeployInstanceStateFetchedMsg{
 			InstanceState: instanceState,
 		}
@@ -303,7 +302,7 @@ type PreDeployInstanceStateFetchedMsg struct {
 // This is used when deploying directly without going through the staging flow.
 func fetchPreDeployInstanceStateCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceState := stateutil.FetchInstanceState(model.engine, model.instanceID, model.instanceName)
+		instanceState := stateutil.FetchInstanceState(model.reqCtx(), model.engine, model.instanceID, model.instanceName)
 		return PreDeployInstanceStateFetchedMsg{
 			InstanceState: instanceState,
 		}

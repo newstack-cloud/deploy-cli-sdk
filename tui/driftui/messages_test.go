@@ -43,3 +43,26 @@ func (s *MessagesTestSuite) Test_HintForContext_empty_string_returns_empty() {
 	hint := HintForContext("")
 	s.Equal("", hint)
 }
+
+func (s *MessagesTestSuite) Test_SetCLIName_overrides_hint_branding() {
+	defer SetCLIName("bluelink") // restore default for other tests
+	SetCLIName("celerity")
+	s.Equal(
+		"Run celerity stage --skip-drift-check to skip drift detection",
+		HintForContext(DriftContextStage),
+	)
+	s.Equal(
+		"Run celerity deploy --force to override drift check",
+		HintForContext(DriftContextDeploy),
+	)
+}
+
+func (s *MessagesTestSuite) Test_SetCLIName_ignores_empty() {
+	defer SetCLIName("bluelink")
+	SetCLIName("celerity")
+	SetCLIName("") // must not override the previously set name
+	s.Equal(
+		"Run celerity destroy --force to override drift check",
+		HintForContext(DriftContextDestroy),
+	)
+}

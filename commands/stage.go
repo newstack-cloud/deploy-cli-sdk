@@ -13,6 +13,7 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	"github.com/newstack-cloud/deploy-cli-sdk/jsonout"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/stageui"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -96,14 +97,15 @@ func runStageTUI(
 	headlessMode := !inTerminal || flags.jsonMode
 
 	if cfg.PreCommandStep != nil {
-		if err := RunPreCommandStep(cfg.PreCommandStep, confProvider, "stage", styles, headlessMode, os.Stdout); err != nil {
+		if err := RunPreCommandStep(cmd.Context(), cfg.PreCommandStep, confProvider, "stage", styles, headlessMode, os.Stdout); err != nil {
 			return err
 		}
 	}
 
-	preflightModel := createPreflight(cfg, confProvider, "stage", styles, headlessMode, flags.jsonMode)
+	preflightModel := createPreflight(cmd.Context(), cfg, confProvider, "stage", styles, headlessMode, flags.jsonMode)
 
 	app, err := stageui.NewStageApp(stageui.StageAppConfig{
+		Context:                cmd.Context(),
 		DeployEngine:           deployEngine,
 		Logger:                 logger,
 		BlueprintFile:          flags.blueprintFile,
@@ -122,7 +124,7 @@ func runStageTUI(
 		return err
 	}
 
-	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(cmd.Context(), headlessMode)...).Run()
 	if err != nil {
 		return err
 	}
@@ -139,6 +141,7 @@ func runStageTUI(
 // SetupStageCommand registers a stage command on the root command,
 // parameterized by CLIConfig for branding and defaults.
 func SetupStageCommand(rootCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
+	driftui.SetCLIName(cfg.CLIName)
 	stageCmd := &cobra.Command{
 		Use:   "stage",
 		Short: "Stage changes for a blueprint deployment",

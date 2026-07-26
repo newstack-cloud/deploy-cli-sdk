@@ -1,6 +1,7 @@
 package validateui
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -32,6 +33,7 @@ type ValidateModel struct {
 	spinner         spinner.Model
 	viewport        viewport.Model
 	hasDimensions   bool
+	ctx             context.Context
 	engine          engine.DeployEngine
 	blueprintFile   string
 	blueprintSource string
@@ -396,6 +398,7 @@ func renderDiagnosticLevel(level bpcore.DiagnosticLevel, styles *stylespkg.Style
 
 // ValidateModelConfig holds the configuration for creating a new ValidateModel.
 type ValidateModelConfig struct {
+	Context                context.Context
 	Engine                 engine.DeployEngine
 	Logger                 *zap.Logger
 	Headless               bool
@@ -403,6 +406,15 @@ type ValidateModelConfig struct {
 	Styles                 *stylespkg.Styles
 	TransformSpec          bool
 	ValidateAfterTransform bool
+}
+
+// Returns the model's bound context, defaulting to context.Background()
+// when none was supplied (e.g. models constructed directly in tests).
+func (m ValidateModel) reqCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
 }
 
 func NewValidateModel(cfg ValidateModelConfig) ValidateModel {
@@ -415,6 +427,7 @@ func NewValidateModel(cfg ValidateModelConfig) ValidateModel {
 	)
 	return ValidateModel{
 		spinner:                s,
+		ctx:                    cfg.Context,
 		engine:                 cfg.Engine,
 		logger:                 cfg.Logger,
 		resultStream:           make(chan types.BlueprintValidationEvent),

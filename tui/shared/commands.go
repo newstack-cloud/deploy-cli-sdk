@@ -138,7 +138,7 @@ type InstanceLookup interface {
 // If an instance ID is already provided, it's returned as-is.
 // If only a name is provided, it looks up the instance to get its ID.
 // If the instance doesn't exist, empty strings are returned (indicating new deployment).
-func ResolveInstanceIdentifiers(resolver InstanceResolver) (instanceID, instanceName string) {
+func ResolveInstanceIdentifiers(ctx context.Context, resolver InstanceResolver) (instanceID, instanceName string) {
 	if resolver.GetInstanceID() != "" {
 		return resolver.GetInstanceID(), resolver.GetInstanceName()
 	}
@@ -147,7 +147,7 @@ func ResolveInstanceIdentifiers(resolver InstanceResolver) (instanceID, instance
 		return "", ""
 	}
 
-	instance, err := resolver.GetEngine().GetBlueprintInstance(context.TODO(), resolver.GetInstanceName())
+	instance, err := resolver.GetEngine().GetBlueprintInstance(ctx, resolver.GetInstanceName())
 	if err != nil || instance == nil {
 		return "", ""
 	}

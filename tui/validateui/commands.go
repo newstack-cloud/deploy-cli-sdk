@@ -1,7 +1,6 @@
 package validateui
 
 import (
-	"context"
 	"net/url"
 	"path"
 	"time"
@@ -21,7 +20,7 @@ func startValidateStreamCmd(model ValidateModel, logger *zap.Logger) tea.Cmd {
 		}
 
 		response, err := model.engine.CreateBlueprintValidation(
-			context.TODO(),
+			model.reqCtx(),
 			payload,
 			&types.CreateBlueprintValidationQuery{},
 		)
@@ -31,7 +30,7 @@ func startValidateStreamCmd(model ValidateModel, logger *zap.Logger) tea.Cmd {
 		}
 
 		err = model.engine.StreamBlueprintValidationEvents(
-			context.TODO(),
+			model.reqCtx(),
 			response.Data.ID,
 			response.LastEventID,
 			model.resultStream,

@@ -171,6 +171,7 @@ func runInspect(cmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfi
 	headlessMode := !inTerminal || flags.jsonMode
 
 	app, err := inspectui.NewInspectApp(inspectui.InspectAppConfig{
+		Context:        cmd.Context(),
 		DeployEngine:   deployEngine,
 		Logger:         logger,
 		InstanceID:     flags.instanceID,
@@ -184,7 +185,7 @@ func runInspect(cmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfi
 		return err
 	}
 
-	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(headlessMode)...).Run()
+	finalModel, err := tea.NewProgram(app, newTUIProgramOptions(cmd.Context(), headlessMode)...).Run()
 	if err != nil {
 		return err
 	}
