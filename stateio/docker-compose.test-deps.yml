@@ -34,7 +34,7 @@ services:
 
   # Postgres for state import/export tests
   stateio_test_postgres:
-    image: postgres:17.3
+    image: postgres:17.10
     container_name: stateio_sdk_test_postgres
     networks:
       - deploy_cli_sdk_stateio_test_network
