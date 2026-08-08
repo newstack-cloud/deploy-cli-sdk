@@ -133,6 +133,13 @@ func runDestroyTUI(
 
 	preflightModel := createPreflight(cmd.Context(), cfg, confProvider, "destroy", styles, headlessMode, flags.jsonMode)
 
+	// Loaded after the pre-command step so it picks up the deploy configuration
+	// artifacts written by the pre-command step, if any.
+	operationConfig, err := config.LoadOperationConfig(confProvider)
+	if err != nil {
+		return err
+	}
+
 	app, err := destroyui.NewDestroyApp(destroyui.DestroyAppConfig{
 		Context:                cmd.Context(),
 		DestroyEngine:          destroyEngine,
@@ -151,6 +158,7 @@ func runDestroyTUI(
 		HeadlessWriter:         os.Stdout,
 		JSONMode:               flags.jsonMode,
 		Preflight:              preflightModel,
+		OperationConfig:        operationConfig,
 	})
 	if err != nil {
 		return err

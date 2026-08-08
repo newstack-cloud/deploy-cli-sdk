@@ -204,6 +204,10 @@ type DestroyModel struct {
 
 	force bool
 
+	// operationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the destroy payload.
+	operationConfig *types.BlueprintOperationConfig
+
 	changesetChanges *changes.BlueprintChanges
 
 	headlessMode   bool
@@ -725,6 +729,10 @@ type DestroyModelConfig struct {
 	HeadlessWriter   io.Writer
 	ChangesetChanges *changes.BlueprintChanges
 	JSONMode         bool
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine when destroying an
+	// instance, so provider plugins run against the correct deploy target.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // Returns the model's bound context, defaulting to context.Background()
@@ -767,6 +775,7 @@ func NewDestroyModel(cfg DestroyModelConfig) DestroyModel {
 		instanceID:              cfg.InstanceID,
 		instanceName:            cfg.InstanceName,
 		force:                   cfg.Force,
+		operationConfig:         cfg.OperationConfig,
 		changesetChanges:        cfg.ChangesetChanges,
 		styles:                  cfg.Styles,
 		headlessMode:            cfg.IsHeadless,

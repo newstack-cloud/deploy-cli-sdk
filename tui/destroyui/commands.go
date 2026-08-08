@@ -120,6 +120,7 @@ func createDestroyPayload(model DestroyModel) *types.DestroyBlueprintInstancePay
 	return &types.DestroyBlueprintInstancePayload{
 		ChangeSetID: model.changesetID,
 		Force:       model.force,
+		Config:      model.operationConfig,
 	}
 }
 

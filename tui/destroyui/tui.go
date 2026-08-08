@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
+	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
@@ -583,7 +584,7 @@ func (m MainModel) View() string {
 type DestroyAppConfig struct {
 	// Context is bound to the engine calls the destroy model makes so they are
 	// cancelled when the command context is cancelled (e.g. on Ctrl+C).
-	Context context.Context
+	Context                context.Context
 	DestroyEngine          engine.DeployEngine
 	Logger                 *zap.Logger
 	ChangesetID            string
@@ -600,6 +601,10 @@ type DestroyAppConfig struct {
 	HeadlessWriter         io.Writer
 	JSONMode               bool
 	Preflight              tea.Model
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine when staging destroy
+	// changes and destroying an instance.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // NewDestroyApp creates a new destroy application with the given configuration.
@@ -639,16 +644,17 @@ func NewDestroyApp(cfg DestroyAppConfig) (*MainModel, error) {
 	)
 
 	stagingModel := stageui.NewStageModel(stageui.StageModelConfig{
-		DeployEngine:   cfg.DestroyEngine,
-		Logger:         cfg.Logger,
-		InstanceID:     cfg.InstanceID,
-		InstanceName:   cfg.InstanceName,
-		Destroy:        true,      // staging destroy changes
-		SkipDriftCheck: cfg.Force, // use force flag to skip drift detection during staging
-		Styles:         cfg.Styles,
-		IsHeadless:     cfg.Headless,
-		HeadlessWriter: cfg.HeadlessWriter,
-		JSONMode:       cfg.JSONMode,
+		DeployEngine:    cfg.DestroyEngine,
+		Logger:          cfg.Logger,
+		InstanceID:      cfg.InstanceID,
+		InstanceName:    cfg.InstanceName,
+		Destroy:         true,      // staging destroy changes
+		SkipDriftCheck:  cfg.Force, // use force flag to skip drift detection during staging
+		Styles:          cfg.Styles,
+		IsHeadless:      cfg.Headless,
+		HeadlessWriter:  cfg.HeadlessWriter,
+		JSONMode:        cfg.JSONMode,
+		OperationConfig: cfg.OperationConfig,
 	})
 	staging := &stagingModel
 	staging.SetBlueprintFile(cfg.BlueprintFile)
@@ -669,6 +675,7 @@ func NewDestroyApp(cfg DestroyAppConfig) (*MainModel, error) {
 		HeadlessWriter:   cfg.HeadlessWriter,
 		ChangesetChanges: nil,
 		JSONMode:         cfg.JSONMode,
+		OperationConfig:  cfg.OperationConfig,
 	})
 
 	postPreflightState := sessionState
