@@ -69,6 +69,7 @@ func createValidationPayloadForLocalFile(
 			Directory:        directory,
 			BlueprintFile:    file,
 		},
+		Config:       model.operationConfig,
 		LoaderConfig: buildLoaderConfig(model),
 	}, nil
 }
@@ -103,6 +104,7 @@ func createValidationPayloadForObjectStorage(
 			Directory:        directory,
 			BlueprintFile:    file,
 		},
+		Config:       model.operationConfig,
 		LoaderConfig: buildLoaderConfig(model),
 	}, nil
 }
@@ -129,6 +131,7 @@ func createValidationPayloadForHTTPS(
 				"host": url.Host,
 			},
 		},
+		Config:       model.operationConfig,
 		LoaderConfig: buildLoaderConfig(model),
 	}, nil
 }

@@ -21,6 +21,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// validateHeaderHeight is the number of rows the parent model prepends above
+// the validate view (the blank line and "You selected blueprint: ..." line), so
+// the viewport can reserve space for them and avoid overflowing the screen.
+const validateHeaderHeight = 2
+
 type ValidateResultMsg *types.BlueprintValidationEvent
 
 type ValidateErrMsg struct {
@@ -57,6 +62,9 @@ type ValidateModel struct {
 	styles                 *stylespkg.Styles
 	transformSpec          bool
 	validateAfterTransform bool
+	// operationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the validation payload.
+	operationConfig *types.BlueprintOperationConfig
 }
 
 func (m ValidateModel) Init() tea.Cmd {
@@ -68,11 +76,23 @@ func (m ValidateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		footerHeight := lipgloss.Height(m.footerView())
+		// Reserve rows for the blueprint header the parent model prepends, the
+		// outcome summary line and the footer, so the viewport does not overflow
+		// the screen and push those off the bottom.
+		reserved := validateHeaderHeight +
+			lipgloss.Height(m.summaryLine()) +
+			lipgloss.Height(m.footerView())
+		viewportHeight := max(1, msg.Height-reserved)
 
 		if !m.hasDimensions {
-			m.viewport = viewport.New(msg.Width, msg.Height-footerHeight)
+			m.viewport = viewport.New(msg.Width, viewportHeight)
 			m.hasDimensions = true
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = viewportHeight
+		}
+		if m.finished {
+			m.viewport.SetContent(m.resultContents())
 		}
 	case sharedui.SelectBlueprintMsg:
 		m.blueprintFile = msg.BlueprintFile
@@ -85,7 +105,13 @@ func (m ValidateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.streaming = true
 	case ValidateResultMsg:
-		m.collected = append(m.collected, msg)
+		// The engine may send a terminal marker (End set, no diagnostic content)
+		// purely to close the stream. For example, when a validation produced no
+		// diagnostics. Collect only real diagnostics so the marker is not
+		// rendered as a blank entry.
+		if msg.Message != "" {
+			m.collected = append(m.collected, msg)
+		}
 		cmds = append(cmds, checkForErrCmd(m))
 		if !msg.End {
 			cmds = append(cmds, waitForNextResultCmd(m))
@@ -117,12 +143,13 @@ func (m ValidateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ValidateModel) footerView() string {
+	hints := m.styles.Muted.Render(" ↑/↓ scroll • q quit ")
 	b := lipgloss.RoundedBorder()
 	b.Left = "┤"
 	infoStyle := m.styles.Title.BorderStyle(b)
 	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info)))
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(hints)-lipgloss.Width(info)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, hints, line, info)
 }
 
 func (m ValidateModel) View() string {
@@ -140,7 +167,10 @@ func (m ValidateModel) View() string {
 		return fmt.Sprintf("\n\n %s Validating project...\n\n", m.spinner.View())
 	}
 
-	return fmt.Sprintf("%s\n%s", m.viewport.View(), m.footerView())
+	// The diagnostics scroll inside the viewport; the outcome summary and the
+	// footer hints are rendered outside it so they are always visible, even
+	// when the validation produced no diagnostics.
+	return fmt.Sprintf("%s\n%s\n%s", m.viewport.View(), m.summaryLine(), m.footerView())
 }
 
 func (m ValidateModel) resultContents() string {
@@ -167,6 +197,39 @@ func (m ValidateModel) resultContents() string {
 	}
 
 	return sb.String()
+}
+
+// Produces a one-line success/failure outcome for the completed
+// validation. It is rendered outside the scrollable viewport (see View) so it
+// is always visible, a successful validation may produce no diagnostics, and
+// without this the screen would otherwise look empty.
+func (m ValidateModel) summaryLine() string {
+	errorCount, warningCount := 0, 0
+	for _, result := range m.collected {
+		switch result.Diagnostic.Level {
+		case bpcore.DiagnosticLevelError:
+			errorCount += 1
+		case bpcore.DiagnosticLevelWarning:
+			warningCount += 1
+		}
+	}
+
+	if errorCount > 0 {
+		return m.styles.Error.Padding(0, 1).Render(
+			fmt.Sprintf("✗ Validation failed with %d error(s)%s", errorCount, warningSuffix(warningCount)),
+		)
+	}
+
+	return m.styles.Success.Padding(0, 1).Render(
+		fmt.Sprintf("✓ Validation succeeded%s", warningSuffix(warningCount)),
+	)
+}
+
+func warningSuffix(warnings int) string {
+	if warnings > 0 {
+		return fmt.Sprintf(" (%d warning(s))", warnings)
+	}
+	return ""
 }
 
 func (m ValidateModel) renderHeadless() {
@@ -406,6 +469,9 @@ type ValidateModelConfig struct {
 	Styles                 *stylespkg.Styles
 	TransformSpec          bool
 	ValidateAfterTransform bool
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the validation payload.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // Returns the model's bound context, defaulting to context.Background()
@@ -438,6 +504,7 @@ func NewValidateModel(cfg ValidateModelConfig) ValidateModel {
 		styles:                 cfg.Styles,
 		transformSpec:          cfg.TransformSpec,
 		validateAfterTransform: cfg.ValidateAfterTransform,
+		operationConfig:        cfg.OperationConfig,
 	}
 }
 

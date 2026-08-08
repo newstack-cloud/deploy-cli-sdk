@@ -150,6 +150,13 @@ func runDeployTUI(
 
 	preflightModel := createPreflight(cmd.Context(), cfg, confProvider, "deploy", styles, headlessMode, flags.jsonMode)
 
+	// Loaded after the pre-command step so it picks up the deploy configuration
+	// artifacts written by the pre-command step, if any.
+	operationConfig, err := config.LoadOperationConfig(confProvider)
+	if err != nil {
+		return err
+	}
+
 	app, err := deployui.NewDeployApp(deployui.DeployAppConfig{
 		Context:                cmd.Context(),
 		DeployEngine:           deployEngine,
@@ -170,6 +177,7 @@ func runDeployTUI(
 		HeadlessWriter:         os.Stdout,
 		JSONMode:               flags.jsonMode,
 		Preflight:              preflightModel,
+		OperationConfig:        operationConfig,
 	})
 	if err != nil {
 		return err

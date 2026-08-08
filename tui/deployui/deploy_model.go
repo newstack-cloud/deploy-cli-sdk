@@ -9,8 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
@@ -20,6 +18,8 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 	"go.uber.org/zap"
@@ -79,9 +79,9 @@ type ResourceDeployItem struct {
 	ResourceState *state.ResourceState
 }
 
-func (r *ResourceDeployItem) GetAction() shared.ActionType      { return shared.ActionType(r.Action) }
+func (r *ResourceDeployItem) GetAction() shared.ActionType           { return shared.ActionType(r.Action) }
 func (r *ResourceDeployItem) GetResourceStatus() core.ResourceStatus { return r.Status }
-func (r *ResourceDeployItem) SetSkipped(skipped bool)           { r.Skipped = skipped }
+func (r *ResourceDeployItem) SetSkipped(skipped bool)                { r.Skipped = skipped }
 
 // ChildDeployItem represents a child blueprint being deployed.
 type ChildDeployItem struct {
@@ -101,9 +101,9 @@ type ChildDeployItem struct {
 	Changes *changes.BlueprintChanges
 }
 
-func (c *ChildDeployItem) GetAction() shared.ActionType     { return shared.ActionType(c.Action) }
+func (c *ChildDeployItem) GetAction() shared.ActionType        { return shared.ActionType(c.Action) }
 func (c *ChildDeployItem) GetChildStatus() core.InstanceStatus { return c.Status }
-func (c *ChildDeployItem) SetSkipped(skipped bool)          { c.Skipped = skipped }
+func (c *ChildDeployItem) SetSkipped(skipped bool)             { c.Skipped = skipped }
 
 // LinkDeployItem represents a link being deployed.
 type LinkDeployItem struct {
@@ -122,9 +122,9 @@ type LinkDeployItem struct {
 	Skipped              bool // Set to true when deployment failed before this link was attempted
 }
 
-func (l *LinkDeployItem) GetAction() shared.ActionType { return shared.ActionType(l.Action) }
-func (l *LinkDeployItem) GetLinkStatus() core.LinkStatus  { return l.Status }
-func (l *LinkDeployItem) SetSkipped(skipped bool)      { l.Skipped = skipped }
+func (l *LinkDeployItem) GetAction() shared.ActionType   { return shared.ActionType(l.Action) }
+func (l *LinkDeployItem) GetLinkStatus() core.LinkStatus { return l.Status }
+func (l *LinkDeployItem) SetSkipped(skipped bool)        { l.Skipped = skipped }
 
 // DeployItem is the unified item type for the split-pane.
 type DeployItem struct {
@@ -228,6 +228,9 @@ type DeployModel struct {
 	blueprintSource string
 	autoRollback    bool
 	force           bool
+	// operationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the deploy payload.
+	operationConfig *types.BlueprintOperationConfig
 
 	// Changeset data - used to build item hierarchy
 	changesetChanges *changes.BlueprintChanges
@@ -1000,6 +1003,9 @@ type DeployModelConfig struct {
 	HeadlessWriter   io.Writer
 	ChangesetChanges *changes.BlueprintChanges
 	JSONMode         bool
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the deploy payload.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // reqCtx returns the model's bound context, defaulting to context.Background()
@@ -1045,6 +1051,7 @@ func NewDeployModel(cfg DeployModelConfig) DeployModel {
 		blueprintSource:         cfg.BlueprintSource,
 		autoRollback:            cfg.AutoRollback,
 		force:                   cfg.Force,
+		operationConfig:         cfg.OperationConfig,
 		changesetChanges:        cfg.ChangesetChanges,
 		styles:                  cfg.Styles,
 		headlessMode:            cfg.IsHeadless,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/preflight"
@@ -243,6 +244,10 @@ type ValidateAppConfig struct {
 	// options form. When nil, the SDK default of false is used and (in
 	// interactive mode) the form is shown.
 	ValidateAfterTransform *bool
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the validation
+	// payload, so transformer plugins run correctly during validation.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
@@ -290,6 +295,7 @@ func NewValidateApp(cfg ValidateAppConfig) (*MainModel, error) {
 		Styles:                 cfg.Styles,
 		TransformSpec:          transformSpec,
 		ValidateAfterTransform: validateAfterTransform,
+		OperationConfig:        cfg.OperationConfig,
 	})
 
 	var optionsForm *ValidateOptionsFormModel

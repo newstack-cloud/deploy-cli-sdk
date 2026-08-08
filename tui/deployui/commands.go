@@ -132,6 +132,7 @@ func createDeployPayload(model DeployModel) (*types.BlueprintInstancePayload, er
 		ChangeSetID:           model.changesetID,
 		AutoRollback:          model.autoRollback,
 		Force:                 model.force,
+		Config:                model.operationConfig,
 	}, nil
 }
 

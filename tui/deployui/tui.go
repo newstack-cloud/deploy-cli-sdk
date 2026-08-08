@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
+	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
@@ -338,6 +339,10 @@ type DeployAppConfig struct {
 	HeadlessWriter         io.Writer
 	JSONMode               bool
 	Preflight              tea.Model
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine during staging and
+	// deployment.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // NewDeployApp creates a new deploy application with the given configuration.
@@ -399,16 +404,17 @@ func NewDeployApp(cfg DeployAppConfig) (*MainModel, error) {
 
 	// Create staging model for --stage flow (reusing stageui.StageModel)
 	stagingModel := stageui.NewStageModel(stageui.StageModelConfig{
-		DeployEngine:   cfg.DeployEngine,
-		Logger:         cfg.Logger,
-		InstanceID:     cfg.InstanceID,
-		InstanceName:   cfg.InstanceName,
-		Destroy:        false,     // not applicable for deploy staging
-		SkipDriftCheck: cfg.Force, // use force flag to skip drift detection during staging
-		Styles:         cfg.Styles,
-		IsHeadless:     cfg.Headless,
-		HeadlessWriter: cfg.HeadlessWriter,
-		JSONMode:       cfg.JSONMode,
+		DeployEngine:    cfg.DeployEngine,
+		Logger:          cfg.Logger,
+		InstanceID:      cfg.InstanceID,
+		InstanceName:    cfg.InstanceName,
+		Destroy:         false,     // not applicable for deploy staging
+		SkipDriftCheck:  cfg.Force, // use force flag to skip drift detection during staging
+		Styles:          cfg.Styles,
+		IsHeadless:      cfg.Headless,
+		HeadlessWriter:  cfg.HeadlessWriter,
+		JSONMode:        cfg.JSONMode,
+		OperationConfig: cfg.OperationConfig,
 	})
 	staging := &stagingModel
 	// Pre-populate blueprint info if available
@@ -433,6 +439,7 @@ func NewDeployApp(cfg DeployAppConfig) (*MainModel, error) {
 		HeadlessWriter:   cfg.HeadlessWriter,
 		ChangesetChanges: nil, // will be set when staging completes
 		JSONMode:         cfg.JSONMode,
+		OperationConfig:  cfg.OperationConfig,
 	})
 
 	postPreflightState := sessionState

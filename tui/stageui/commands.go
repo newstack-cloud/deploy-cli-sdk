@@ -105,6 +105,7 @@ func createChangesetPayload(model StageModel) (*types.CreateChangesetPayload, er
 		InstanceName:          model.instanceName,
 		Destroy:               model.destroy,
 		SkipDriftCheck:        model.skipDriftCheck,
+		Config:                model.operationConfig,
 	}, nil
 }
 

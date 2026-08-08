@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/consts"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
@@ -243,6 +244,9 @@ type StageAppConfig struct {
 	HeadlessWriter         io.Writer
 	JSONMode               bool
 	Preflight              tea.Model
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine during change staging.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // NewStageApp creates a new stage application with the given configuration.
@@ -279,17 +283,18 @@ func NewStageApp(cfg StageAppConfig) (*MainModel, error) {
 	}
 
 	stage := NewStageModel(StageModelConfig{
-		Context:        cfg.Context,
-		DeployEngine:   cfg.DeployEngine,
-		Logger:         cfg.Logger,
-		InstanceID:     cfg.InstanceID,
-		InstanceName:   cfg.InstanceName,
-		Destroy:        cfg.Destroy,
-		SkipDriftCheck: cfg.SkipDriftCheck,
-		Styles:         cfg.Styles,
-		IsHeadless:     cfg.Headless,
-		HeadlessWriter: cfg.HeadlessWriter,
-		JSONMode:       cfg.JSONMode,
+		Context:         cfg.Context,
+		DeployEngine:    cfg.DeployEngine,
+		Logger:          cfg.Logger,
+		InstanceID:      cfg.InstanceID,
+		InstanceName:    cfg.InstanceName,
+		Destroy:         cfg.Destroy,
+		SkipDriftCheck:  cfg.SkipDriftCheck,
+		Styles:          cfg.Styles,
+		IsHeadless:      cfg.Headless,
+		HeadlessWriter:  cfg.HeadlessWriter,
+		JSONMode:        cfg.JSONMode,
+		OperationConfig: cfg.OperationConfig,
 	})
 
 	// Determine if we need to prompt for stage options

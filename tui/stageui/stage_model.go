@@ -127,6 +127,9 @@ type StageModel struct {
 	instanceName    string
 	destroy         bool
 	skipDriftCheck  bool
+	// operationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the changeset payload.
+	operationConfig *types.BlueprintOperationConfig
 
 	// Headless
 	headlessMode   bool
@@ -1068,6 +1071,9 @@ type StageModelConfig struct {
 	IsHeadless     bool
 	HeadlessWriter io.Writer
 	JSONMode       bool
+	// OperationConfig carries provider/transformer/context-variable values
+	// (including the deploy target) sent to the engine in the changeset payload.
+	OperationConfig *types.BlueprintOperationConfig
 }
 
 // Returns the model's bound context, defaulting to context.Background()
@@ -1161,6 +1167,7 @@ func NewStageModel(cfg StageModelConfig) StageModel {
 		instanceName:         cfg.InstanceName,
 		destroy:              cfg.Destroy,
 		skipDriftCheck:       cfg.SkipDriftCheck,
+		operationConfig:      cfg.OperationConfig,
 		styles:               cfg.Styles,
 		headlessMode:         cfg.IsHeadless,
 		headlessWriter:       cfg.HeadlessWriter,
