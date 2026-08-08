@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.7.0...v0.8.0) (2026-08-08)
+
+
+### Features
+
+* pass blueprint operation config to engine across validate, stage and deploy ([7e3c1ae](https://github.com/newstack-cloud/deploy-cli-sdk/commit/7e3c1aef81d235bcf171a987c386d238258b5fff))
+
+
+### Dependencies
+
+* update go dependencies ([#37](https://github.com/newstack-cloud/deploy-cli-sdk/issues/37)) ([4a13a7a](https://github.com/newstack-cloud/deploy-cli-sdk/commit/4a13a7ade15bce698b05260e49b72c6684b0d513))
+* update go dependencies ([#45](https://github.com/newstack-cloud/deploy-cli-sdk/issues/45)) ([8f4bfb8](https://github.com/newstack-cloud/deploy-cli-sdk/commit/8f4bfb86cceeb24a8aeb796f940ef734873751c1))
+* update postgres docker tag to v17.10 ([#38](https://github.com/newstack-cloud/deploy-cli-sdk/issues/38)) ([bf26f9c](https://github.com/newstack-cloud/deploy-cli-sdk/commit/bf26f9c717f34d7d24be1761d597a03acbeee608))
+* update yarn to v4.17.1 ([#39](https://github.com/newstack-cloud/deploy-cli-sdk/issues/39)) ([3187824](https://github.com/newstack-cloud/deploy-cli-sdk/commit/318782493ba9c0df11403261193fa27efe8bd5d6))
+* update yarn to v4.18.0 ([#46](https://github.com/newstack-cloud/deploy-cli-sdk/issues/46)) ([62b05ae](https://github.com/newstack-cloud/deploy-cli-sdk/commit/62b05ae4be2797b5ea8dda43200deec7679d75c8))
+
 ## [0.7.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.6.0...v0.7.0) (2026-07-26)
 
 
