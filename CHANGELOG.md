@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.0...v0.8.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* add missing operation config for destroy ([3617e0d](https://github.com/newstack-cloud/deploy-cli-sdk/commit/3617e0d5197a471624c853a19b64f23e466d5ece))
+
 ## [0.8.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.7.0...v0.8.0) (2026-08-08)
 
 
