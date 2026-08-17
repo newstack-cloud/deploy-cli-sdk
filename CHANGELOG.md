@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.2](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.1...v0.8.2) (2026-08-17)
+
+
+### Dependencies
+
+* update go dependencies ([#48](https://github.com/newstack-cloud/deploy-cli-sdk/issues/48)) ([5476cfa](https://github.com/newstack-cloud/deploy-cli-sdk/commit/5476cfadebd2ac6140a3c80b3a2e38c0b40ef0da))
+* update go dependencies ([#50](https://github.com/newstack-cloud/deploy-cli-sdk/issues/50)) ([d767081](https://github.com/newstack-cloud/deploy-cli-sdk/commit/d7670818a662f1e05ad1ac579ed914334a7120ed))
+* update postgres docker tag to v17.11 ([#51](https://github.com/newstack-cloud/deploy-cli-sdk/issues/51)) ([bde20dc](https://github.com/newstack-cloud/deploy-cli-sdk/commit/bde20dc9560ac053c4d43ca9d97a6cb6b7066ea2))
+
 ## [0.8.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.0...v0.8.1) (2026-08-08)
 
 
