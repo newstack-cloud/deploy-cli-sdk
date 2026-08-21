@@ -11,11 +11,11 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.43.6
 	github.com/aws/aws-sdk-go-v2/config v1.32.37
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2
-	github.com/charmbracelet/bubbles v0.21.1
-	github.com/charmbracelet/bubbletea v1.3.10
-	github.com/charmbracelet/glamour v1.0.0
-	github.com/charmbracelet/huh v0.8.0
-	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
+	github.com/charmbracelet/bubbles/v2 v2.2.0
+	github.com/charmbracelet/bubbletea/v2 v2.0.9
+	github.com/charmbracelet/glamour/v2 v2.0.1
+	github.com/charmbracelet/huh/v2 v2.0.3
+	github.com/charmbracelet/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20260816001655-68d539dca504
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/newstack-cloud/bluelink/libs/blueprint v0.52.0
