@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.2](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.1...v0.8.2) (2026-09-07)
+
+
+### Dependencies
+
+* update fsouza/fake-gcs-server docker tag to v1.56.0 ([#52](https://github.com/newstack-cloud/deploy-cli-sdk/issues/52)) ([5533a61](https://github.com/newstack-cloud/deploy-cli-sdk/commit/5533a61f614ee8df5927bc02d369ea0d2640cabc))
+* update fsouza/fake-gcs-server docker tag to v1.56.1 ([#54](https://github.com/newstack-cloud/deploy-cli-sdk/issues/54)) ([92e395b](https://github.com/newstack-cloud/deploy-cli-sdk/commit/92e395bb3ec6967f4b817ee04a67c63432db201c))
+* update go dependencies ([#48](https://github.com/newstack-cloud/deploy-cli-sdk/issues/48)) ([5476cfa](https://github.com/newstack-cloud/deploy-cli-sdk/commit/5476cfadebd2ac6140a3c80b3a2e38c0b40ef0da))
+* update go dependencies ([#50](https://github.com/newstack-cloud/deploy-cli-sdk/issues/50)) ([d767081](https://github.com/newstack-cloud/deploy-cli-sdk/commit/d7670818a662f1e05ad1ac579ed914334a7120ed))
+* update go dependencies ([#53](https://github.com/newstack-cloud/deploy-cli-sdk/issues/53)) ([dbabb77](https://github.com/newstack-cloud/deploy-cli-sdk/commit/dbabb7732ab363827ffcf21dc39efb885deba0bc))
+* update go dependencies ([#55](https://github.com/newstack-cloud/deploy-cli-sdk/issues/55)) ([fa97fb3](https://github.com/newstack-cloud/deploy-cli-sdk/commit/fa97fb35d1dcb8257ef281357aca6e06a5db0c02))
+* update go dependencies ([#57](https://github.com/newstack-cloud/deploy-cli-sdk/issues/57)) ([1c8db03](https://github.com/newstack-cloud/deploy-cli-sdk/commit/1c8db03a0279daca67aaba5993d5a262bb56476f))
+* update postgres docker tag to v17.11 ([#51](https://github.com/newstack-cloud/deploy-cli-sdk/issues/51)) ([bde20dc](https://github.com/newstack-cloud/deploy-cli-sdk/commit/bde20dc9560ac053c4d43ca9d97a6cb6b7066ea2))
+
 ## [0.8.1](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.0...v0.8.1) (2026-08-08)
 
 
