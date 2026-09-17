@@ -15,6 +15,7 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/destroyui"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stageui"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/term"
@@ -182,6 +183,7 @@ func runDestroyTUI(
 // parameterized by CLIConfig for branding and defaults.
 func SetupDestroyCommand(rootCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
 	driftui.SetCLIName(cfg.CLIName)
+	stageui.SetCLIName(cfg.CLIName)
 	destroyCmd := &cobra.Command{
 		Use:   "destroy",
 		Short: "Destroy a blueprint instance",

@@ -421,8 +421,8 @@ func (s *InspectTUISuite) Test_inspect_in_progress_with_child_streams_events() {
 func (s *InspectTUISuite) Test_inspect_in_progress_with_link_streams_events() {
 	instanceState := testInstanceState(core.InstanceStatusDeploying)
 	events := []*types.BlueprintInstanceEvent{
-		linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingResourceA),
-		linkEvent("resource-a::resource-b", core.LinkStatusCreated, core.PreciseLinkStatusResourceBUpdated),
+		linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingLinkedResources),
+		linkEvent("resource-a::resource-b", core.LinkStatusCreated, core.PreciseLinkStatusLinkedResourcesUpdated),
 		finishEvent(core.InstanceStatusDeployed),
 	}
 
@@ -775,8 +775,8 @@ func (s *InspectTUISuite) Test_inspect_nested_child_events_during_streaming() {
 func (s *InspectTUISuite) Test_inspect_link_failure_shows_create_failed() {
 	instanceState := testInstanceState(core.InstanceStatusDeploying)
 	events := []*types.BlueprintInstanceEvent{
-		linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingResourceA),
-		linkEventFailed("resource-a::resource-b", core.LinkStatusCreateFailed, core.PreciseLinkStatusResourceAUpdateFailed, []string{"Link failed"}),
+		linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingLinkedResources),
+		linkEventFailed("resource-a::resource-b", core.LinkStatusCreateFailed, core.PreciseLinkStatusLinkedResourcesUpdateFailed, []string{"Link failed"}),
 		finishEvent(core.InstanceStatusDeployFailed),
 	}
 

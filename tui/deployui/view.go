@@ -137,7 +137,9 @@ func (m DeployModel) getSelectedResourceState() (*state.ResourceState, string) {
 		return nil, ""
 	}
 
-	deployItem, ok := selectedItem.(*DeployItem)
+	// Resources nested under an abstract resource group are wrapped for display,
+	// so unwrap before asserting or the spec view never opens for them.
+	deployItem, ok := shared.UnwrapItem(selectedItem).(*DeployItem)
 	if !ok || deployItem.Type != ItemTypeResource || deployItem.Resource == nil {
 		return nil, ""
 	}
@@ -278,15 +280,29 @@ func (m DeployModel) renderSuccessfulElements(sb *strings.Builder) {
 	sb.WriteString(successStyle.Render(fmt.Sprintf("  %d Successful %s:", len(m.successfulElements), elementLabel)))
 	sb.WriteString("\n\n")
 
-	for _, elem := range m.successfulElements {
-		sb.WriteString(successStyle.Render("  ✓ "))
-		sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
-		if elem.Action != "" {
-			sb.WriteString(m.styles.Muted.Render(" (" + elem.Action + ")"))
+	groups := shared.GroupOverviewEntries(m.successfulElements, successfulElementGroup)
+	for _, group := range groups {
+		shared.RenderOverviewGroupHeader(sb, group.Group, "  ", m.styles)
+		indent := shared.OverviewEntryIndent("  ", group.Group)
+		for _, elem := range group.Entries {
+			sb.WriteString(indent)
+			sb.WriteString(successStyle.Render("✓ "))
+			sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
+			if elem.Action != "" {
+				sb.WriteString(m.styles.Muted.Render(" (" + elem.Action + ")"))
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
+}
+
+func successfulElementGroup(elem SuccessfulElement) *shared.ResourceGroup {
+	return elem.AbstractGroup
+}
+
+func interruptedElementGroup(elem InterruptedElement) *shared.ResourceGroup {
+	return elem.AbstractGroup
 }
 
 // renderElementFailuresWithWrapping renders element failures with text wrapping
@@ -305,10 +321,16 @@ func (m DeployModel) renderInterruptedElementsWithPath(sb *strings.Builder) {
 	sb.WriteString(m.styles.Warning.Render(fmt.Sprintf("  %d %s Interrupted:", len(m.interruptedElements), elementLabel)))
 	sb.WriteString("\n\n")
 
-	for _, elem := range m.interruptedElements {
-		sb.WriteString(m.styles.Warning.Render("  ⏹ "))
-		sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
-		sb.WriteString("\n")
+	groups := shared.GroupOverviewEntries(m.interruptedElements, interruptedElementGroup)
+	for _, group := range groups {
+		shared.RenderOverviewGroupHeader(sb, group.Group, "  ", m.styles)
+		indent := shared.OverviewEntryIndent("  ", group.Group)
+		for _, elem := range group.Entries {
+			sb.WriteString(indent)
+			sb.WriteString(m.styles.Warning.Render("⏹ "))
+			sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
+			sb.WriteString("\n")
+		}
 	}
 	sb.WriteString("\n")
 	sb.WriteString(m.styles.Muted.Render("    These elements were interrupted and their state is unknown."))

@@ -31,20 +31,22 @@ import (
 //
 // YAML, JSON and TOML are supported as config file formats.
 type Provider struct {
-	config   map[string]string
-	pFlags   map[string]*pflag.Flag
-	envVars  map[string]string
-	defaults map[string]string
+	config    map[string]string
+	pFlags    map[string]*pflag.Flag
+	envVars   map[string]string
+	defaults  map[string]string
+	overrides map[string]string
 }
 
 // NewProvider creates a new Provider of configuration
 // values for the CLI.
 func NewProvider() *Provider {
 	return &Provider{
-		config:   map[string]string{},
-		pFlags:   map[string]*pflag.Flag{},
-		envVars:  map[string]string{},
-		defaults: map[string]string{},
+		config:    map[string]string{},
+		pFlags:    map[string]*pflag.Flag{},
+		envVars:   map[string]string{},
+		defaults:  map[string]string{},
+		overrides: map[string]string{},
 	}
 }
 
@@ -82,6 +84,16 @@ func (p *Provider) SetDefault(configName, value string) {
 	p.defaults[configName] = value
 }
 
+// Set records a value the CLI derived while running, for later steps to read.
+//
+// This overrides everything but a flag the user passed explicitly, which is what
+// separates it from SetDefault.
+// For example, a pre-command step producing a generated file
+// for the command proper to consume is the case this exists for.
+func (p *Provider) Set(configName, value string) {
+	p.overrides[configName] = value
+}
+
 // GetString returns the value of a configuration value as a string.
 // It also returns a boolean indicating whether the value was set by the user
 // or if it's a default value. `true` means the value is a default value.
@@ -99,6 +111,10 @@ func (p *Provider) GetString(configName string) (string, bool) {
 				defaultFlagValue = value
 			}
 		}
+	}
+
+	if override, hasOverride := p.overrides[configName]; hasOverride {
+		return override, false
 	}
 
 	envVarName, hasEnvVarName := p.envVars[configName]

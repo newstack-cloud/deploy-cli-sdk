@@ -495,6 +495,38 @@ func (s *ProviderSuite) Test_nil_flag_binding_is_handled() {
 	s.True(isDefault)
 }
 
+// A pre-command step that generates a file for the command to read has to be
+// able to outrank the flag's declared default, which is what SetDefault cannot
+// do.
+func (s *ProviderSuite) Test_set_value_beats_a_flag_default() {
+	p := NewProvider()
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flagSet.String("blueprint-file", "app.blueprint", "")
+	p.BindPFlag("blueprintFile", flagSet.Lookup("blueprint-file"))
+
+	p.Set("blueprintFile", ".celerity/merged.blueprint.yaml")
+
+	val, isDefault := p.GetString("blueprintFile")
+	s.Equal(".celerity/merged.blueprint.yaml", val)
+	s.False(isDefault)
+}
+
+// What the user typed still wins, a generated default must not silently
+// override an explicit choice.
+func (s *ProviderSuite) Test_a_flag_the_user_passed_beats_a_set_value() {
+	p := NewProvider()
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flagSet.String("blueprint-file", "app.blueprint", "")
+	s.Require().NoError(flagSet.Parse([]string{"--blueprint-file", "chosen.blueprint"}))
+	p.BindPFlag("blueprintFile", flagSet.Lookup("blueprint-file"))
+
+	p.Set("blueprintFile", ".celerity/merged.blueprint.yaml")
+
+	val, isDefault := p.GetString("blueprintFile")
+	s.Equal("chosen.blueprint", val)
+	s.False(isDefault)
+}
+
 func TestProviderSuite(t *testing.T) {
 	suite.Run(t, new(ProviderSuite))
 }

@@ -95,3 +95,9 @@ func (m StageExportsModel) View() string {
 func (m StageExportsModel) HasExportChanges() bool {
 	return HasAnyExportChanges(m.changes)
 }
+
+// IsFiltering reports whether the exports pane is capturing keys for a search
+// term, so that hosts do not treat those keys as their own shortcuts.
+func (m StageExportsModel) IsFiltering() bool {
+	return m.splitPane.IsFiltering()
+}

@@ -12,7 +12,7 @@ func (m *StageModel) outputJSON() {
 		ChangesetID:  m.changesetID,
 		InstanceID:   m.instanceID,
 		InstanceName: m.instanceName,
-		Changes:      m.completeChanges,
+		Changes:      jsonout.RedactChanges(m.completeChanges),
 		Summary:      summary,
 	}
 

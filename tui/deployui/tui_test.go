@@ -95,8 +95,8 @@ func testDeployEvents(deployType testDeployType) []*types.BlueprintInstanceEvent
 		return []*types.BlueprintInstanceEvent{
 			resourceEvent("resource-a", core.ResourceStatusCreated, core.PreciseResourceStatusCreated),
 			resourceEvent("resource-b", core.ResourceStatusCreated, core.PreciseResourceStatusCreated),
-			linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingResourceA),
-			linkEvent("resource-a::resource-b", core.LinkStatusCreated, core.PreciseLinkStatusResourceBUpdated),
+			linkEvent("resource-a::resource-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingLinkedResources),
+			linkEvent("resource-a::resource-b", core.LinkStatusCreated, core.PreciseLinkStatusLinkedResourcesUpdated),
 			finishEvent(core.InstanceStatusDeployed),
 		}
 	case deployMultipleSuccess:
@@ -422,7 +422,9 @@ func (s *DeployTUISuite) Test_deployment_with_links() {
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
-		"resource-a::resource-b",
+		// The tree reads links as "a → b"; the logical "a::b" name stays the
+		// identifier and is what headless output prints.
+		"resource-a → resource-b",
 		"Created",
 		"complete",
 	)

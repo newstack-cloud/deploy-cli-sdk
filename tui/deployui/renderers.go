@@ -129,13 +129,7 @@ func (r *DeployDetailsRenderer) renderResourceDetails(item *DeployItem, width in
 
 	shared.RenderFailureReasons(&sb, res.FailureReasons, width, s)
 
-	// Duration info (only show if there's actual duration data)
-	if durationContent := renderResourceDurations(res.Durations, s); durationContent != "" {
-		sb.WriteString("\n")
-		sb.WriteString(s.Category.Render("Timing:"))
-		sb.WriteString("\n")
-		sb.WriteString(durationContent)
-	}
+	shared.RenderTimingSection(&sb, shared.RenderResourceDurations(res.Durations, s), s)
 
 	// Outputs section - use resource state fetched earlier
 	if resourceState != nil {
@@ -300,29 +294,6 @@ func (r *DeployDetailsRenderer) renderOutboundLinksSection(resourceName string, 
 	return shared.RenderOutboundLinksSection(resourceName, r.PostDeployInstanceState.Links, s)
 }
 
-func renderResourceDurations(durations *state.ResourceCompletionDurations, s *styles.Styles) string {
-	if durations == nil {
-		return ""
-	}
-	sb := strings.Builder{}
-	if durations.ConfigCompleteDuration != nil &&
-		*durations.ConfigCompleteDuration > 0 {
-		sb.WriteString(s.Muted.Render(fmt.Sprintf(
-			"  Config Complete: %s",
-			outpututil.FormatDuration(*durations.ConfigCompleteDuration),
-		)))
-		sb.WriteString("\n")
-	}
-	if durations.TotalDuration != nil && *durations.TotalDuration > 0 {
-		sb.WriteString(s.Muted.Render(fmt.Sprintf(
-			"  Total: %s",
-			outpututil.FormatDuration(*durations.TotalDuration),
-		)))
-		sb.WriteString("\n")
-	}
-	return sb.String()
-}
-
 func (r *DeployDetailsRenderer) renderChildDetails(item *DeployItem, width int, s *styles.Styles) string {
 	child := item.Child
 	if child == nil {
@@ -387,6 +358,8 @@ func (r *DeployDetailsRenderer) renderChildDetails(item *DeployItem, width int, 
 		sb.WriteString("\n")
 	}
 
+	shared.RenderTimingSection(&sb, shared.RenderInstanceDurations(child.Durations, s), s)
+
 	// Failure reasons (only show if not skipped)
 	if !child.Skipped {
 		shared.RenderFailureReasons(&sb, child.FailureReasons, width, s)
@@ -445,6 +418,8 @@ func (r *DeployDetailsRenderer) renderLinkDetails(item *DeployItem, width int, s
 		}
 		sb.WriteString("\n")
 	}
+
+	shared.RenderTimingSection(&sb, shared.RenderLinkDurations(link.Durations, s), s)
 
 	// Failure reasons (only show if not skipped)
 	if !link.Skipped {

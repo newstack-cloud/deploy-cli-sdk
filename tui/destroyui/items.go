@@ -1,9 +1,9 @@
 package destroyui
 
 import (
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
 
@@ -29,8 +29,12 @@ func (d *DestroyItem) GetID() string {
 	return ""
 }
 
-// GetName returns the display name for the item.
+// GetName returns the display name for the item. Links read as "a → b" rather
+// than as their logical "a::b" name, which stays the identifier.
 func (d *DestroyItem) GetName() string {
+	if d.Type == ItemTypeLink && d.Link != nil {
+		return shared.FormatLinkName(d.Link.ResourceAName, d.Link.ResourceBName)
+	}
 	return d.GetID()
 }
 
@@ -181,28 +185,47 @@ func (d *DestroyItem) GetItemType() string {
 	return string(d.Type)
 }
 
+// AbstractGroup returns the abstract resource this resource was expanded from,
+// resolved from the change set and any recorded state.
+// Returns nil for resources that were not produced by a transformer.
+func (r *ResourceDestroyItem) AbstractGroup() *shared.ResourceGroup {
+	if r == nil {
+		return nil
+	}
+	if r.Changes != nil {
+		if rs := r.Changes.AppliedResourceInfo.CurrentResourceState; rs != nil {
+			if g := shared.ExtractGrouping(rs.Metadata); g != nil {
+				return g
+			}
+		}
+		if g := shared.ExtractGroupingFromResolved(
+			r.Changes.AppliedResourceInfo.ResourceWithResolvedSubs,
+		); g != nil {
+			return g
+		}
+	}
+	if r.ResourceState != nil {
+		return shared.ExtractGrouping(r.ResourceState.Metadata)
+	}
+	return nil
+}
+
 // GetResourceGroup returns the abstract resource group for this item, if any.
 func (d *DestroyItem) GetResourceGroup() *shared.ResourceGroup {
 	if d.Type != ItemTypeResource || d.Resource == nil {
 		return nil
 	}
-	if d.Resource.Changes != nil {
-		if rs := d.Resource.Changes.AppliedResourceInfo.CurrentResourceState; rs != nil {
-			if g := shared.ExtractGrouping(rs.Metadata); g != nil {
-				return g
-			}
-		}
+
+	if g := d.Resource.AbstractGroup(); g != nil {
+		return g
 	}
-	if d.Resource.ResourceState != nil {
-		if g := shared.ExtractGrouping(d.Resource.ResourceState.Metadata); g != nil {
-			return g
-		}
-	}
+
 	if d.InstanceState != nil {
 		if rs := shared.FindResourceStateByName(d.InstanceState, d.Resource.Name); rs != nil {
 			return shared.ExtractGrouping(rs.Metadata)
 		}
 	}
+
 	return nil
 }
 

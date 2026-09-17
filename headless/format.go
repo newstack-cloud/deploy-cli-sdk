@@ -18,7 +18,28 @@ type FormatMappingNodeOptions struct {
 	Indent string
 }
 
+// RedactedValue stands in for a value the provider declared sensitive.
+const RedactedValue = "<redacted>"
+
+// FormatFieldValue formats one side of a field change, standing a placeholder in
+// for a value the provider declared sensitive.
+//
+// Every field value the CLI prints goes through here rather than
+// FormatMappingNode directly, because a change set is rendered to a terminal, to
+// a log a CI system keeps, and to JSON someone redirects to a file. A secret
+// only has to be printed once.
+func FormatFieldValue(sensitive bool, node *core.MappingNode) string {
+	if sensitive {
+		return RedactedValue
+	}
+
+	return FormatMappingNode(node)
+}
+
 // FormatMappingNode formats a MappingNode for display.
+//
+// Prefer FormatFieldValue when the node is a field change value, so a sensitive
+// field is not printed.
 func FormatMappingNode(node *core.MappingNode) string {
 	if node == nil {
 		return "null"

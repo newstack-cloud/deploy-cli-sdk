@@ -161,8 +161,13 @@ func (r *StageDetailsRenderer) renderResourceChanges(resourceChanges *provider.C
 	hasOutboundLinkChanges := len(resourceChanges.NewOutboundLinks) > 0 ||
 		len(resourceChanges.OutboundLinkChanges) > 0 ||
 		len(resourceChanges.RemovedOutboundLinks) > 0
+	hasUnappliedLinkFields := len(resourceChanges.UnappliedLinkFields) > 0
+	hasKnownOnDeploy := len(resourceChanges.FieldChangesKnownOnDeploy) > 0
 
-	if !hasFieldChanges && !hasOutboundLinkChanges {
+	// A resource whose only change is a field whose value is settled at deploy is still a
+	// resource that changes, and is deployed for that reason. Reporting nothing for it
+	// would leave the overview listing it as updated while its detail said otherwise.
+	if !hasFieldChanges && !hasOutboundLinkChanges && !hasKnownOnDeploy {
 		sb.WriteString(s.Muted.Render("No changes"))
 		sb.WriteString("\n")
 		return sb.String()
@@ -181,14 +186,16 @@ func (r *StageDetailsRenderer) renderResourceChanges(resourceChanges *provider.C
 	if hasFieldChanges {
 		// New fields (additions)
 		for _, field := range resourceChanges.NewFields {
-			r.renderFieldChange(&sb, "+", field.FieldPath, "", headless.FormatMappingNode(field.NewValue), width, fieldIndent, successStyle)
+			r.renderFieldChange(&sb, "+", field.FieldPath, "", headless.FormatFieldValue(field.Sensitive, field.NewValue), width, fieldIndent, successStyle)
+			r.renderLinkContributor(&sb, resourceChanges.LinkOwnedFields, field.FieldPath, s)
 		}
 
 		// Modified fields
 		for _, field := range resourceChanges.ModifiedFields {
-			prevValue := headless.FormatMappingNode(field.PrevValue)
-			newValue := headless.FormatMappingNode(field.NewValue)
+			prevValue := headless.FormatFieldValue(field.Sensitive, field.PrevValue)
+			newValue := headless.FormatFieldValue(field.Sensitive, field.NewValue)
 			r.renderFieldChange(&sb, "±", field.FieldPath, prevValue, newValue, width, fieldIndent, s.Warning)
+			r.renderLinkContributor(&sb, resourceChanges.LinkOwnedFields, field.FieldPath, s)
 		}
 
 		// Removed fields
@@ -196,10 +203,21 @@ func (r *StageDetailsRenderer) renderResourceChanges(resourceChanges *provider.C
 			line := fmt.Sprintf("  - %s", fieldPath)
 			sb.WriteString(s.Error.Render(line))
 			sb.WriteString("\n")
+			r.renderLinkContributor(&sb, resourceChanges.LinkOwnedFields, fieldPath, s)
 		}
 	} else {
 		sb.WriteString(s.Muted.Render("  None"))
 		sb.WriteString("\n")
+	}
+
+	if hasKnownOnDeploy {
+		sb.WriteString("\n")
+		sb.WriteString(r.renderKnownOnDeployFields(resourceChanges, s))
+	}
+
+	if hasUnappliedLinkFields {
+		sb.WriteString("\n")
+		sb.WriteString(r.renderUnappliedLinkFields(resourceChanges.UnappliedLinkFields, s))
 	}
 
 	// Render outbound link changes if present
@@ -233,6 +251,78 @@ func newFieldChangeLayout(prefix string, width, indent int) fieldChangeLayout {
 		contentWidth: contentWidth,
 		valueWidth:   valueWidth,
 	}
+}
+
+// Names the link a field belongs to, where a link contributed it rather than the
+// blueprint declaring it.
+//
+// A field that is removed because its link was removed reads as a field disappearing for
+// no reason without this, and it is the removals that matter most as what a link
+// contributed goes with it. It is rendered on its own line because the field paths links
+// write are long, and appending to them pushes the change itself out of view.
+func (r *StageDetailsRenderer) renderLinkContributor(
+	sb *strings.Builder,
+	linkOwnedFields map[string]string,
+	fieldPath string,
+	s *styles.Styles,
+) {
+	linkName, contributedByLink := linkOwnedFields[fieldPath]
+	if !contributedByLink {
+		return
+	}
+
+	sb.WriteString(s.Muted.Render(fmt.Sprintf("      contributed by link %s", linkName)))
+	sb.WriteString("\n")
+}
+
+// Reports fields whose value is not settled until the deployment runs.
+func (r *StageDetailsRenderer) renderKnownOnDeployFields(
+	resourceChanges *provider.Changes,
+	s *styles.Styles,
+) string {
+	sb := strings.Builder{}
+	sb.WriteString(s.Category.Render("Values Known On Deploy:"))
+	sb.WriteString("\n")
+
+	for _, fieldPath := range resourceChanges.FieldChangesKnownOnDeploy {
+		sb.WriteString(s.Warning.Render(fmt.Sprintf("  ? %s", fieldPath)))
+		sb.WriteString("\n")
+		r.renderLinkContributor(&sb, resourceChanges.LinkOwnedFields, fieldPath, s)
+	}
+
+	return sb.String()
+}
+
+// Reports contributions a link records against the resource that could not be composed
+// into its spec.
+//
+// These are not field changes and deliberately do not read as such: the field is one the
+// deployed resource holds and the change set could not account for, so it is absent from
+// the comparison rather than changed within it. Deploying without resolving it removes
+// the field from the live resource, which is why it is rendered as a warning against the
+// resource rather than a note under a change.
+//
+// The link, the field and the reason are given on separate lines because the field paths
+// links write are long and the reasons are sentences, so putting them together makes both
+// unreadable.
+func (r *StageDetailsRenderer) renderUnappliedLinkFields(
+	unappliedLinkFields []provider.UnappliedLinkField,
+	s *styles.Styles,
+) string {
+	sb := strings.Builder{}
+	sb.WriteString(s.Category.Render("Link Contributions Not Applied:"))
+	sb.WriteString("\n")
+
+	for _, unapplied := range unappliedLinkFields {
+		sb.WriteString(s.Warning.Render(fmt.Sprintf("  ! link: %s", unapplied.LinkName)))
+		sb.WriteString("\n")
+		sb.WriteString(s.Muted.Render(fmt.Sprintf("      field:  %s", unapplied.FieldPath)))
+		sb.WriteString("\n")
+		sb.WriteString(s.Muted.Render(fmt.Sprintf("      reason: %s", unapplied.Reason)))
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
 
 func (r *StageDetailsRenderer) renderFieldChange(
@@ -471,15 +561,15 @@ func (r *StageDetailsRenderer) renderLinkFieldChanges(linkChanges *provider.Link
 
 	// New fields
 	for _, field := range linkChanges.NewFields {
-		line := fmt.Sprintf("%s+ %s: %s", indent, field.FieldPath, headless.FormatMappingNode(field.NewValue))
+		line := fmt.Sprintf("%s+ %s: %s", indent, field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
 		sb.WriteString(successStyle.Render(line))
 		sb.WriteString("\n")
 	}
 
 	// Modified fields
 	for _, field := range linkChanges.ModifiedFields {
-		prevValue := headless.FormatMappingNode(field.PrevValue)
-		newValue := headless.FormatMappingNode(field.NewValue)
+		prevValue := headless.FormatFieldValue(field.Sensitive, field.PrevValue)
+		newValue := headless.FormatFieldValue(field.Sensitive, field.NewValue)
 		line := fmt.Sprintf("%s± %s: %s -> %s", indent, field.FieldPath, prevValue, newValue)
 		sb.WriteString(s.Warning.Render(line))
 		sb.WriteString("\n")
@@ -675,15 +765,15 @@ func (r *StageDetailsRenderer) renderLinkChanges(linkChanges *provider.LinkChang
 
 		// New fields (additions)
 		for _, field := range regular.NewFields {
-			line := fmt.Sprintf("  + %s: %s", field.FieldPath, headless.FormatMappingNode(field.NewValue))
+			line := fmt.Sprintf("  + %s: %s", field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
 			sb.WriteString(successStyle.Render(line))
 			sb.WriteString("\n")
 		}
 
 		// Modified fields
 		for _, field := range regular.ModifiedFields {
-			prevValue := headless.FormatMappingNode(field.PrevValue)
-			newValue := headless.FormatMappingNode(field.NewValue)
+			prevValue := headless.FormatFieldValue(field.Sensitive, field.PrevValue)
+			newValue := headless.FormatFieldValue(field.Sensitive, field.NewValue)
 			line := fmt.Sprintf("  ± %s: %s -> %s", field.FieldPath, prevValue, newValue)
 			sb.WriteString(s.Warning.Render(line))
 			sb.WriteString("\n")
@@ -849,7 +939,7 @@ func (c *intermediaryCollector) collectNewFields(fields []*provider.FieldChange)
 			continue
 		}
 		group.leaves = append(group.leaves, intermediaryLeafChange{
-			name: leaf, kind: leafNew, newValue: headless.FormatMappingNode(field.NewValue),
+			name: leaf, kind: leafNew, newValue: headless.FormatFieldValue(field.Sensitive, field.NewValue),
 		})
 	}
 }
@@ -867,8 +957,8 @@ func (c *intermediaryCollector) collectModifiedFields(fields []*provider.FieldCh
 		}
 		group.leaves = append(group.leaves, intermediaryLeafChange{
 			name: leaf, kind: leafModified,
-			prevValue: headless.FormatMappingNode(field.PrevValue),
-			newValue:  headless.FormatMappingNode(field.NewValue),
+			prevValue: headless.FormatFieldValue(field.Sensitive, field.PrevValue),
+			newValue:  headless.FormatFieldValue(field.Sensitive, field.NewValue),
 		})
 	}
 }
@@ -983,10 +1073,10 @@ func (r *StageFooterRenderer) RenderFooter(model *splitpane.Model, s *styles.Sty
 		// Deploy/destroy instructions
 		if r.Destroy {
 			sb.WriteString(s.Muted.Render("  To destroy, run "))
-			sb.WriteString(s.Command.Render("bluelink destroy"))
+			sb.WriteString(s.Command.Render(cliName + " destroy"))
 		} else {
 			sb.WriteString(s.Muted.Render("  To deploy, run "))
-			sb.WriteString(s.Command.Render("bluelink deploy"))
+			sb.WriteString(s.Command.Render(cliName + " deploy"))
 		}
 		sb.WriteString(s.Muted.Render(" with changeset "))
 		sb.WriteString(s.Selected.Render(r.ChangesetID))

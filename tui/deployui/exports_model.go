@@ -68,6 +68,12 @@ func (m ExportsModel) Update(msg tea.Msg) (ExportsModel, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
+		// A search term needs to take every key, including "q".
+		if m.splitPane.IsFiltering() {
+			m.splitPane, cmd = m.splitPane.Update(msg)
+			return m, cmd
+		}
+
 		// Handle quit from split pane
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -126,4 +132,10 @@ func hasExportsInHierarchy(instanceState *state.InstanceState) bool {
 // (either directly or in child blueprints).
 func InstanceStateHasExports(instanceState *state.InstanceState) bool {
 	return hasExportsInHierarchy(instanceState)
+}
+
+// IsFiltering reports whether the exports pane is capturing keys for a search
+// term, so that hosts do not treat those keys as their own shortcuts.
+func (m ExportsModel) IsFiltering() bool {
+	return m.splitPane.IsFiltering()
 }

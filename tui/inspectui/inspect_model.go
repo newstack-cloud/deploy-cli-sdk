@@ -257,6 +257,14 @@ func (m InspectModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cm
 }
 
 func (m InspectModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// While a search term is being typed the split pane takes every key, so
+	// that letters land in the term rather than triggering shortcuts.
+	if m.splitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.splitPane, cmd = m.splitPane.Update(msg)
+		return m, cmd
+	}
+
 	if m.err != nil {
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -353,6 +361,13 @@ func (m InspectModel) handleSpecViewKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 }
 
 func (m InspectModel) handleExportsKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key, so "e" types rather than closing the view.
+	if m.exportsModel.IsFiltering() {
+		var cmd tea.Cmd
+		m.exportsModel, cmd = m.exportsModel.Update(msg)
+		return m, cmd
+	}
+
 	switch shared.CheckExportsKeyMsg(msg) {
 	case shared.ExportsKeyActionQuit:
 		return m, tea.Quit
@@ -597,13 +612,15 @@ func createInspectSplitPaneConfig(
 	footerRenderer *InspectFooterRenderer,
 ) splitpane.Config {
 	return splitpane.Config{
-		Styles:          styles,
-		Title:           "Instance Inspector",
-		DetailsRenderer: detailsRenderer,
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  deployui.MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            styles,
+		Title:             "Instance Inspector",
+		DetailsRenderer:   detailsRenderer,
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    deployui.MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 }
 
@@ -628,7 +645,9 @@ func (m *InspectModel) getSelectedResourceState() (*state.ResourceState, string)
 		return nil, ""
 	}
 
-	item, ok := selected.(*deployui.DeployItem)
+	// Resources nested under an abstract resource group are wrapped for display,
+	// so unwrap before asserting or the spec view never opens for them.
+	item, ok := shared.UnwrapItem(selected).(*deployui.DeployItem)
 	if !ok || item.Type != deployui.ItemTypeResource || item.Resource == nil {
 		return nil, ""
 	}

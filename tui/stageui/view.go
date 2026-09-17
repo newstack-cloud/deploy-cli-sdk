@@ -23,6 +23,9 @@ func stageOverviewFooterHeight() int {
 type OverviewItem struct {
 	Item        StageItem
 	ElementPath string
+	// AbstractGroup holds the abstract resource this element was expanded from,
+	// used to group the element under its source type in the overview.
+	AbstractGroup *shared.ResourceGroup
 }
 
 func buildElementPath(parentPath, elementType, elementName string) string {
@@ -91,7 +94,7 @@ func (m StageModel) renderOverviewContent() string {
 }
 
 func (m *StageModel) categorizeItems() (creates, updates, recreates, deletes, noChanges []OverviewItem) {
-	allItems := m.collectAllItemsWithPaths()
+	allItems := assignOverviewGroups(m.collectAllItemsWithPaths())
 
 	for _, item := range allItems {
 		switch item.Item.Action {
@@ -123,6 +126,45 @@ func (m *StageModel) collectAllItemsWithPaths() []OverviewItem {
 
 		if item.Type == ItemTypeChild && item.Changes != nil {
 			items = m.collectChildItemsWithPaths(items, &item, path)
+		}
+	}
+
+	return items
+}
+
+// Resolves the abstract resource group for each overview
+// item. Resources read it from their own annotations, while links inherit the
+// group shared by both of their endpoints; links that cross groups are left
+// ungrouped so they stay at the top level rather than being filed under one side.
+func assignOverviewGroups(items []OverviewItem) []OverviewItem {
+	resourceGroups := map[string]*shared.ResourceGroup{}
+	for i := range items {
+		item := &items[i]
+		if item.Item.Type != ItemTypeResource {
+			continue
+		}
+		item.AbstractGroup = item.Item.GetResourceGroup()
+		if item.AbstractGroup != nil {
+			parentPath := shared.ParentElementPath(item.ElementPath, "resources", item.Item.Name)
+			resourceGroups[shared.BuildMapKey(parentPath, item.Item.Name)] = item.AbstractGroup
+		}
+	}
+
+	if len(resourceGroups) == 0 {
+		return items
+	}
+
+	for i := range items {
+		item := &items[i]
+		if item.Item.Type != ItemTypeLink {
+			continue
+		}
+		resourceA, resourceB := parseLinkName(item.Item.Name)
+		parentPath := shared.ParentElementPath(item.ElementPath, "links", item.Item.Name)
+		groupA := resourceGroups[shared.BuildMapKey(parentPath, resourceA)]
+		groupB := resourceGroups[shared.BuildMapKey(parentPath, resourceB)]
+		if groupA != nil && groupB != nil && *groupA == *groupB {
+			item.AbstractGroup = groupA
 		}
 	}
 
@@ -222,15 +264,23 @@ func (m *StageModel) renderCategoryItems(
 	sb.WriteString(titleStyle.Render(fmt.Sprintf("  %d %s %s:", len(items), elementLabel, title)))
 	sb.WriteString("\n\n")
 
-	for _, overviewItem := range items {
-		item := overviewItem.Item
-		sb.WriteString("  ")
-		sb.WriteString(iconStyle.Render(icon + " "))
-		sb.WriteString(m.styles.Selected.Render(overviewItem.ElementPath))
-		if item.ResourceType != "" {
-			sb.WriteString(m.styles.Muted.Render(" (" + item.ResourceType + ")"))
+	groups := shared.GroupOverviewEntries(items, func(o OverviewItem) *shared.ResourceGroup {
+		return o.AbstractGroup
+	})
+
+	for _, group := range groups {
+		shared.RenderOverviewGroupHeader(sb, group.Group, "  ", m.styles)
+		indent := shared.OverviewEntryIndent("  ", group.Group)
+		for _, overviewItem := range group.Entries {
+			item := overviewItem.Item
+			sb.WriteString(indent)
+			sb.WriteString(iconStyle.Render(icon + " "))
+			sb.WriteString(m.styles.Selected.Render(overviewItem.ElementPath))
+			if item.ResourceType != "" {
+				sb.WriteString(m.styles.Muted.Render(" (" + item.ResourceType + ")"))
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
 }

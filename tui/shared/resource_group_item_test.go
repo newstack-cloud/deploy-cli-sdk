@@ -45,8 +45,8 @@ func (s *ResourceGroupItemTestSuite) Test_GetChildren_includes_resources_and_lin
 	res2 := &mockGroupChild{name: "res2"}
 	link := &mockGroupChild{name: "link1"}
 	group := &ResourceGroupItem{
-		Children:      []splitpane.Item{res1, res2},
-		InternalLinks: []splitpane.Item{link},
+		Children: []splitpane.Item{res1, res2},
+		Links:    []splitpane.Item{link},
 	}
 	children := group.GetChildren()
 	s.Len(children, 3)
@@ -112,13 +112,13 @@ type mockGroupChild struct {
 	depth  int
 }
 
-func (m *mockGroupChild) GetID() string              { return m.name }
-func (m *mockGroupChild) GetName() string             { return m.name }
-func (m *mockGroupChild) GetIcon(bool) string         { return m.icon }
-func (m *mockGroupChild) GetAction() string           { return m.action }
-func (m *mockGroupChild) GetDepth() int               { return m.depth }
-func (m *mockGroupChild) GetParentID() string         { return "" }
-func (m *mockGroupChild) GetItemType() string         { return "resource" }
-func (m *mockGroupChild) IsExpandable() bool          { return false }
-func (m *mockGroupChild) CanDrillDown() bool          { return false }
+func (m *mockGroupChild) GetID() string                 { return m.name }
+func (m *mockGroupChild) GetName() string               { return m.name }
+func (m *mockGroupChild) GetIcon(bool) string           { return m.icon }
+func (m *mockGroupChild) GetAction() string             { return m.action }
+func (m *mockGroupChild) GetDepth() int                 { return m.depth }
+func (m *mockGroupChild) GetParentID() string           { return "" }
+func (m *mockGroupChild) GetItemType() string           { return "resource" }
+func (m *mockGroupChild) IsExpandable() bool            { return false }
+func (m *mockGroupChild) CanDrillDown() bool            { return false }
 func (m *mockGroupChild) GetChildren() []splitpane.Item { return nil }

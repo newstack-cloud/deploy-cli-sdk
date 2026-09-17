@@ -2,9 +2,11 @@ package deployui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
@@ -307,5 +309,47 @@ func fetchPreDeployInstanceStateCmd(model DeployModel) tea.Cmd {
 		return PreDeployInstanceStateFetchedMsg{
 			InstanceState: instanceState,
 		}
+	}
+}
+
+// ChangesetFetchedMsg is sent when changeset changes have been fetched for a
+// deployment that was given an existing change set rather than staging one.
+type ChangesetFetchedMsg struct {
+	Changes *changes.BlueprintChanges
+
+	// Err is set when the change set the deployment was pointed at could not be
+	// loaded. Staging is the only thing that produces a change set, so a
+	// deployment pointed at one it cannot read has nothing to fall back on and
+	// must not continue.
+	Err error
+}
+
+// fetchChangesetChangesCmd loads the change set the deployment was pointed at.
+// Deploying an existing change set skips staging, so nothing else supplies the
+// changes to deploy.
+func fetchChangesetChangesCmd(model DeployModel) tea.Cmd {
+	return func() tea.Msg {
+		if model.changesetID == "" {
+			return ChangesetFetchedMsg{Changes: nil}
+		}
+
+		changeset, err := model.engine.GetChangeset(model.reqCtx(), model.changesetID)
+		if err != nil {
+			return ChangesetFetchedMsg{
+				Err: fmt.Errorf(
+					"failed to load change set %q: %w",
+					model.changesetID,
+					err,
+				),
+			}
+		}
+
+		if changeset == nil {
+			return ChangesetFetchedMsg{
+				Err: fmt.Errorf("change set %q could not be found", model.changesetID),
+			}
+		}
+
+		return ChangesetFetchedMsg{Changes: changeset.Changes}
 	}
 }

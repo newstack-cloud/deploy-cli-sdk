@@ -31,8 +31,12 @@ func (i *DeployItem) GetID() string {
 	return ""
 }
 
-// GetName returns the display name for the item.
+// GetName returns the display name for the item. Links read as "a → b" rather
+// than as their logical "a::b" name, which stays the identifier.
 func (i *DeployItem) GetName() string {
+	if i.Type == ItemTypeLink && i.Link != nil {
+		return shared.FormatLinkName(i.Link.ResourceAName, i.Link.ResourceBName)
+	}
 	return i.GetID()
 }
 
@@ -62,6 +66,9 @@ func (i *DeployItem) resourceIconChar() string {
 	}
 	if i.Resource.Action == ActionNoChange {
 		return shared.IconNoChange
+	}
+	if shared.ResourceDegraded(i.Resource.Status, i.Resource.FailureReasons) {
+		return shared.IconDegraded
 	}
 	return shared.ResourceStatusIcon(i.Resource.Status)
 }
@@ -119,6 +126,9 @@ func (i *DeployItem) styledResourceIcon(icon string, s *styles.Styles) string {
 	}
 	if i.Resource.Action == ActionNoChange {
 		return s.Muted.Render(icon)
+	}
+	if shared.ResourceDegraded(i.Resource.Status, i.Resource.FailureReasons) {
+		return s.Warning.Render(icon)
 	}
 	return shared.StyleResourceIcon(icon, i.Resource.Status, s)
 }
@@ -188,17 +198,12 @@ func (i *DeployItem) GetResourceGroup() *shared.ResourceGroup {
 	if i.Type != ItemTypeResource || i.Resource == nil {
 		return nil
 	}
-	if g := extractGroupFromChanges(i.Resource.Changes); g != nil {
+	if g := i.Resource.AbstractGroup(); g != nil {
 		return g
-	}
-	if i.Resource.ResourceState != nil {
-		if g := shared.ExtractGrouping(i.Resource.ResourceState.Metadata); g != nil {
-			return g
-		}
 	}
 	if i.InstanceState != nil {
 		if rs := shared.FindResourceStateByName(i.InstanceState, i.Resource.Name); rs != nil {
-			return shared.ExtractGrouping(rs.Metadata)
+			return i.Resource.rememberAbstractGroup(shared.ExtractGrouping(rs.Metadata))
 		}
 	}
 	return nil
@@ -212,15 +217,57 @@ func (i *DeployItem) GetLinkResourceNames() (string, string) {
 	return i.Link.ResourceAName, i.Link.ResourceBName
 }
 
+// AbstractGroup returns the abstract resource this resource was expanded from,
+// resolved from the change set and any pre-deployment state.
+// Returns nil for resources that were not produced by a transformer.
+//
+// The result is remembered once known. A resource being created has no state to
+// read the annotations from until it has been deployed, so without this the
+// resource would sit outside its group and jump into it partway through the
+// deployment, and back out again on any refresh that arrived without state.
+func (r *ResourceDeployItem) AbstractGroup() *shared.ResourceGroup {
+	if r == nil {
+		return nil
+	}
+
+	if r.abstractGroup != nil {
+		return r.abstractGroup
+	}
+
+	if g := extractGroupFromChanges(r.Changes); g != nil {
+		return r.rememberAbstractGroup(g)
+	}
+
+	if r.ResourceState != nil {
+		return r.rememberAbstractGroup(shared.ExtractGrouping(r.ResourceState.Metadata))
+	}
+
+	return nil
+}
+
+// Caches a resolved group and returns it, so that group
+// membership only ever settles and never flips back to ungrouped.
+func (r *ResourceDeployItem) rememberAbstractGroup(group *shared.ResourceGroup) *shared.ResourceGroup {
+	if r == nil || group == nil {
+		return nil
+	}
+	r.abstractGroup = group
+	return group
+}
+
 func extractGroupFromChanges(c *provider.Changes) *shared.ResourceGroup {
 	if c == nil {
 		return nil
 	}
-	rs := c.AppliedResourceInfo.CurrentResourceState
-	if rs == nil {
-		return nil
+	if rs := c.AppliedResourceInfo.CurrentResourceState; rs != nil {
+		if g := shared.ExtractGrouping(rs.Metadata); g != nil {
+			return g
+		}
 	}
-	return shared.ExtractGrouping(rs.Metadata)
+
+	// Resources being created have no current state, so the resolved resource
+	// from the change set is the only place the annotations are available.
+	return shared.ExtractGroupingFromResolved(c.AppliedResourceInfo.ResourceWithResolvedSubs)
 }
 
 // IsExpandable returns true if the item can be expanded in-place.
@@ -626,12 +673,14 @@ func (i *DeployItem) appendChildLinkItems(items []splitpane.Item, parentSkipped 
 			addedLinks[linkName] = true
 		}
 
-		// Removed outbound links
-		for _, linkName := range resourceChanges.RemovedOutboundLinks {
+		// Removed outbound links, keyed by the linked-to resource name like the
+		// maps above, so the link name has to be built from both sides.
+		for _, resourceBName := range resourceChanges.RemovedOutboundLinks {
+			linkName := resourceAName + "::" + resourceBName
 			linkItem, linkPath := i.getOrCreateLinkItem(
 				linkName,
-				ExtractResourceAFromLinkName(linkName),
-				ExtractResourceBFromLinkName(linkName),
+				resourceAName,
+				resourceBName,
 				ActionDelete,
 				parentSkipped,
 			)

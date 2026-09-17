@@ -1,19 +1,20 @@
 package deployui
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/newstack-cloud/deploy-cli-sdk/diagutils"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/errors"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
+	"github.com/newstack-cloud/deploy-cli-sdk/diagutils"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 )
 
 const (
@@ -78,15 +79,10 @@ func (m *DeployModel) printHeadlessSummary() {
 
 	m.printHeadlessSkippedRollbackItems()
 
-	resourceCount := len(m.resourcesByName)
-	childCount := len(m.childrenByName)
-	linkCount := len(m.linksByName)
+	tally := m.tallyOutcomes()
 
 	w.DoubleSeparator(72)
-	w.Printf("Complete: %d %s, %d %s, %d %s\n",
-		resourceCount, sdkstrings.Pluralize(resourceCount, "resource", "resources"),
-		childCount, sdkstrings.Pluralize(childCount, "child", "children"),
-		linkCount, sdkstrings.Pluralize(linkCount, "link", "links"))
+	w.Println(tally.summaryLine())
 	w.PrintlnEmpty()
 
 	if !m.isDeployRollbackComplete() {
@@ -250,6 +246,20 @@ func (m *DeployModel) printResourceBasicInfo(w *headless.PrefixedWriter, res *Re
 	}
 
 	w.Printf(fmtStatusLine, statusText)
+
+	printFailureReasons(w, res.FailureReasons)
+}
+
+func printFailureReasons(w *headless.PrefixedWriter, reasons []string) {
+	if len(reasons) == 0 {
+		return
+	}
+
+	w.PrintlnEmpty()
+	w.Println("Failure Reasons:")
+	for _, reason := range reasons {
+		w.Printf("  - %s\n", reason)
+	}
 }
 
 func (m *DeployModel) printResourceTiming(w *headless.PrefixedWriter, res *ResourceDeployItem) {
@@ -704,5 +714,139 @@ func (m *DeployModel) printHeadlessChildSnapshot(w *headless.PrefixedWriter, c *
 		for _, nested := range c.Children {
 			m.printHeadlessChildSnapshot(w, &nested, indent+"    ")
 		}
+	}
+}
+
+// Counts what a deploy actually did, as opposed to what it set
+// out to do.
+type outcomeTally struct {
+	succeeded int
+	failed    int
+	// unfinished covers everything that never reached a terminal state,
+	// this could be interrupted by a failure elsewhere, or never attempted because the
+	// deployment stopped first.
+	unfinished int
+	failedRun  bool
+}
+
+func (t outcomeTally) total() int {
+	return t.succeeded + t.failed + t.unfinished
+}
+
+func (t outcomeTally) summaryLine() string {
+	if !t.failedRun {
+		return fmt.Sprintf("Complete: %d %s",
+			t.succeeded, sdkstrings.Pluralize(t.succeeded, "item", "items"))
+	}
+
+	line := fmt.Sprintf("Incomplete: %d of %d %s applied",
+		t.succeeded, t.total(), sdkstrings.Pluralize(t.total(), "item", "items"))
+	if t.failed > 0 {
+		line += fmt.Sprintf(", %d failed", t.failed)
+	}
+	if t.unfinished > 0 {
+		line += fmt.Sprintf(", %d not applied", t.unfinished)
+	}
+	return line
+}
+
+// Classifies every resource, child and link the deploy tracked.
+func (m *DeployModel) tallyOutcomes() outcomeTally {
+	tally := outcomeTally{failedRun: isFailedInstanceStatus(m.finalStatus)}
+
+	for _, res := range m.resourcesByName {
+		tally.add(resourceOutcome(res.Status))
+	}
+	for _, child := range m.childrenByName {
+		tally.add(instanceOutcome(child.Status))
+	}
+	for _, link := range m.linksByName {
+		tally.add(linkOutcome(link.Status))
+	}
+
+	return tally
+}
+
+type itemOutcome int
+
+const (
+	outcomeSucceeded itemOutcome = iota
+	outcomeFailed
+	outcomeUnfinished
+)
+
+func (t *outcomeTally) add(outcome itemOutcome) {
+	switch outcome {
+	case outcomeSucceeded:
+		t.succeeded += 1
+	case outcomeFailed:
+		t.failed += 1
+	default:
+		t.unfinished += 1
+	}
+}
+
+func resourceOutcome(status core.ResourceStatus) itemOutcome {
+	switch status {
+	case core.ResourceStatusCreated,
+		core.ResourceStatusUpdated,
+		core.ResourceStatusDestroyed,
+		core.ResourceStatusRollbackComplete,
+		core.ResourceStatusRetained:
+		return outcomeSucceeded
+	case core.ResourceStatusCreateFailed,
+		core.ResourceStatusUpdateFailed,
+		core.ResourceStatusDestroyFailed,
+		core.ResourceStatusRollbackFailed:
+		return outcomeFailed
+	default:
+		return outcomeUnfinished
+	}
+}
+
+func linkOutcome(status core.LinkStatus) itemOutcome {
+	switch status {
+	case core.LinkStatusCreated,
+		core.LinkStatusUpdated,
+		core.LinkStatusDestroyed,
+		core.LinkStatusCreateRollbackComplete,
+		core.LinkStatusDestroyRollbackComplete:
+		return outcomeSucceeded
+	case core.LinkStatusCreateFailed,
+		core.LinkStatusUpdateFailed,
+		core.LinkStatusDestroyFailed,
+		core.LinkStatusCreateRollbackFailed,
+		core.LinkStatusDestroyRollbackFailed:
+		return outcomeFailed
+	default:
+		return outcomeUnfinished
+	}
+}
+
+func instanceOutcome(status core.InstanceStatus) itemOutcome {
+	switch status {
+	case core.InstanceStatusDeployed,
+		core.InstanceStatusUpdated,
+		core.InstanceStatusDestroyed:
+		return outcomeSucceeded
+	default:
+		if isFailedInstanceStatus(status) {
+			return outcomeFailed
+		}
+		return outcomeUnfinished
+	}
+}
+
+func isFailedInstanceStatus(status core.InstanceStatus) bool {
+	switch status {
+	case core.InstanceStatusDeployFailed,
+		core.InstanceStatusUpdateFailed,
+		core.InstanceStatusDestroyFailed,
+		core.InstanceStatusDeployRollbackFailed,
+		core.InstanceStatusUpdateRollbackFailed,
+		core.InstanceStatusDestroyRollbackFailed:
+		return true
+	default:
+		return false
 	}
 }

@@ -60,6 +60,9 @@ type DestroyedElement struct {
 	ElementName string
 	ElementPath string
 	ElementType string
+	// AbstractGroup holds the abstract resource this element was expanded from,
+	// used to group the element under its source type in the destroy overview.
+	AbstractGroup *shared.ResourceGroup
 }
 
 // ResourceDestroyItem represents a resource being destroyed with real-time status.
@@ -576,6 +579,14 @@ func (m DestroyModel) handleReconciliationError(msg driftui.ReconciliationErrorM
 }
 
 func (m DestroyModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// While a search term is being typed the split pane takes every key, so
+	// that letters land in the term rather than triggering shortcuts.
+	if m.splitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.splitPane, cmd = m.splitPane.Update(msg)
+		return m, cmd
+	}
+
 	if m.err != nil || m.deployChangesetError {
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -643,6 +654,14 @@ func (m DestroyModel) handlePreDestroyStateKeyMsg(msg tea.KeyMsg) (tea.Model, te
 }
 
 func (m DestroyModel) handleDriftReviewKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key. This matters most here as "a" applies the
+	// reconciliation, which is not something to trigger by typing.
+	if m.driftSplitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.driftSplitPane, cmd = m.driftSplitPane.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
 	case "a", "A":
 		return m, applyReconciliationCmd(m)
@@ -760,31 +779,38 @@ func NewDestroyModel(cfg DestroyModelConfig) DestroyModel {
 	items := buildItemsFromChangeset(cfg.ChangesetChanges, resourcesByName, childrenByName, linksByName, nil)
 
 	model := DestroyModel{
-		splitPane:               splitpane.New(splitPaneConfig),
-		detailsRenderer:         detailsRenderer,
-		sectionGrouper:          sectionGrouper,
-		footerRenderer:          footerRenderer,
-		driftSplitPane:          splitpane.New(driftSplitPaneConfig),
-		driftDetailsRenderer:    driftDetailsRenderer,
-		driftSectionGrouper:     driftSectionGrouper,
-		driftFooterRenderer:     driftFooterRenderer,
-		ctx:                     cfg.Context,
-		engine:                  cfg.DestroyEngine,
-		logger:                  cfg.Logger,
-		changesetID:             cfg.ChangesetID,
-		instanceID:              cfg.InstanceID,
-		instanceName:            cfg.InstanceName,
-		force:                   cfg.Force,
-		operationConfig:         cfg.OperationConfig,
-		changesetChanges:        cfg.ChangesetChanges,
-		styles:                  cfg.Styles,
-		headlessMode:            cfg.IsHeadless,
-		headlessWriter:          cfg.HeadlessWriter,
-		printer:                 printer,
-		jsonMode:                cfg.JSONMode,
-		spinner:                 createDestroySpinner(cfg.Styles),
-		eventStream:             make(chan types.BlueprintInstanceEvent),
-		errStream:               make(chan error),
+		splitPane:            splitpane.New(splitPaneConfig),
+		detailsRenderer:      detailsRenderer,
+		sectionGrouper:       sectionGrouper,
+		footerRenderer:       footerRenderer,
+		driftSplitPane:       splitpane.New(driftSplitPaneConfig),
+		driftDetailsRenderer: driftDetailsRenderer,
+		driftSectionGrouper:  driftSectionGrouper,
+		driftFooterRenderer:  driftFooterRenderer,
+		ctx:                  cfg.Context,
+		engine:               cfg.DestroyEngine,
+		logger:               cfg.Logger,
+		changesetID:          cfg.ChangesetID,
+		instanceID:           cfg.InstanceID,
+		instanceName:         cfg.InstanceName,
+		force:                cfg.Force,
+		operationConfig:      cfg.OperationConfig,
+		changesetChanges:     cfg.ChangesetChanges,
+		styles:               cfg.Styles,
+		headlessMode:         cfg.IsHeadless,
+		headlessWriter:       cfg.HeadlessWriter,
+		printer:              printer,
+		jsonMode:             cfg.JSONMode,
+		spinner:              createDestroySpinner(cfg.Styles),
+		// Buffered: the consumer is a Bubble Tea command that takes one event,
+		// then updates and renders before asking for the next, so nothing is on
+		// the channel for most of a frame. A burst arriving during a render
+		// would otherwise block the client's sender, and that sender gives up
+		// and closes the stream -- which aborts the operation itself, not just
+		// the view of it. 64 is generous against observed bursts while keeping
+		// a bound on the rare event that carries full instance state.
+		eventStream:             make(chan types.BlueprintInstanceEvent, 64),
+		errStream:               make(chan error, 16),
 		resourcesByName:         resourcesByName,
 		childrenByName:          childrenByName,
 		linksByName:             linksByName,
@@ -824,13 +850,15 @@ func createDestroySplitPaneConfig(
 	footerRenderer *DestroyFooterRenderer,
 ) splitpane.Config {
 	return splitpane.Config{
-		Styles:          styles,
-		Title:           "Destroy",
-		DetailsRenderer: detailsRenderer,
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            styles,
+		Title:             "Destroy",
+		DetailsRenderer:   detailsRenderer,
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 }
 
@@ -855,13 +883,15 @@ func createDestroyDriftSplitPaneConfig(
 	footerRenderer *DriftFooterRenderer,
 ) splitpane.Config {
 	return splitpane.Config{
-		Styles:          styles,
-		DetailsRenderer: detailsRenderer,
-		Title:           "⚠ Drift Detected",
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            styles,
+		DetailsRenderer:   detailsRenderer,
+		Title:             "⚠ Drift Detected",
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 }
 

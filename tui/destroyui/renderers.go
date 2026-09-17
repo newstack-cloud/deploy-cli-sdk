@@ -166,6 +166,8 @@ func (r *DestroyDetailsRenderer) renderResourceDetails(item *DestroyItem, width 
 		sb.WriteString("\n")
 	}
 
+	shared.RenderTimingSection(&sb, shared.RenderResourceDurations(res.Durations, s), s)
+
 	shared.RenderFailureReasons(&sb, res.FailureReasons, width, s)
 
 	return sb.String()
@@ -210,6 +212,8 @@ func (r *DestroyDetailsRenderer) renderChildDetails(item *DestroyItem, width int
 		sb.WriteString("\n")
 	}
 
+	shared.RenderTimingSection(&sb, shared.RenderInstanceDurations(child.Durations, s), s)
+
 	shared.RenderFailureReasons(&sb, child.FailureReasons, width, s)
 
 	return sb.String()
@@ -248,6 +252,8 @@ func (r *DestroyDetailsRenderer) renderLinkDetails(item *DestroyItem, width int,
 
 	// Action
 	shared.RenderLinkAction(&sb, string(link.Action), s)
+
+	shared.RenderTimingSection(&sb, shared.RenderLinkDurations(link.Durations, s), s)
 
 	shared.RenderFailureReasons(&sb, link.FailureReasons, width, s)
 

@@ -10,15 +10,19 @@ import (
 // SectionGrouper provides a generic implementation for grouping items
 // into Resources, Child Blueprints, and Links sections.
 // It works with any type implementing splitpane.Item.
-// When items implement GroupableItem, resources are grouped under
-// abstract type headers and links are classified as internal or cross-group.
+// When items implement GroupableItem, resources are grouped under abstract type
+// headers and each link is nested under the group it belongs to, leaving only
+// links between two ungrouped resources in a section of their own.
 type SectionGrouper struct {
 	MaxExpandDepth int
 }
 
 type groupingResult struct {
-	items          []splitpane.Item
-	resourceGroups map[string]string // resource name → group ID
+	// Holds group headers and ungrouped resources sorted together
+	// by name. Group children are not included; they are only materialised
+	// by flattenGroups once links have been injected.
+	topLevel       []splitpane.Item
+	resourceGroups map[string]ResourceGroup // resource name → its abstract group
 }
 
 // GroupItems organizes items into sections using the splitpane.Item interface.
@@ -41,33 +45,37 @@ func (g *SectionGrouper) GroupItems(items []splitpane.Item, isExpanded func(id s
 		}
 	}
 
-	gr := applyAbstractGrouping(resources, isExpanded)
+	gr := applyAbstractGrouping(resources)
 	classified := classifyLinks(links, gr.resourceGroups)
 
-	// Inject internal links into their groups
-	injectInternalLinks(gr.items, classified.internal)
+	// Links must be injected before flattening so that they are materialised as
+	// tree rows when their group is expanded.
+	injectGroupLinks(gr.topLevel, classified.byGroup)
 
-	SortItems(gr.items)
-
-	return g.buildSections(gr.items, children, classified)
+	return g.buildSections(
+		flattenGroups(gr.topLevel, 0, isExpanded),
+		anyGroupHoldsLinks(gr.topLevel),
+		children,
+		classified,
+	)
 }
 
 func (g *SectionGrouper) buildSections(
 	resources []splitpane.Item,
+	resourcesHoldLinks bool,
 	children []splitpane.Item,
 	classified classifiedLinks,
 ) []splitpane.Section {
 	var sections []splitpane.Section
 
 	if len(resources) > 0 {
-		sections = append(sections, splitpane.Section{Name: "Resources", Items: resources})
+		sections = append(sections, splitpane.Section{
+			Name:  resourceSectionName(resourcesHoldLinks),
+			Items: resources,
+		})
 	}
 	if len(children) > 0 {
 		sections = append(sections, splitpane.Section{Name: "Child Blueprints", Items: children})
-	}
-	if len(classified.crossGroup) > 0 {
-		SortItems(classified.crossGroup)
-		sections = append(sections, splitpane.Section{Name: "Cross-group Links", Items: classified.crossGroup})
 	}
 	if len(classified.ungrouped) > 0 {
 		SortItems(classified.ungrouped)
@@ -75,6 +83,23 @@ func (g *SectionGrouper) buildSections(
 	}
 
 	return sections
+}
+
+func resourceSectionName(holdsLinks bool) string {
+	if holdsLinks {
+		return "Resources & Links"
+	}
+	return "Resources"
+}
+
+// Reports whether any group in the section owns links.
+func anyGroupHoldsLinks(topLevel []splitpane.Item) bool {
+	for _, item := range topLevel {
+		if group, ok := item.(*ResourceGroupItem); ok && len(group.Links) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // appendExpandedChildren recursively appends children of an expanded item.
@@ -95,11 +120,11 @@ func (g *SectionGrouper) appendExpandedChildren(
 	childResources, childChildren, childLinks := partitionByType(childItems)
 
 	// Apply abstract grouping to resources at this child level
-	gr := applyAbstractGroupingAtDepth(childResources, item.GetDepth()+1, isExpanded)
-	injectInternalLinks(gr.items, classifyLinks(childLinks, gr.resourceGroups).internal)
-	SortItems(gr.items)
+	gr := applyAbstractGrouping(childResources)
+	cl := classifyLinks(childLinks, gr.resourceGroups)
+	injectGroupLinks(gr.topLevel, cl.byGroup)
 
-	for _, r := range gr.items {
+	for _, r := range flattenGroups(gr.topLevel, item.GetDepth()+1, isExpanded) {
 		result = append(result, r)
 		if r.IsExpandable() {
 			result = g.appendExpandedChildren(result, r, isExpanded)
@@ -114,11 +139,9 @@ func (g *SectionGrouper) appendExpandedChildren(
 		}
 	}
 
-	// Append remaining links (cross-group and ungrouped from child level)
-	cl := classifyLinks(childLinks, gr.resourceGroups)
-	remaining := append(cl.crossGroup, cl.ungrouped...)
-	SortItems(remaining)
-	result = append(result, remaining...)
+	// Append the links at this level that belong to no group
+	SortItems(cl.ungrouped)
+	result = append(result, cl.ungrouped...)
 
 	return result
 }
@@ -137,25 +160,16 @@ func partitionByType(items []splitpane.Item) (resources, children, links []split
 	return
 }
 
-func applyAbstractGrouping(
-	resources []splitpane.Item,
-	isExpanded func(id string) bool,
-) groupingResult {
-	return applyAbstractGroupingAtDepth(resources, 0, isExpanded)
-}
-
-// applyAbstractGroupingAtDepth groups resources under abstract type headers.
+// Groups resources under abstract type headers.
 // Resources implementing GroupableItem are nested; others pass through unchanged.
-func applyAbstractGroupingAtDepth(
-	resources []splitpane.Item,
-	baseDepth int,
-	isExpanded func(id string) bool,
-) groupingResult {
+// The returned top-level list is sorted by name, mixing group headers and
+// ungrouped resources; call flattenGroups to materialise expanded children.
+func applyAbstractGrouping(resources []splitpane.Item) groupingResult {
 	type groupKey struct{ name, typ string }
 	groupMap := make(map[groupKey]*ResourceGroupItem)
 	var groupOrder []groupKey
 	var ungrouped []splitpane.Item
-	resourceGroups := make(map[string]string)
+	resourceGroups := make(map[string]ResourceGroup)
 
 	for _, item := range resources {
 		rg := extractGroup(item)
@@ -164,8 +178,7 @@ func applyAbstractGroupingAtDepth(
 			continue
 		}
 		key := groupKey{rg.GroupName, rg.GroupType}
-		groupID := fmt.Sprintf("group:%s:%s", rg.GroupType, rg.GroupName)
-		resourceGroups[item.GetName()] = groupID
+		resourceGroups[item.GetName()] = *rg
 
 		if _, exists := groupMap[key]; !exists {
 			groupMap[key] = &ResourceGroupItem{Group: *rg}
@@ -174,29 +187,81 @@ func applyAbstractGroupingAtDepth(
 		groupMap[key].Children = append(groupMap[key].Children, item)
 	}
 
-	if len(groupMap) == 0 {
-		return groupingResult{items: resources, resourceGroups: resourceGroups}
-	}
-
-	var result []splitpane.Item
+	topLevel := make([]splitpane.Item, 0, len(groupOrder)+len(ungrouped))
 	for _, key := range groupOrder {
 		group := groupMap[key]
 		SortItems(group.Children)
-		result = append(result, group)
-		if isExpanded != nil && isExpanded(group.GetID()) {
-			result = appendGroupChildren(result, group, baseDepth+1)
-		}
+		topLevel = append(topLevel, group)
 	}
-	result = append(result, ungrouped...)
+	topLevel = append(topLevel, ungrouped...)
+	SortItems(topLevel)
 
-	return groupingResult{items: result, resourceGroups: resourceGroups}
+	return groupingResult{topLevel: topLevel, resourceGroups: resourceGroups}
+}
+
+// Expands the sorted top-level list into the final render order,
+// placing each expanded group's children directly beneath their own header.
+// Sorting must already have happened at the top level; sorting the flattened
+// result would detach children from their parent group.
+func flattenGroups(
+	topLevel []splitpane.Item,
+	baseDepth int,
+	isExpanded func(id string) bool,
+) []splitpane.Item {
+	result := make([]splitpane.Item, 0, len(topLevel))
+	for _, item := range topLevel {
+		result = append(result, item)
+
+		group, ok := item.(*ResourceGroupItem)
+		if !ok || isExpanded == nil || !isExpanded(group.GetID()) {
+			continue
+		}
+		result = appendGroupChildren(result, group, baseDepth+1)
+	}
+	return result
 }
 
 func appendGroupChildren(result []splitpane.Item, group *ResourceGroupItem, depth int) []splitpane.Item {
-	for _, child := range group.GetChildren() {
+	for _, child := range group.Children {
 		result = append(result, &DepthAdjustedItem{Item: child, AdjustedDepth: depth})
 	}
+
+	for _, link := range group.Links {
+		result = append(result, &DepthAdjustedItem{
+			Item:          link,
+			AdjustedDepth: depth,
+			DisplayName:   groupScopedLinkName(group, link),
+		})
+	}
+
 	return result
+}
+
+// Shortens a link to the end that is not in this group,
+// since naming the group's own resource again only costs width. An outbound
+// arrow reads as "this group reaches", an inbound one as "this is reached by".
+// A link with both ends here keeps both names, as neither is redundant.
+func groupScopedLinkName(group *ResourceGroupItem, link splitpane.Item) string {
+	classifiable, ok := link.(LinkClassifiable)
+	if !ok {
+		return ""
+	}
+	resourceA, resourceB := classifiable.GetLinkResourceNames()
+
+	inGroup := make(map[string]bool, len(group.Children))
+	for _, child := range group.Children {
+		inGroup[child.GetName()] = true
+	}
+
+	switch {
+	case inGroup[resourceA] && inGroup[resourceB]:
+		return ""
+	case inGroup[resourceA]:
+		return LinkToName(resourceB)
+	case inGroup[resourceB]:
+		return LinkFromName(resourceA)
+	}
+	return ""
 }
 
 func extractGroup(item splitpane.Item) *ResourceGroup {
@@ -208,13 +273,22 @@ func extractGroup(item splitpane.Item) *ResourceGroup {
 }
 
 type classifiedLinks struct {
-	internal   map[string][]splitpane.Item // group ID → internal links
-	crossGroup []splitpane.Item
-	ungrouped  []splitpane.Item
+	byGroup   map[string][]splitpane.Item // group ID → links belonging to it
+	ungrouped []splitpane.Item
 }
 
-func classifyLinks(links []splitpane.Item, resourceGroups map[string]string) classifiedLinks {
-	result := classifiedLinks{internal: make(map[string][]splitpane.Item)}
+// Decides which group each link belongs under.
+//
+// Links are directed, running out of resource A into resource B, so a link
+// belongs with the abstract resource it originates from: reading a group then
+// tells you what that resource connects to. A link out of an ungrouped resource
+// into a grouped one still has somewhere sensible to live, so it falls back to
+// the destination's group rather than being stranded at the top level.
+func classifyLinks(
+	links []splitpane.Item,
+	resourceGroups map[string]ResourceGroup,
+) classifiedLinks {
+	result := classifiedLinks{byGroup: make(map[string][]splitpane.Item)}
 
 	for _, link := range links {
 		lc, ok := link.(LinkClassifiable)
@@ -222,28 +296,63 @@ func classifyLinks(links []splitpane.Item, resourceGroups map[string]string) cla
 			result.ungrouped = append(result.ungrouped, link)
 			continue
 		}
-		resA, resB := lc.GetLinkResourceNames()
-		groupA := resourceGroups[resA]
-		groupB := resourceGroups[resB]
+		resourceA, resourceB := lc.GetLinkResourceNames()
 
-		switch {
-		case groupA != "" && groupA == groupB:
-			result.internal[groupA] = append(result.internal[groupA], link)
-		case groupA != "" || groupB != "":
-			result.crossGroup = append(result.crossGroup, link)
-		default:
+		switch group := linkGroupID(resourceGroups, resourceA, resourceB); group {
+		case "":
 			result.ungrouped = append(result.ungrouped, link)
+		default:
+			result.byGroup[group] = append(result.byGroup[group], link)
 		}
 	}
 
 	return result
 }
 
-func injectInternalLinks(
+func linkGroupID(
+	resourceGroups map[string]ResourceGroup,
+	resourceA string,
+	resourceB string,
+) string {
+	source, hasSource := resourceGroups[resourceA]
+	destination, hasDestination := resourceGroups[resourceB]
+
+	if hasSource && source.IsAmbient() {
+		return ambientLinkGroupID(source, destination, hasDestination)
+	}
+	if hasSource {
+		return groupIDFor(source)
+	}
+	if hasDestination {
+		return groupIDFor(destination)
+	}
+	return ""
+}
+
+// Places a link that runs out of an ambient resource.
+func ambientLinkGroupID(
+	source ResourceGroup,
+	destination ResourceGroup,
+	hasDestination bool,
+) string {
+	if !hasDestination {
+		return ""
+	}
+	if destination.IsAmbient() {
+		return groupIDFor(source)
+	}
+	return groupIDFor(destination)
+}
+
+func groupIDFor(group ResourceGroup) string {
+	return fmt.Sprintf("group:%s:%s", group.GroupType, group.GroupName)
+}
+
+func injectGroupLinks(
 	items []splitpane.Item,
-	internal map[string][]splitpane.Item,
+	byGroup map[string][]splitpane.Item,
 ) {
-	if len(internal) == 0 {
+	if len(byGroup) == 0 {
 		return
 	}
 	for _, item := range items {
@@ -251,8 +360,9 @@ func injectInternalLinks(
 		if !ok {
 			continue
 		}
-		if links, found := internal[group.GetID()]; found {
-			group.InternalLinks = links
+		if links, found := byGroup[group.GetID()]; found {
+			SortItems(links)
+			group.Links = links
 		}
 	}
 }

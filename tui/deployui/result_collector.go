@@ -3,8 +3,8 @@ package deployui
 import (
 	"strings"
 
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 )
 
 // Result collection methods for DeployModel.
@@ -21,6 +21,11 @@ type ResultCollector struct {
 	Successful      []SuccessfulElement
 	Failures        []ElementFailure
 	Interrupted     []InterruptedElement
+
+	// Maps a resource's parent path and name to the abstract
+	// resource it was expanded from, so links can inherit the group shared by
+	// both of their endpoints.
+	resourceGroups map[string]*shared.ResourceGroup
 }
 
 // resultCollector is an alias for internal use within this package.
@@ -37,10 +42,26 @@ func (m *DeployModel) collectDeploymentResults() {
 	}
 
 	collector.CollectFromItems(m.items, "")
+	collector.AssignLinkGroups()
 
 	m.successfulElements = collector.Successful
 	m.elementFailures = collector.Failures
 	m.interruptedElements = collector.Interrupted
+}
+
+// Re-runs result collection against items that have
+// been hydrated with newer state, and republishes the results to the renderers
+// that hold their own copies of them.
+func (m *DeployModel) recollectDeploymentResults() {
+	if !m.finished {
+		return
+	}
+
+	m.collectDeploymentResults()
+	m.footerRenderer.SuccessfulElements = m.successfulElements
+	m.footerRenderer.ElementFailures = m.elementFailures
+	m.footerRenderer.InterruptedElements = m.interruptedElements
+	m.splitPane.UpdateItems(ToSplitPaneItems(m.items))
 }
 
 // collectFromItems recursively collects successful operations, failures, and interruptions from items,
@@ -141,31 +162,105 @@ func lookupChild(m map[string]*ChildDeployItem, pathKey, name string) *ChildDepl
 }
 
 func (c *ResultCollector) CollectResourceResult(item *ResourceDeployItem, path string) {
+	group := item.AbstractGroup()
+	c.recordResourceGroup(item.Name, path, group)
+
 	if IsFailedResourceStatus(item.Status) && len(item.FailureReasons) > 0 {
 		c.Failures = append(c.Failures, ElementFailure{
 			ElementName:    item.Name,
 			ElementPath:    path,
 			ElementType:    "resource",
 			FailureReasons: item.FailureReasons,
+			AbstractGroup:  group,
 		})
 		return
 	}
 	if IsInterruptedResourceStatus(item.Status) {
 		c.Interrupted = append(c.Interrupted, InterruptedElement{
-			ElementName: item.Name,
-			ElementPath: path,
-			ElementType: "resource",
+			ElementName:   item.Name,
+			ElementPath:   path,
+			ElementType:   "resource",
+			AbstractGroup: group,
 		})
 		return
 	}
 	if IsSuccessResourceStatus(item.Status) {
 		c.Successful = append(c.Successful, SuccessfulElement{
-			ElementName: item.Name,
-			ElementPath: path,
-			ElementType: "resource",
-			Action:      ResourceStatusToAction(item.Status),
+			ElementName:   item.Name,
+			ElementPath:   path,
+			ElementType:   "resource",
+			Action:        ResourceStatusToAction(item.Status),
+			AbstractGroup: group,
 		})
 	}
+}
+
+func (c *ResultCollector) recordResourceGroup(name, path string, group *shared.ResourceGroup) {
+	if group == nil {
+		return
+	}
+	if c.resourceGroups == nil {
+		c.resourceGroups = map[string]*shared.ResourceGroup{}
+	}
+	parentPath := shared.ParentElementPath(path, "resources", name)
+	c.resourceGroups[shared.BuildMapKey(parentPath, name)] = group
+}
+
+// AssignLinkGroups assigns each collected link the abstract resource group
+// shared by both of its endpoints. Links that cross groups, or whose endpoints
+// are not grouped, are left ungrouped so they stay at the top level of the
+// overview rather than being filed under one side of the link.
+func (c *ResultCollector) AssignLinkGroups() {
+	for i := range c.Successful {
+		elem := &c.Successful[i]
+		elem.AbstractGroup = c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath)
+	}
+
+	for i := range c.Failures {
+		elem := &c.Failures[i]
+		elem.AbstractGroup = c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath)
+	}
+
+	for i := range c.Interrupted {
+		elem := &c.Interrupted[i]
+		elem.AbstractGroup = c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath)
+	}
+}
+
+// Returns the group both endpoints of a link belong to, or the
+// element's existing group when it is not a link.
+func (c *ResultCollector) linkGroup(elementType, name, path string) *shared.ResourceGroup {
+	if elementType != "link" || len(c.resourceGroups) == 0 {
+		return c.existingGroup(elementType, name, path)
+	}
+
+	parentPath := shared.ParentElementPath(path, "links", name)
+	groupAMapKey := shared.BuildMapKey(
+		parentPath,
+		ExtractResourceAFromLinkName(name),
+	)
+	groupA := c.resourceGroups[groupAMapKey]
+
+	groupBMapKey := shared.BuildMapKey(
+		parentPath,
+		ExtractResourceBFromLinkName(name),
+	)
+	groupB := c.resourceGroups[groupBMapKey]
+
+	if groupA == nil || groupB == nil || *groupA != *groupB {
+		return nil
+	}
+
+	return groupA
+}
+
+func (c *ResultCollector) existingGroup(elementType, name, path string) *shared.ResourceGroup {
+	if elementType != "resource" {
+		return nil
+	}
+
+	parentPath := shared.ParentElementPath(path, "resources", name)
+	return c.resourceGroups[shared.BuildMapKey(parentPath, name)]
 }
 
 func (c *ResultCollector) CollectChildResult(item *ChildDeployItem, path string) {

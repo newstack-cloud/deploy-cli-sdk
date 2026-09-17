@@ -21,8 +21,12 @@ func (i *StageItem) GetID() string {
 	return i.Name
 }
 
-// GetName returns the display name for the item.
+// GetName returns the display name for the item. Links read as "a → b" rather
+// than as their logical "a::b" name, which stays the identifier.
 func (i *StageItem) GetName() string {
+	if i.Type == ItemTypeLink {
+		return shared.FormatLogicalLinkName(i.Name)
+	}
 	return i.Name
 }
 
@@ -107,6 +111,11 @@ func (i *StageItem) GetResourceGroup() *shared.ResourceGroup {
 			if g := shared.ExtractGrouping(rs.Metadata); g != nil {
 				return g
 			}
+		}
+		// Resources being created have no current state, so the resolved
+		// resource is the only place the annotations are available.
+		if g := shared.ExtractGroupingFromResolved(c.AppliedResourceInfo.ResourceWithResolvedSubs); g != nil {
+			return g
 		}
 	}
 	if i.ResourceState != nil {

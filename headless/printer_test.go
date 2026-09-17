@@ -79,6 +79,35 @@ func (s *PrinterSuite) Test_field_remove() {
 	s.Equal("[test]   - spec.oldField\n", s.buf.String())
 }
 
+func (s *PrinterSuite) Test_field_known_on_deploy() {
+	s.printer.FieldKnownOnDeploy("spec.environment.variables.TABLE_NAME")
+
+	s.Equal("[test]   ? spec.environment.variables.TABLE_NAME\n", s.buf.String())
+}
+
+func (s *PrinterSuite) Test_link_contribution_not_applied() {
+	s.printer.LinkContributionNotApplied(
+		"appVpc::statsFunction",
+		"spec.policies[@.policyName=\"bluelink-link-access\"].policyDocument.statement[0]",
+		"the value to inject does not match the selector that would locate it",
+	)
+
+	s.Equal(
+		"[test]   ! link: appVpc::statsFunction\n"+
+			"[test]       field:  spec.policies[@.policyName=\"bluelink-link-access\"]"+
+			".policyDocument.statement[0]\n"+
+			"[test]       reason: the value to inject does not match the selector "+
+			"that would locate it\n",
+		s.buf.String(),
+	)
+}
+
+func (s *PrinterSuite) Test_field_contributed_by_link() {
+	s.printer.FieldContributedByLink("ordersFunction::ordersTable")
+
+	s.Equal("[test]       contributed by link ordersFunction::ordersTable\n", s.buf.String())
+}
+
 func (s *PrinterSuite) Test_no_changes() {
 	s.printer.NoChanges()
 

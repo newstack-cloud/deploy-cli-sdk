@@ -270,7 +270,7 @@ func (s *ItemBuilderTestSuite) Test_BuildItemsFromChangeset_adds_links_from_chan
 				OutboundLinkChanges: map[string]provider.LinkChanges{
 					"resourceC": {},
 				},
-				RemovedOutboundLinks: []string{"resourceA::resourceD"},
+				RemovedOutboundLinks: []string{"resourceD"},
 			},
 		},
 	}
@@ -280,15 +280,17 @@ func (s *ItemBuilderTestSuite) Test_BuildItemsFromChangeset_adds_links_from_chan
 	// Should have the resource and 3 links
 	s.Len(items, 4)
 
-	var linkActions []ActionType
+	linkActions := map[string]ActionType{}
 	for idx := range items {
 		if items[idx].Type == ItemTypeLink {
-			linkActions = append(linkActions, items[idx].Link.Action)
+			linkActions[items[idx].Link.LinkName] = items[idx].Link.Action
 		}
 	}
-	s.Contains(linkActions, ActionCreate) // New link
-	s.Contains(linkActions, ActionUpdate) // Changed link
-	s.Contains(linkActions, ActionDelete) // Removed link
+	// Every link is named from both of its endpoints, whatever the action, so
+	// that deploy events for it match the item that is already in the list.
+	s.Equal(ActionCreate, linkActions["resourceA::resourceB"])
+	s.Equal(ActionUpdate, linkActions["resourceA::resourceC"])
+	s.Equal(ActionDelete, linkActions["resourceA::resourceD"])
 }
 
 func (s *ItemBuilderTestSuite) Test_BuildItemsFromChangeset_adds_removed_links() {
@@ -313,11 +315,12 @@ func (s *ItemBuilderTestSuite) Test_BuildItemsFromChangeset_skips_duplicate_remo
 	childrenByName := make(map[string]*ChildDeployItem)
 	linksByName := make(map[string]*LinkDeployItem)
 
-	// Link is both in RemovedOutboundLinks and RemovedLinks
+	// The same link is named per-resource by its linked-to resource in
+	// RemovedOutboundLinks and in full in the blueprint-wide RemovedLinks.
 	bpChanges := &changes.BlueprintChanges{
 		ResourceChanges: map[string]provider.Changes{
 			"resourceA": {
-				RemovedOutboundLinks: []string{"resourceA::resourceB"},
+				RemovedOutboundLinks: []string{"resourceB"},
 			},
 		},
 		RemovedLinks: []string{"resourceA::resourceB"},

@@ -17,9 +17,9 @@ type mockSkippableResource struct {
 	skipped bool
 }
 
-func (m *mockSkippableResource) GetAction() ActionType          { return m.action }
+func (m *mockSkippableResource) GetAction() ActionType                  { return m.action }
 func (m *mockSkippableResource) GetResourceStatus() core.ResourceStatus { return m.status }
-func (m *mockSkippableResource) SetSkipped(s bool)              { m.skipped = s }
+func (m *mockSkippableResource) SetSkipped(s bool)                      { m.skipped = s }
 
 type mockSkippableChild struct {
 	action  ActionType
@@ -27,9 +27,9 @@ type mockSkippableChild struct {
 	skipped bool
 }
 
-func (m *mockSkippableChild) GetAction() ActionType         { return m.action }
+func (m *mockSkippableChild) GetAction() ActionType               { return m.action }
 func (m *mockSkippableChild) GetChildStatus() core.InstanceStatus { return m.status }
-func (m *mockSkippableChild) SetSkipped(s bool)             { m.skipped = s }
+func (m *mockSkippableChild) SetSkipped(s bool)                   { m.skipped = s }
 
 type mockSkippableLink struct {
 	action  ActionType
@@ -37,9 +37,9 @@ type mockSkippableLink struct {
 	skipped bool
 }
 
-func (m *mockSkippableLink) GetAction() ActionType      { return m.action }
+func (m *mockSkippableLink) GetAction() ActionType          { return m.action }
 func (m *mockSkippableLink) GetLinkStatus() core.LinkStatus { return m.status }
-func (m *mockSkippableLink) SetSkipped(s bool)          { m.skipped = s }
+func (m *mockSkippableLink) SetSkipped(s bool)              { m.skipped = s }
 
 type ItemIconsStatusSuite struct {
 	suite.Suite

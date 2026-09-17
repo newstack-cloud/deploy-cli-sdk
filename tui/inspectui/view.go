@@ -202,8 +202,10 @@ func (m *InspectModel) renderSpecContent(resourceState *state.ResourceState, res
 		sb.WriteString("\n")
 	}
 
-	// Computed fields (outputs)
-	outputFields := outpututil.CollectOutputFields(resourceState.SpecData, resourceState.ComputedFields)
+	// Computed fields (outputs). Pretty-printed like the specification above,
+	// this is a full-screen scrollable view, so nested values are shown rather
+	// than collapsed the way they are in the details pane.
+	outputFields := outpututil.CollectOutputFieldsPretty(resourceState.SpecData, resourceState.ComputedFields)
 	if len(outputFields) > 0 {
 		sb.WriteString(m.styles.Category.MarginLeft(2).Render("Outputs (Computed Fields)"))
 		sb.WriteString("\n\n")

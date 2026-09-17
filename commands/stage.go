@@ -100,6 +100,11 @@ func runStageTUI(
 		if err := RunPreCommandStep(cmd.Context(), cfg.PreCommandStep, confProvider, "stage", styles, headlessMode, os.Stdout); err != nil {
 			return err
 		}
+
+		// The step may generate the blueprint to work from rather than the one
+		// named on the command line, so the value is re-read instead of kept
+		// from before the step ran.
+		flags.blueprintFile, flags.isDefaultBlueprintFile = confProvider.GetString("stageBlueprintFile")
 	}
 
 	preflightModel := createPreflight(cmd.Context(), cfg, confProvider, "stage", styles, headlessMode, flags.jsonMode)
@@ -150,6 +155,7 @@ func runStageTUI(
 // parameterized by CLIConfig for branding and defaults.
 func SetupStageCommand(rootCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
 	driftui.SetCLIName(cfg.CLIName)
+	stageui.SetCLIName(cfg.CLIName)
 	stageCmd := &cobra.Command{
 		Use:   "stage",
 		Short: "Stage changes for a blueprint deployment",

@@ -3,12 +3,12 @@ package inspectui
 import (
 	"strings"
 
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	"github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/shared"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui/splitpane"
 )
@@ -106,6 +106,14 @@ func (r *InspectDetailsRenderer) renderResourceDetails(item *deployui.DeployItem
 		}
 	}
 
+	// Why the resource failed, when the recorded deployment failed.
+	shared.RenderFailureReasons(&sb, resourceFailureReasons(res, resourceState), width, s)
+
+	// How long the resource took on the deployment recorded in state.
+	if resourceState != nil {
+		shared.RenderTimingSection(&sb, shared.RenderResourceDurations(resourceState.Durations, s), s)
+	}
+
 	// Outbound links section
 	outboundLinks := r.renderOutboundLinksSection(res.Name, s)
 	if outboundLinks != "" {
@@ -196,6 +204,14 @@ func (r *InspectDetailsRenderer) renderChildDetails(item *deployui.DeployItem, w
 	sb.WriteString(shared.RenderInstanceStatus(child.Status, s))
 	sb.WriteString("\n")
 
+	// Why the child blueprint failed, when it did.
+	shared.RenderFailureReasons(&sb, child.FailureReasons, width, s)
+
+	// How long the child blueprint took on the deployment recorded in state.
+	if item.InstanceState != nil {
+		shared.RenderTimingSection(&sb, shared.RenderInstanceDurations(item.InstanceState.Durations, s), s)
+	}
+
 	// Show inspect hint for children at max expand depth
 	effectiveDepth := item.Depth + r.NavigationStackDepth
 	if effectiveDepth >= r.MaxExpandDepth && item.InstanceState != nil {
@@ -227,6 +243,12 @@ func (r *InspectDetailsRenderer) renderLinkDetails(item *deployui.DeployItem, wi
 	sb.WriteString(s.Muted.Render(labelStatus))
 	sb.WriteString(shared.RenderLinkStatus(link.Status, s))
 	sb.WriteString("\n")
+
+	// Why the link failed, when the recorded deployment failed.
+	shared.RenderFailureReasons(&sb, link.FailureReasons, width, s)
+
+	// How long the link took on the deployment recorded in state.
+	shared.RenderTimingSection(&sb, shared.RenderLinkDurations(link.Durations, s), s)
 
 	return sb.String()
 }
@@ -303,4 +325,19 @@ func (r *InspectFooterRenderer) RenderFooter(model *splitpane.Model, s *styles.S
 	}
 
 	return sb.String()
+}
+
+func resourceFailureReasons(
+	res *deployui.ResourceDeployItem,
+	resourceState *state.ResourceState,
+) []string {
+	if len(res.FailureReasons) > 0 {
+		return res.FailureReasons
+	}
+
+	if resourceState != nil {
+		return resourceState.FailureReasons
+	}
+
+	return nil
 }

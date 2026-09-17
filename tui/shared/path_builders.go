@@ -4,7 +4,7 @@ package shared
 // It tracks the mapping between instance IDs and child names to construct
 // full paths like "parentChild/childName/resourceName".
 type PathBuilder struct {
-	RootInstanceID       string
+	RootInstanceID        string
 	InstanceIDToChildName map[string]string
 	InstanceIDToParentID  map[string]string
 }
@@ -12,7 +12,7 @@ type PathBuilder struct {
 // NewPathBuilder creates a new PathBuilder with the given root instance ID.
 func NewPathBuilder(rootInstanceID string) *PathBuilder {
 	return &PathBuilder{
-		RootInstanceID:       rootInstanceID,
+		RootInstanceID:        rootInstanceID,
 		InstanceIDToChildName: make(map[string]string),
 		InstanceIDToParentID:  make(map[string]string),
 	}

@@ -1110,13 +1110,15 @@ func NewStageModel(cfg StageModelConfig) StageModel {
 
 	// Create splitpane config
 	splitPaneConfig := splitpane.Config{
-		Styles:          cfg.Styles,
-		DetailsRenderer: detailsRenderer,
-		Title:           "Change Staging",
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            cfg.Styles,
+		DetailsRenderer:   detailsRenderer,
+		Title:             "Change Staging",
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 
 	// Create drift review renderers
@@ -1135,13 +1137,15 @@ func NewStageModel(cfg StageModelConfig) StageModel {
 
 	// Create drift splitpane config
 	driftSplitPaneConfig := splitpane.Config{
-		Styles:          cfg.Styles,
-		DetailsRenderer: driftDetailsRenderer,
-		Title:           "⚠ Drift Detected",
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  driftSectionGrouper,
-		FooterRenderer:  driftFooterRenderer,
+		Styles:            cfg.Styles,
+		DetailsRenderer:   driftDetailsRenderer,
+		Title:             "⚠ Drift Detected",
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    driftSectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    driftFooterRenderer,
 	}
 
 	// Create headless printer if in headless mode

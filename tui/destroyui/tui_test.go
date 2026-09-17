@@ -90,8 +90,8 @@ func testDestroyEvents(destroyType testDestroyType) []*types.BlueprintInstanceEv
 		}
 	case destroyWithLink:
 		return []*types.BlueprintInstanceEvent{
-			linkEvent("resource-a::resource-b", core.LinkStatusDestroying, core.PreciseLinkStatusUpdatingResourceA),
-			linkEvent("resource-a::resource-b", core.LinkStatusDestroyed, core.PreciseLinkStatusResourceBUpdated),
+			linkEvent("resource-a::resource-b", core.LinkStatusDestroying, core.PreciseLinkStatusUpdatingLinkedResources),
+			linkEvent("resource-a::resource-b", core.LinkStatusDestroyed, core.PreciseLinkStatusLinkedResourcesUpdated),
 			resourceEvent("resource-a", core.ResourceStatusDestroyed, core.PreciseResourceStatusDestroyed),
 			resourceEvent("resource-b", core.ResourceStatusDestroyed, core.PreciseResourceStatusDestroyed),
 			finishEvent(core.InstanceStatusDestroyed),

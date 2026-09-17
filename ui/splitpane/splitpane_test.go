@@ -26,16 +26,16 @@ type mockItem struct {
 	children   []Item
 }
 
-func (m *mockItem) GetID() string         { return m.id }
-func (m *mockItem) GetName() string       { return m.name }
-func (m *mockItem) GetIcon(bool) string   { return m.icon }
-func (m *mockItem) GetAction() string     { return m.action }
-func (m *mockItem) GetDepth() int         { return m.depth }
-func (m *mockItem) GetParentID() string   { return m.parentID }
-func (m *mockItem) GetItemType() string   { return m.itemType }
-func (m *mockItem) IsExpandable() bool    { return m.expandable }
-func (m *mockItem) CanDrillDown() bool    { return m.canDrill }
-func (m *mockItem) GetChildren() []Item   { return m.children }
+func (m *mockItem) GetID() string       { return m.id }
+func (m *mockItem) GetName() string     { return m.name }
+func (m *mockItem) GetIcon(bool) string { return m.icon }
+func (m *mockItem) GetAction() string   { return m.action }
+func (m *mockItem) GetDepth() int       { return m.depth }
+func (m *mockItem) GetParentID() string { return m.parentID }
+func (m *mockItem) GetItemType() string { return m.itemType }
+func (m *mockItem) IsExpandable() bool  { return m.expandable }
+func (m *mockItem) CanDrillDown() bool  { return m.canDrill }
+func (m *mockItem) GetChildren() []Item { return m.children }
 
 // mockDetailsRenderer implements DetailsRenderer for testing
 type mockDetailsRenderer struct{}

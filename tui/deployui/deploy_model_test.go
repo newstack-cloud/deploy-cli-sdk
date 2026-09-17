@@ -159,8 +159,8 @@ func (s *DeployModelBehaviourSuite) Test_headless_link_events_appear_in_output()
 	linkEvents := []*types.BlueprintInstanceEvent{
 		resourceEvent("res-a", core.ResourceStatusCreated, core.PreciseResourceStatusCreated),
 		resourceEvent("res-b", core.ResourceStatusCreated, core.PreciseResourceStatusCreated),
-		linkEvent("res-a::res-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingResourceA),
-		linkEvent("res-a::res-b", core.LinkStatusCreated, core.PreciseLinkStatusResourceBUpdated),
+		linkEvent("res-a::res-b", core.LinkStatusCreating, core.PreciseLinkStatusUpdatingLinkedResources),
+		linkEvent("res-a::res-b", core.LinkStatusCreated, core.PreciseLinkStatusLinkedResourcesUpdated),
 		finishEvent(core.InstanceStatusDeployed),
 	}
 

@@ -65,9 +65,28 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
+	if m.statusPicker {
+		return m.handleStatusPickerKey(msg)
+	}
+
+	if m.filterInput {
+		return m.handleFilterKey(msg)
+	}
+
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return func() tea.Msg { return QuitMsg{} }
+
+	case "/":
+		m.filterInput = true
+		if m.initialized {
+			m.updateViewports()
+			// The prompt is drawn at the top of the pane, so a pane scrolled
+			// down to the selection would open the filter off-screen and look
+			// like the key did nothing.
+			m.leftPane.GotoTop()
+		}
+		return nil
 
 	case "tab":
 		m.toggleFocus()
@@ -94,9 +113,79 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return m.handleEnter()
 
 	case "esc", "backspace":
+		if m.HasFilter() {
+			m.clearFilter()
+			return nil
+		}
 		return m.handleBack()
 	}
 	return nil
+}
+
+// Edits the search term. While the term is being typed every
+// other binding is suspended, so that letters reach the term rather than the
+// host model's single-key shortcuts.
+func (m *Model) handleFilterKey(msg tea.KeyMsg) tea.Cmd {
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.clearFilter()
+		return nil
+
+	case tea.KeyEnter:
+		// Keep the term, hand navigation keys back.
+		m.filterInput = false
+		m.afterFilterChange()
+		return nil
+
+	case tea.KeyBackspace:
+		if m.filterTerm != "" {
+			runes := []rune(m.filterTerm)
+			m.filterTerm = string(runes[:len(runes)-1])
+			m.afterFilterChange()
+		}
+		return nil
+
+	case tea.KeyRunes, tea.KeySpace:
+		m.filterTerm += string(msg.Runes)
+		if msg.Type == tea.KeySpace {
+			m.filterTerm += " "
+		}
+		m.afterFilterChange()
+		return nil
+
+	case tea.KeyTab:
+		// Tab suggests completion, and what it completes here is the status.
+		m.openStatusPicker()
+		return nil
+
+	case tea.KeyCtrlC:
+		return func() tea.Msg { return QuitMsg{} }
+	}
+	return nil
+}
+
+func (m *Model) clearFilter() {
+	m.filterTerm = ""
+	m.filterInput = false
+	m.statusPicker = false
+	m.afterFilterChange()
+}
+
+// Keeps the selection on a still-visible item and redraws.
+func (m *Model) afterFilterChange() {
+	m.resolveSelectedIndex()
+	if !m.initialized {
+		return
+	}
+
+	m.updateViewports()
+	if m.filterInput {
+		// Hold the pane at the top while the term is being typed, so the prompt
+		// and the match count stay on screen as the list narrows.
+		m.leftPane.GotoTop()
+		return
+	}
+	m.scrollLeftPaneToSelection()
 }
 
 func (m *Model) toggleFocus() {

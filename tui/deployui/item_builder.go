@@ -281,12 +281,17 @@ func (b *itemBuilder) appendLinksFromChangedResource(items []DeployItem, resourc
 		b.addedLinks[linkName] = true
 	}
 
-	// Removed outbound links
-	for _, linkName := range rc.RemovedOutboundLinks {
+	// Removed outbound links. Like the maps above, each entry is the linked-to
+	// resource name, with the linked-from resource implied by the parent changes,
+	// so the link name has to be built rather than used as-is. Naming these
+	// after resourceB alone would leave the item unmatched when its deploy
+	// event arrives, and the link would be added again mid-deployment.
+	for _, resourceBName := range rc.RemovedOutboundLinks {
+		linkName := resourceAName + "::" + resourceBName
 		item := &LinkDeployItem{
 			LinkName:      linkName,
-			ResourceAName: ExtractResourceAFromLinkName(linkName),
-			ResourceBName: ExtractResourceBFromLinkName(linkName),
+			ResourceAName: resourceAName,
+			ResourceBName: resourceBName,
 			Action:        ActionDelete,
 		}
 		b.linksByName[linkName] = item

@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
 	sdkstrings "github.com/newstack-cloud/deploy-cli-sdk/strings"
 	"github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/outpututil"
 	"github.com/newstack-cloud/deploy-cli-sdk/ui"
 )
 
@@ -150,6 +150,8 @@ func RenderFooterNavigation(sb *strings.Builder, s *styles.Styles, extraKeys ...
 	sb.WriteString(s.Muted.Render(" navigate  "))
 	sb.WriteString(s.Key.Render("tab"))
 	sb.WriteString(s.Muted.Render(" switch pane  "))
+	sb.WriteString(s.Key.Render("/"))
+	sb.WriteString(s.Muted.Render(" filter  "))
 	for _, key := range extraKeys {
 		sb.WriteString(s.Key.Render(key.Key))
 		sb.WriteString(s.Muted.Render(" " + key.Desc + "  "))
@@ -433,15 +435,24 @@ func RenderElementFailures(sb *strings.Builder, failures []ElementFailure, conte
 
 	reasonWidth := contentWidth - 8
 
-	for _, failure := range failures {
-		sb.WriteString(s.Error.Render("  ✗ "))
-		sb.WriteString(s.Selected.Render(failure.ElementPath))
-		if showElementType && failure.ElementType != "" && failure.ElementType != "child" && failure.ElementType != "link" {
-			sb.WriteString(s.Muted.Render(" (" + failure.ElementType + ")"))
+	groups := GroupOverviewEntries(failures, func(f ElementFailure) *ResourceGroup {
+		return f.AbstractGroup
+	})
+
+	for _, group := range groups {
+		RenderOverviewGroupHeader(sb, group.Group, "  ", s)
+		indent := OverviewEntryIndent("  ", group.Group)
+		for _, failure := range group.Entries {
+			sb.WriteString(indent)
+			sb.WriteString(s.Error.Render("✗ "))
+			sb.WriteString(s.Selected.Render(failure.ElementPath))
+			if showElementType && failure.ElementType != "" && failure.ElementType != "child" && failure.ElementType != "link" {
+				sb.WriteString(s.Muted.Render(" (" + failure.ElementType + ")"))
+			}
+			sb.WriteString("\n")
+			RenderWrappedFailureReasons(sb, failure.FailureReasons, reasonWidth, s)
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
-		RenderWrappedFailureReasons(sb, failure.FailureReasons, reasonWidth, s)
-		sb.WriteString("\n")
 	}
 }
 

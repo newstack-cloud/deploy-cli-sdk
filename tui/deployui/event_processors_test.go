@@ -269,7 +269,7 @@ func (s *EventProcessorsTestSuite) Test_ProcessLinkUpdate_creates_new_root_link(
 		LinkID:          "link-123",
 		InstanceID:      "",
 		Status:          core.LinkStatusCreating,
-		PreciseStatus:   core.PreciseLinkStatusUpdatingResourceA,
+		PreciseStatus:   core.PreciseLinkStatusUpdatingLinkedResources,
 		UpdateTimestamp: 12345,
 	}
 
@@ -297,7 +297,7 @@ func (s *EventProcessorsTestSuite) Test_ProcessLinkUpdate_updates_existing_link(
 		LinkID:          "link-123",
 		InstanceID:      "",
 		Status:          core.LinkStatusCreated,
-		PreciseStatus:   core.PreciseLinkStatusResourceBUpdated,
+		PreciseStatus:   core.PreciseLinkStatusLinkedResourcesUpdated,
 		UpdateTimestamp: 12345,
 	}
 

@@ -240,30 +240,18 @@ func FormatPreciseResourceStatus(status core.PreciseResourceStatus) string {
 // FormatPreciseLinkStatus returns a human-readable string for a precise link status.
 func FormatPreciseLinkStatus(status core.PreciseLinkStatus) string {
 	switch status {
-	case core.PreciseLinkStatusUpdatingResourceA:
-		return "Updating resource A..."
-	case core.PreciseLinkStatusResourceAUpdated:
-		return "Resource A updated"
-	case core.PreciseLinkStatusResourceAUpdateFailed:
-		return "Failed to update resource A"
-	case core.PreciseLinkStatusResourceAUpdateRollingBack:
-		return "Rolling back resource A update..."
-	case core.PreciseLinkStatusResourceAUpdateRollbackFailed:
-		return "Failed to roll back resource A update"
-	case core.PreciseLinkStatusResourceAUpdateRollbackComplete:
-		return "Resource A update rolled back"
-	case core.PreciseLinkStatusUpdatingResourceB:
-		return "Updating resource B..."
-	case core.PreciseLinkStatusResourceBUpdated:
-		return "Resource B updated"
-	case core.PreciseLinkStatusResourceBUpdateFailed:
-		return "Failed to update resource B"
-	case core.PreciseLinkStatusResourceBUpdateRollingBack:
-		return "Rolling back resource B update..."
-	case core.PreciseLinkStatusResourceBUpdateRollbackFailed:
-		return "Failed to roll back resource B update"
-	case core.PreciseLinkStatusResourceBUpdateRollbackComplete:
-		return "Resource B update rolled back"
+	case core.PreciseLinkStatusUpdatingLinkedResources:
+		return "Updating linked resources..."
+	case core.PreciseLinkStatusLinkedResourcesUpdated:
+		return "Linked resources updated"
+	case core.PreciseLinkStatusLinkedResourcesUpdateFailed:
+		return "Failed to update linked resources"
+	case core.PreciseLinkStatusLinkedResourcesUpdateRollingBack:
+		return "Rolling back linked resources update..."
+	case core.PreciseLinkStatusLinkedResourcesUpdateRollbackFailed:
+		return "Failed to roll back linked resources update"
+	case core.PreciseLinkStatusLinkedResourcesUpdateRollbackComplete:
+		return "Linked resources update rolled back"
 	case core.PreciseLinkStatusUpdatingIntermediaryResources:
 		return "Updating intermediary resources..."
 	case core.PreciseLinkStatusIntermediaryResourcesUpdated:
@@ -276,10 +264,8 @@ func FormatPreciseLinkStatus(status core.PreciseLinkStatus) string {
 		return "Failed to roll back intermediary resources"
 	case core.PreciseLinkStatusIntermediaryResourceUpdateRollbackComplete:
 		return "Intermediary resources rolled back"
-	case core.PreciseLinkStatusResourceAUpdateInterrupted:
-		return "Resource A update was interrupted (actual state unknown)"
-	case core.PreciseLinkStatusResourceBUpdateInterrupted:
-		return "Resource B update was interrupted (actual state unknown)"
+	case core.PreciseLinkStatusLinkedResourcesUpdateInterrupted:
+		return "Linked resources update was interrupted (actual state unknown)"
 	case core.PreciseLinkStatusIntermediaryResourceUpdateInterrupted:
 		return "Intermediary resource update was interrupted (actual state unknown)"
 	default:

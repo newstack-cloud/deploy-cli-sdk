@@ -93,12 +93,12 @@ func (p *HeadlessDriftPrinter) printResourceDrift(r *container.ResourceReconcile
 
 	if r.Changes != nil {
 		for _, field := range r.Changes.ModifiedFields {
-			prevValue := headless.FormatMappingNode(field.PrevValue)
-			newValue := headless.FormatMappingNode(field.NewValue)
+			prevValue := headless.FormatFieldValue(field.Sensitive, field.PrevValue)
+			newValue := headless.FormatFieldValue(field.Sensitive, field.NewValue)
 			w.Printf("%s± %s: %s → %s\n", fieldIndent, field.FieldPath, prevValue, newValue)
 		}
 		for _, field := range r.Changes.NewFields {
-			w.Printf("%s+ %s: %s\n", fieldIndent, field.FieldPath, headless.FormatMappingNode(field.NewValue))
+			w.Printf("%s+ %s: %s\n", fieldIndent, field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
 		}
 		for _, fieldPath := range r.Changes.RemovedFields {
 			w.Printf("%s- %s\n", fieldIndent, fieldPath)

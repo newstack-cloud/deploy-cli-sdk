@@ -6,6 +6,9 @@ type ElementFailure struct {
 	ElementPath    string // Full path like "children.notifications::resources.notificationQueue"
 	ElementType    string // "resource", "child", or "link"
 	FailureReasons []string
+	// AbstractGroup holds the abstract resource this element was expanded from,
+	// used to group the element under its source type in overview listings.
+	AbstractGroup *ResourceGroup
 }
 
 // InterruptedElement represents an element that was interrupted during an operation.
@@ -13,6 +16,9 @@ type InterruptedElement struct {
 	ElementName string
 	ElementPath string // Full path like "children.notifications::resources.notificationQueue"
 	ElementType string // "resource", "child", or "link"
+	// AbstractGroup holds the abstract resource this element was expanded from,
+	// used to group the element under its source type in overview listings.
+	AbstractGroup *ResourceGroup
 }
 
 // SuccessfulElement represents an element that completed successfully.
@@ -21,6 +27,9 @@ type SuccessfulElement struct {
 	ElementPath string // Full path like "children.notifications::resources.notificationQueue"
 	ElementType string // "resource", "child", or "link"
 	Action      string // "created", "updated", "destroyed", etc.
+	// AbstractGroup holds the abstract resource this element was expanded from,
+	// used to group the element under its source type in overview listings.
+	AbstractGroup *ResourceGroup
 }
 
 // RetainedElement represents a resource whose state was removed but whose

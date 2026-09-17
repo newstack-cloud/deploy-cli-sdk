@@ -77,6 +77,9 @@ type ResourceDeployItem struct {
 	// ResourceState holds the pre-deployment resource state from the instance.
 	// Used for displaying outputs and spec data for items with no changes or before deployment completes.
 	ResourceState *state.ResourceState
+	// Caches the resolved abstract resource group.
+	// See AbstractGroup for why it is held rather than resolved each time.
+	abstractGroup *shared.ResourceGroup
 }
 
 func (r *ResourceDeployItem) GetAction() shared.ActionType           { return shared.ActionType(r.Action) }
@@ -196,6 +199,7 @@ type DeployModel struct {
 	changesetID              string
 	streaming                bool
 	fetchingPreDeployState   bool // True while fetching pre-deploy instance state
+	fetchingChangeset        bool // True while fetching the changes for an existing change set
 	finished                 bool
 	finalStatus              core.InstanceStatus
 	failureReasons           []string             // generic failure messages from backend
@@ -272,6 +276,8 @@ func (m DeployModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDeployStreamClosed()
 	case PreDeployInstanceStateFetchedMsg:
 		return m.handlePreDeployInstanceStateFetched(msg)
+	case ChangesetFetchedMsg:
+		return m.handleChangesetFetched(msg)
 	case PostDeployInstanceStateFetchedMsg:
 		return m.handlePostDeployInstanceStateFetched(msg)
 	case DeployStateRefreshTickMsg:
@@ -351,16 +357,82 @@ func (m DeployModel) handleSelectBlueprint(msg sharedui.SelectBlueprintMsg) (tea
 }
 
 func (m DeployModel) handleStartDeploy() (tea.Model, tea.Cmd) {
-	if m.streaming || m.fetchingPreDeployState {
+	if m.streaming || m.fetchingPreDeployState || m.fetchingChangeset {
 		return m, nil
 	}
 
+	var cmds []tea.Cmd
+
 	// If we don't have pre-deploy instance state and we have an instance ID/name,
 	// fetch it first to populate unchanged items
-	if m.preDeployInstanceState == nil && (m.instanceID != "" || m.instanceName != "") {
+	needsInstanceState := m.preDeployInstanceState == nil &&
+		(m.instanceID != "" || m.instanceName != "")
+
+	// Deploying an existing change set skips staging, so nothing has supplied
+	// the changes and they have to be read back from the engine. They are
+	// required as without them resources are left ungrouped and their links
+	// missing, so a change set that cannot be read fails the deployment.
+	needsChangesetChanges := m.changesetChanges == nil && m.changesetID != ""
+
+	if needsInstanceState {
 		m.fetchingPreDeployState = true
+		cmds = append(cmds, fetchPreDeployInstanceStateCmd(m))
+	}
+
+	if needsChangesetChanges {
+		m.fetchingChangeset = true
+		cmds = append(cmds, fetchChangesetChangesCmd(m))
+	}
+
+	if len(cmds) > 0 {
 		m.detailsRenderer.NavigationStackDepth = len(m.splitPane.NavigationStack())
-		return m, fetchPreDeployInstanceStateCmd(m)
+		return m, tea.Batch(cmds...)
+	}
+
+	m.streaming = true
+	m.detailsRenderer.NavigationStackDepth = len(m.splitPane.NavigationStack())
+	return m, tea.Batch(startDeploymentCmd(m), checkForErrCmd(m))
+}
+
+func (m DeployModel) handleChangesetFetched(msg ChangesetFetchedMsg) (tea.Model, tea.Cmd) {
+	m.fetchingChangeset = false
+
+	if m.streaming {
+		return m, nil
+	}
+
+	// A change set that cannot be read is fatal, staging is the only thing that
+	// produces one, so there is no way to build the changes here and the engine
+	// would reject the deployment for the same change set ID anyway.
+	if msg.Err != nil {
+		return m.handleDeployError(DeployErrorMsg{Err: msg.Err})
+	}
+
+	if msg.Changes != nil {
+		m.changesetChanges = msg.Changes
+	}
+
+	// Wait for the instance state if that fetch is still in progress, so the
+	// items are built once from both rather than twice.
+	if m.fetchingPreDeployState {
+		return m, nil
+	}
+
+	return m.startDeployAfterFetches()
+}
+
+// Builds the item list from whatever the fetches
+// returned and begins streaming.
+func (m DeployModel) startDeployAfterFetches() (tea.Model, tea.Cmd) {
+	if m.changesetChanges != nil {
+		m.items = BuildItemsFromChangeset(
+			m.changesetChanges,
+			m.resourcesByName,
+			m.childrenByName,
+			m.linksByName,
+			m.preDeployInstanceState,
+		)
+		m.splitPane.SetItems(ToSplitPaneItems(m.items))
 	}
 
 	m.streaming = true
@@ -372,24 +444,22 @@ func (m DeployModel) handlePreDeployInstanceStateFetched(msg PreDeployInstanceSt
 	// Clear the fetching flag
 	m.fetchingPreDeployState = false
 
-	// Guard: Don't start deployment if already streaming
-	if m.streaming {
+	// Don't start the deployment if it is already streaming, or if the
+	// change set fetch has already failed it, this fetch runs alongside that
+	// one, so its result can land after the failure.
+	if m.streaming || m.err != nil {
 		return m, nil
 	}
 
-	// Store the pre-deploy instance state
 	m.SetPreDeployInstanceState(msg.InstanceState)
 
-	// Rebuild items with the instance state to include unchanged items
-	if m.changesetChanges != nil {
-		m.items = BuildItemsFromChangeset(m.changesetChanges, m.resourcesByName, m.childrenByName, m.linksByName, m.preDeployInstanceState)
-		m.splitPane.SetItems(ToSplitPaneItems(m.items))
+	// Wait for the change set if that fetch is still in progress, so the items
+	// are built once from both rather than twice.
+	if m.fetchingChangeset {
+		return m, nil
 	}
 
-	// Now start deployment
-	m.streaming = true
-	m.detailsRenderer.NavigationStackDepth = len(m.splitPane.NavigationStack())
-	return m, tea.Batch(startDeploymentCmd(m), checkForErrCmd(m))
+	return m.startDeployAfterFetches()
 }
 
 func (m DeployModel) handleDeployStarted(msg DeployStartedMsg) (tea.Model, tea.Cmd) {
@@ -462,10 +532,29 @@ func (m DeployModel) handleDeployEvent(msg DeployEventMsg) (tea.Model, tea.Cmd) 
 
 func (m DeployModel) handleDeployError(msg DeployErrorMsg) (tea.Model, tea.Cmd) {
 	if msg.Err == nil {
-		return m, nil
+		// No error arrived within the poll's one second window, which is the
+		// normal case, so start another poll. This is the only reader of the
+		// error channel, if nothing is reading it, the client writing errors to
+		// it times out and closes the event stream, ending the deployment.
+		if m.finished {
+			return m, nil
+		}
+		return m, checkForErrCmd(m)
 	}
 
 	m.err = msg.Err
+
+	// An error ends the deployment, so nothing still in flight is going to
+	// finish. Without this, the last view of the run shows resources as
+	// "creating" forever. This reads as work still in progress rather than
+	// work that was cut short, and is the opposite of what happened.
+	//
+	// The finish and instance-update paths already do this; an error arriving
+	// on its own channel is the third way a deployment ends.
+	m.markPendingItemsAsSkipped()
+	m.markInProgressItemsAsInterrupted()
+	m.splitPane.UpdateItems(ToSplitPaneItems(m.items))
+
 	if m.headlessMode {
 		if m.jsonMode {
 			m.outputJSONError(msg.Err)
@@ -517,6 +606,12 @@ func (m DeployModel) handlePostDeployInstanceStateFetched(msg PostDeployInstance
 
 	if msg.InstanceState != nil {
 		m.footerRenderer.HasInstanceState = true
+		// Results are collected the moment deployment finishes, before this
+		// state has been fetched. Resources created by this deployment only
+		// gain their transform annotations here, so hydrate the items and
+		// re-collect to pick up abstract resource grouping for the overview.
+		m.refreshInstanceState(msg.InstanceState)
+		m.recollectDeploymentResults()
 	}
 
 	if m.showingExportsView {
@@ -714,6 +809,14 @@ func (m DeployModel) handleReconciliationError(msg driftui.ReconciliationErrorMs
 }
 
 func (m DeployModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// While a search term is being typed the split pane takes every key, so
+	// that letters land in the term rather than triggering shortcuts.
+	if m.splitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.splitPane, cmd = m.splitPane.Update(msg)
+		return m, cmd
+	}
+
 	// Handle error state
 	if m.err != nil {
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
@@ -836,6 +939,13 @@ func (m DeployModel) handleSpecViewKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m DeployModel) handleExportsViewKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key, so "e" types rather than closing the view.
+	if m.exportsModel.IsFiltering() {
+		var cmd tea.Cmd
+		m.exportsModel, cmd = m.exportsModel.Update(msg)
+		return m, cmd
+	}
+
 	switch shared.CheckExportsKeyMsg(msg) {
 	case shared.ExportsKeyActionQuit:
 		return m, tea.Quit
@@ -863,6 +973,14 @@ func (m DeployModel) handlePreRollbackStateViewKeyMsg(msg tea.KeyMsg) (tea.Model
 }
 
 func (m DeployModel) handleDriftReviewKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key. This matters most here as "a" applies the
+	// reconciliation, which is not something to trigger by typing.
+	if m.driftSplitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.driftSplitPane, cmd = m.driftSplitPane.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
 	case "a", "A":
 		return m, applyReconciliationCmd(m)
@@ -1033,34 +1151,44 @@ func NewDeployModel(cfg DeployModelConfig) DeployModel {
 	items := BuildItemsFromChangeset(cfg.ChangesetChanges, resourcesByName, childrenByName, linksByName, nil)
 
 	model := DeployModel{
-		splitPane:               splitpane.New(splitPaneConfig),
-		detailsRenderer:         detailsRenderer,
-		sectionGrouper:          sectionGrouper,
-		footerRenderer:          footerRenderer,
-		driftSplitPane:          splitpane.New(driftSplitPaneConfig),
-		driftDetailsRenderer:    driftDetailsRenderer,
-		driftSectionGrouper:     driftSectionGrouper,
-		driftFooterRenderer:     driftFooterRenderer,
-		ctx:                     cfg.Context,
-		engine:                  cfg.DeployEngine,
-		logger:                  cfg.Logger,
-		changesetID:             cfg.ChangesetID,
-		instanceID:              cfg.InstanceID,
-		instanceName:            cfg.InstanceName,
-		blueprintFile:           cfg.BlueprintFile,
-		blueprintSource:         cfg.BlueprintSource,
-		autoRollback:            cfg.AutoRollback,
-		force:                   cfg.Force,
-		operationConfig:         cfg.OperationConfig,
-		changesetChanges:        cfg.ChangesetChanges,
-		styles:                  cfg.Styles,
-		headlessMode:            cfg.IsHeadless,
-		headlessWriter:          cfg.HeadlessWriter,
-		printer:                 printer,
-		jsonMode:                cfg.JSONMode,
-		spinner:                 createDeploySpinner(cfg.Styles),
-		eventStream:             make(chan types.BlueprintInstanceEvent),
-		errStream:               make(chan error),
+		splitPane:            splitpane.New(splitPaneConfig),
+		detailsRenderer:      detailsRenderer,
+		sectionGrouper:       sectionGrouper,
+		footerRenderer:       footerRenderer,
+		driftSplitPane:       splitpane.New(driftSplitPaneConfig),
+		driftDetailsRenderer: driftDetailsRenderer,
+		driftSectionGrouper:  driftSectionGrouper,
+		driftFooterRenderer:  driftFooterRenderer,
+		ctx:                  cfg.Context,
+		engine:               cfg.DeployEngine,
+		logger:               cfg.Logger,
+		changesetID:          cfg.ChangesetID,
+		instanceID:           cfg.InstanceID,
+		instanceName:         cfg.InstanceName,
+		blueprintFile:        cfg.BlueprintFile,
+		blueprintSource:      cfg.BlueprintSource,
+		autoRollback:         cfg.AutoRollback,
+		force:                cfg.Force,
+		operationConfig:      cfg.OperationConfig,
+		changesetChanges:     cfg.ChangesetChanges,
+		styles:               cfg.Styles,
+		headlessMode:         cfg.IsHeadless,
+		headlessWriter:       cfg.HeadlessWriter,
+		printer:              printer,
+		jsonMode:             cfg.JSONMode,
+		spinner:              createDeploySpinner(cfg.Styles),
+		// This is buffered as the consumer is a Bubble Tea command that takes one event,
+		// then updates and renders before asking for the next, so nothing is on
+		// the channel for most of a frame. A burst arriving during a render
+		// would otherwise block the client's sender, and that sender gives up
+		// and closes the stream. This would abort the operation itself, not just
+		// the view of it. 64 is generous against observed bursts while keeping
+		// a bound on the rare event that carries full instance state.
+		eventStream: make(chan types.BlueprintInstanceEvent, 64),
+		// Buffered for the same reason as eventStream above, the reader is a
+		// polling command with gaps between polls, and a blocked send on this
+		// channel costs the entire stream.
+		errStream:               make(chan error, 16),
 		resourcesByName:         resourcesByName,
 		childrenByName:          childrenByName,
 		linksByName:             linksByName,
@@ -1100,13 +1228,15 @@ func createDeploySplitPaneConfig(
 	footerRenderer *DeployFooterRenderer,
 ) splitpane.Config {
 	return splitpane.Config{
-		Styles:          styles,
-		Title:           "Deployment",
-		DetailsRenderer: detailsRenderer,
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            styles,
+		Title:             "Deployment",
+		DetailsRenderer:   detailsRenderer,
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 }
 
@@ -1131,13 +1261,15 @@ func createDriftSplitPaneConfig(
 	footerRenderer *DriftFooterRenderer,
 ) splitpane.Config {
 	return splitpane.Config{
-		Styles:          styles,
-		DetailsRenderer: detailsRenderer,
-		Title:           "⚠ Drift Detected",
-		LeftPaneRatio:   0.4,
-		MaxExpandDepth:  MaxExpandDepth,
-		SectionGrouper:  sectionGrouper,
-		FooterRenderer:  footerRenderer,
+		Styles:            styles,
+		DetailsRenderer:   detailsRenderer,
+		Title:             "⚠ Drift Detected",
+		LeftPaneRatio:     0.4,
+		MaxExpandDepth:    MaxExpandDepth,
+		SectionGrouper:    sectionGrouper,
+		StatusKeywords:    shared.StatusKeywordsForItem,
+		StatusFilterHints: shared.KnownStatusKeywords(),
+		FooterRenderer:    footerRenderer,
 	}
 }
 
@@ -1173,8 +1305,7 @@ func (m *DeployModel) markPendingItemsAsSkipped() {
 func (m *DeployModel) markInProgressItemsAsInterrupted() {
 	// Mark in-progress resources as interrupted
 	for _, item := range m.resourcesByName {
-		// Skip items that have no changes - they were never meant to be deployed
-		if item.Action == ActionNoChange {
+		if skipUnreportedNoChangeItem(item.Action, item.Timestamp) {
 			continue
 		}
 		if IsInProgressResourceStatus(item.Status) {
@@ -1185,8 +1316,7 @@ func (m *DeployModel) markInProgressItemsAsInterrupted() {
 	}
 	// Mark in-progress children as interrupted
 	for _, item := range m.childrenByName {
-		// Skip items that have no changes - they were never meant to be deployed
-		if item.Action == ActionNoChange {
+		if skipUnreportedNoChangeItem(item.Action, item.Timestamp) {
 			continue
 		}
 		if IsInProgressInstanceStatus(item.Status) {
@@ -1195,8 +1325,7 @@ func (m *DeployModel) markInProgressItemsAsInterrupted() {
 	}
 	// Mark in-progress links as interrupted
 	for _, item := range m.linksByName {
-		// Skip items that have no changes - they were never meant to be deployed
-		if item.Action == ActionNoChange {
+		if skipUnreportedNoChangeItem(item.Action, item.Timestamp) {
 			continue
 		}
 		if IsInProgressLinkStatus(item.Status) {
@@ -1207,28 +1336,40 @@ func (m *DeployModel) markInProgressItemsAsInterrupted() {
 	}
 }
 
+// An item with no changes was not meant to be deployed, so it is left alone
+// unless this run reported work on it, which is what a timestamp represents. Without
+// that exception an item the deployment did touch could never be settled as it has
+// an in-progress status and no action to explain it, so it would keep reading
+// "creating" for the rest of the run. Links make this reachable, as one with no
+// changes starts from the status held in its stored state.
+func skipUnreportedNoChangeItem(action ActionType, timestamp int64) bool {
+	return action == ActionNoChange && timestamp == 0
+}
+
 // Returns the appropriate interrupted status
 // based on the action type and current in-progress status.
 func determineResourceInterruptedStatusFromAction(
 	action ActionType,
 	currentStatus core.ResourceStatus,
 ) (core.ResourceStatus, core.PreciseResourceStatus) {
-	// If destroying, it's a destroy interruption
-	if currentStatus == core.ResourceStatusDestroying {
+	// The status is what the element last reported, so it decides the phase
+	// wherever it names one. The action only has to settle a rollback, which
+	// does not say which operation was being undone, and the action is not
+	// always known, since items built from deploy events alone have none.
+	switch currentStatus {
+	case core.ResourceStatusDestroying:
 		return core.ResourceStatusDestroyInterrupted, core.PreciseResourceStatusDestroyInterrupted
+	case core.ResourceStatusCreating:
+		return core.ResourceStatusCreateInterrupted, core.PreciseResourceStatusCreateInterrupted
+	case core.ResourceStatusUpdating:
+		return core.ResourceStatusUpdateInterrupted, core.PreciseResourceStatusUpdateInterrupted
 	}
 
-	// For CREATE actions (new elements), use CreateInterrupted
+	// Rolling back, so the action says which operation was being undone.
 	if action == ActionCreate {
 		return core.ResourceStatusCreateInterrupted, core.PreciseResourceStatusCreateInterrupted
 	}
 
-	// For RECREATE, if we're in the creating phase, use CreateInterrupted
-	if action == ActionRecreate && currentStatus == core.ResourceStatusCreating {
-		return core.ResourceStatusCreateInterrupted, core.PreciseResourceStatusCreateInterrupted
-	}
-
-	// For UPDATE, RECREATE (update phase), or unknown actions, use UpdateInterrupted
 	return core.ResourceStatusUpdateInterrupted, core.PreciseResourceStatusUpdateInterrupted
 }
 
@@ -1238,23 +1379,22 @@ func determineChildInterruptedStatusFromAction(
 	action ActionType,
 	currentStatus core.InstanceStatus,
 ) core.InstanceStatus {
-	// If destroying, it's a destroy interruption
-	if currentStatus == core.InstanceStatusDestroying ||
-		currentStatus == core.InstanceStatusDestroyRollingBack {
+	// As for resources, the status decides the phase wherever it names one and
+	// the action only settles a rollback.
+	switch currentStatus {
+	case core.InstanceStatusDestroying, core.InstanceStatusDestroyRollingBack:
 		return core.InstanceStatusDestroyInterrupted
+	case core.InstanceStatusDeploying:
+		return core.InstanceStatusDeployInterrupted
+	case core.InstanceStatusUpdating:
+		return core.InstanceStatusUpdateInterrupted
 	}
 
-	// For CREATE actions (new child blueprints), use DeployInterrupted
+	// Rolling back, so the action says which operation was being undone.
 	if action == ActionCreate {
 		return core.InstanceStatusDeployInterrupted
 	}
 
-	// For RECREATE, if we're in the deploying phase, use DeployInterrupted
-	if action == ActionRecreate && currentStatus == core.InstanceStatusDeploying {
-		return core.InstanceStatusDeployInterrupted
-	}
-
-	// For UPDATE, RECREATE (update phase), or unknown actions, use UpdateInterrupted
 	return core.InstanceStatusUpdateInterrupted
 }
 
@@ -1264,23 +1404,23 @@ func determineLinkInterruptedStatusFromAction(
 	action ActionType,
 	currentStatus core.LinkStatus,
 ) (core.LinkStatus, core.PreciseLinkStatus) {
-	// If destroying, it's a destroy interruption
-	if currentStatus == core.LinkStatusDestroying {
+	// As for resources, the status decides the phase wherever it names one and
+	// the action only settles a rollback.
+	switch currentStatus {
+	case core.LinkStatusDestroying:
 		return core.LinkStatusDestroyInterrupted, core.PreciseLinkStatusIntermediaryResourceUpdateInterrupted
+	case core.LinkStatusCreating:
+		return core.LinkStatusCreateInterrupted, core.PreciseLinkStatusIntermediaryResourceUpdateInterrupted
+	case core.LinkStatusUpdating:
+		return core.LinkStatusUpdateInterrupted, core.PreciseLinkStatusLinkedResourcesUpdateInterrupted
 	}
 
-	// For CREATE actions (new links), use CreateInterrupted
+	// Rolling back, so the action says which operation was being undone.
 	if action == ActionCreate {
 		return core.LinkStatusCreateInterrupted, core.PreciseLinkStatusIntermediaryResourceUpdateInterrupted
 	}
 
-	// For RECREATE, if we're in the creating phase, use CreateInterrupted
-	if action == ActionRecreate && currentStatus == core.LinkStatusCreating {
-		return core.LinkStatusCreateInterrupted, core.PreciseLinkStatusIntermediaryResourceUpdateInterrupted
-	}
-
-	// For UPDATE, RECREATE (update phase), or unknown actions, use UpdateInterrupted
-	return core.LinkStatusUpdateInterrupted, core.PreciseLinkStatusResourceAUpdateInterrupted
+	return core.LinkStatusUpdateInterrupted, core.PreciseLinkStatusLinkedResourcesUpdateInterrupted
 }
 
 // Test accessor methods - these provide read-only access for testing purposes.

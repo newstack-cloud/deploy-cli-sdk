@@ -14,19 +14,23 @@ import (
 )
 
 type testDeployEngine struct {
-	validationEvents       []*types.BlueprintValidationEvent
-	stagingEvents          []*types.ChangeStagingEvent
-	deploymentEvents       []*types.BlueprintInstanceEvent
-	changesetID            string
-	changesetChanges       *changes.BlueprintChanges
-	instanceID             string
-	instanceState          *state.InstanceState
-	createError            error
-	createInstanceErr      error
-	updateInstanceErr      error
-	destroyInstanceErr     error
-	getInstanceStateErr    error
-	lastValidationPayload  *types.CreateBlueprintValidationPayload
+	validationEvents      []*types.BlueprintValidationEvent
+	stagingEvents         []*types.ChangeStagingEvent
+	deploymentEvents      []*types.BlueprintInstanceEvent
+	changesetID           string
+	changesetChanges      *changes.BlueprintChanges
+	instanceID            string
+	instanceState         *state.InstanceState
+	createError           error
+	createInstanceErr     error
+	updateInstanceErr     error
+	destroyInstanceErr    error
+	getInstanceStateErr   error
+	getChangesetErr       error
+	changesetMissing      bool
+	streamErr             error
+	streamErrDelay        time.Duration
+	lastValidationPayload *types.CreateBlueprintValidationPayload
 }
 
 func NewTestDeployEngine(stubValidationEvents []*types.BlueprintValidationEvent) engine.DeployEngine {
@@ -77,6 +81,48 @@ func NewTestDeployEngineWithDeploymentAndChangeset(
 		instanceID:       instanceID,
 		instanceState:    instanceState,
 		changesetChanges: changesetChanges,
+	}
+}
+
+// NewTestDeployEngineWithChangesetFetchError creates a test deploy engine that returns an
+// error on GetChangeset, simulating a change set that cannot be read back.
+func NewTestDeployEngineWithChangesetFetchError(err error) engine.DeployEngine {
+	return &testDeployEngine{getChangesetErr: err}
+}
+
+// NewTestDeployEngineWithMissingChangeset creates a test deploy engine for which GetChangeset
+// finds nothing, simulating a change set ID that does not exist.
+func NewTestDeployEngineWithMissingChangeset(
+	stubDeploymentEvents []*types.BlueprintInstanceEvent,
+	instanceID string,
+	instanceState *state.InstanceState,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		deploymentEvents: stubDeploymentEvents,
+		instanceID:       instanceID,
+		instanceState:    instanceState,
+		changesetMissing: true,
+	}
+}
+
+// NewTestDeployEngineWithStreamError creates a test deploy engine that streams the given
+// deployment events and then, after streamErrDelay, reports an error on the error channel
+// the way the client does when a deployment fails mid-run. The delay gives the streamed
+// events time to be processed first, and a delay longer than the model's error poll window
+// exercises an error that arrives after a poll has expired.
+func NewTestDeployEngineWithStreamError(
+	stubDeploymentEvents []*types.BlueprintInstanceEvent,
+	instanceID string,
+	instanceState *state.InstanceState,
+	streamErr error,
+	streamErrDelay time.Duration,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		deploymentEvents: stubDeploymentEvents,
+		instanceID:       instanceID,
+		instanceState:    instanceState,
+		streamErr:        streamErr,
+		streamErrDelay:   streamErrDelay,
 	}
 }
 
@@ -267,13 +313,19 @@ func (d *testDeployEngine) GetChangeset(
 	ctx context.Context,
 	changesetID string,
 ) (*manage.Changeset, error) {
-	if d.changesetChanges != nil {
-		return &manage.Changeset{
-			ID:      changesetID,
-			Changes: d.changesetChanges,
-		}, nil
+	if d.getChangesetErr != nil {
+		return nil, d.getChangesetErr
 	}
-	return nil, nil
+	if d.changesetMissing {
+		return nil, nil
+	}
+	// A change set ID only ever comes from staging, so one the engine has been
+	// given exists unless a test says otherwise. Tests that don't care about
+	// the changes get a change set without any.
+	return &manage.Changeset{
+		ID:      changesetID,
+		Changes: d.changesetChanges,
+	}, nil
 }
 
 func (d *testDeployEngine) StreamChangeStagingEvents(
@@ -392,6 +444,11 @@ func (d *testDeployEngine) StreamBlueprintInstanceEvents(
 	go func() {
 		for _, event := range d.deploymentEvents {
 			streamTo <- *event
+		}
+
+		if d.streamErr != nil {
+			time.Sleep(d.streamErrDelay)
+			errChan <- d.streamErr
 		}
 	}()
 	return nil

@@ -32,6 +32,13 @@ type Model struct {
 	expandedItems   map[string]bool   // Tracks expanded items by ID
 	navigationStack []NavigationFrame // Drill-down history
 
+	// Filter state
+	filterTerm  string // Active search term, empty when not filtering
+	filterInput bool   // True while the term is being typed
+
+	statusPicker      bool // True while the status list is open
+	statusPickerIndex int  // Highlighted status in that list
+
 	// Configuration
 	config Config
 }
@@ -168,17 +175,43 @@ func (m Model) SelectedIndex() int {
 	return m.selectedIndex
 }
 
-// visibleItems returns the items that are currently visible (respecting expansion state).
+// Returns the items that are currently visible (respecting
+// expansion state and any active filter).
 func (m Model) visibleItems() []Item {
-	if m.config.SectionGrouper != nil {
-		sections := m.config.SectionGrouper.GroupItems(m.items, m.IsExpanded)
-		var items []Item
-		for _, section := range sections {
-			items = append(items, section.Items...)
-		}
-		return items
+	var items []Item
+	for _, section := range m.displaySections() {
+		items = append(items, section.Items...)
 	}
-	return m.items
+	return items
+}
+
+// Returns the sections as rendered: grouped, then narrowed by
+// any active filter.
+func (m Model) displaySections() []Section {
+	if m.config.SectionGrouper == nil {
+		if !m.HasFilter() {
+			return []Section{{Items: m.items}}
+		}
+		return []Section{
+			{
+				Items: filterItemsPreservingStructure(m.items, m.itemMatchesFilter),
+			},
+		}
+	}
+
+	sections := m.config.SectionGrouper.GroupItems(m.items, m.isExpandedForDisplay)
+	return m.filterSections(sections)
+}
+
+// Reports whether an item's children should be built for
+// rendering. While a filter is active every expandable item is treated as
+// expanded, so that a match nested inside a collapsed group is still reachable;
+// the filter then prunes back to the matches and their ancestors.
+func (m Model) isExpandedForDisplay(id string) bool {
+	if m.HasFilter() {
+		return true
+	}
+	return m.expandedItems[id]
 }
 
 // SelectedID returns the ID of the currently selected item.
@@ -204,9 +237,8 @@ func (m *Model) resolveSelectedIndex() {
 		}
 	}
 
-	// Item not visible - check if it's a child of an expandable item
-	// and expand the parent to make it visible
-	if m.expandParentOfItem(m.selectedID) {
+	// Item not visible, expand whatever encloses it to bring it into view
+	if m.expandAncestorsOf(m.selectedID) {
 		// Parent was expanded, try again with updated visible items
 		items = m.visibleItems()
 		for i, item := range items {
@@ -225,6 +257,42 @@ func (m *Model) resolveSelectedIndex() {
 		m.selectedID = ""
 		m.selectedIndex = 0
 	}
+}
+
+func (m *Model) expandAncestorsOf(targetID string) bool {
+	if m.config.SectionGrouper == nil {
+		return m.expandParentOfItem(targetID)
+	}
+
+	sections := m.config.SectionGrouper.GroupItems(m.items, alwaysExpanded)
+	for _, section := range sections {
+		if m.expandAncestorsInItems(section.Items, targetID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Model) expandAncestorsInItems(items []Item, targetID string) bool {
+	for i, item := range items {
+		if item.GetID() != targetID {
+			continue
+		}
+		// Walk back up the list, expanding each shallower item that encloses it.
+		depth := item.GetDepth()
+		for j := i - 1; j >= 0 && depth > 0; j-- {
+			if items[j].GetDepth() < depth {
+				m.expandedItems[items[j].GetID()] = true
+				depth = items[j].GetDepth()
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func alwaysExpanded(string) bool {
+	return true
 }
 
 // expandParentOfItem searches for an item by ID in children of expandable items.
@@ -290,26 +358,63 @@ func (m *Model) RefreshViewports() {
 
 // updateItemsAtCurrentLevel updates items while preserving selection and expansion.
 func (m *Model) updateItemsAtCurrentLevel(items []Item) {
-	// Build lookup of new items by ID
-	newItemsByID := make(map[string]int)
-	for i, item := range items {
-		newItemsByID[item.GetID()] = i
-	}
-
-	// Preserve expansion state for items that still exist
-	newExpanded := make(map[string]bool)
-	for id, expanded := range m.expandedItems {
-		if _, exists := newItemsByID[id]; exists {
-			newExpanded[id] = expanded
-		}
-	}
-
-	// Update items and expansion state
+	// The expansion state is pruned against the new items, but only after they
+	// are in place, since the set of expandable IDs depends on them.
 	m.items = items
-	m.expandedItems = newExpanded
+	m.expandedItems = m.retainedExpansionState()
 
 	// Resolve selection - this will keep current selection if item still exists
 	m.resolveSelectedIndex()
+}
+
+// Drops expansion entries for items that no longer
+// exist. An expandable item is not necessarily one of the flat items at this
+// level: section groupers synthesise group headers, and nested items are only
+// reachable through their parent's children. Both are kept.
+func (m *Model) retainedExpansionState() map[string]bool {
+	if len(m.expandedItems) == 0 {
+		return make(map[string]bool)
+	}
+
+	expandable := make(map[string]bool, len(m.items))
+	for _, item := range m.items {
+		expandable[item.GetID()] = true
+	}
+
+	// Walking the tree is only worth it when an expanded ID is unaccounted for,
+	// which is the case for group headers and nested children.
+	if m.hasUnresolvedExpansion(expandable) {
+		collectExpandableIDs(m.visibleItems(), expandable)
+	}
+
+	retained := make(map[string]bool, len(m.expandedItems))
+	for id, expanded := range m.expandedItems {
+		if expandable[id] {
+			retained[id] = expanded
+		}
+	}
+	return retained
+}
+
+func (m *Model) hasUnresolvedExpansion(known map[string]bool) bool {
+	for id := range m.expandedItems {
+		if !known[id] {
+			return true
+		}
+	}
+	return false
+}
+
+// Records the IDs of every expandable item reachable from
+// the given items, including those nested within them.
+func collectExpandableIDs(items []Item, out map[string]bool) {
+	for _, item := range items {
+		if !item.IsExpandable() || out[item.GetID()] {
+			continue
+		}
+		out[item.GetID()] = true
+		collectExpandableIDs(item.GetChildren(), out)
+	}
 }
 
 // refreshDrillDownItems updates drill-down view from current root items.
@@ -506,4 +611,25 @@ func (m *Model) RemoveItemByID(id string) bool {
 	}
 
 	return true
+}
+
+// SetExpanded expands or collapses the item with the given ID, for callers
+// driving the pane programmatically rather than through key presses.
+func (m *Model) SetExpanded(id string, expanded bool) {
+	m.expandedItems[id] = expanded
+	m.resolveSelectedIndex()
+	if m.initialized {
+		m.updateViewports()
+	}
+}
+
+// Select moves the selection to the item with the given ID, expanding its
+// parent if the item is currently hidden. The selection is left on the first
+// visible item when the ID is not found.
+func (m *Model) Select(id string) {
+	m.selectedID = id
+	m.resolveSelectedIndex()
+	if m.initialized {
+		m.updateViewports()
+	}
 }

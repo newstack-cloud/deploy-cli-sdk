@@ -70,6 +70,24 @@ func (p *Printer) FieldRemove(path string) {
 	p.w.Printf("  - %s\n", path)
 }
 
+// FieldContributedByLink prints which link a field belongs to, under the change to it.
+func (p *Printer) FieldContributedByLink(linkName string) {
+	p.w.Printf("      contributed by link %s\n", linkName)
+}
+
+// FieldKnownOnDeploy prints a field whose value is not settled until the deployment runs.
+func (p *Printer) FieldKnownOnDeploy(path string) {
+	p.w.Printf("  ? %s\n", path)
+}
+
+// LinkContributionNotApplied prints a contribution a link records against a resource that
+// could not be composed into its spec.
+func (p *Printer) LinkContributionNotApplied(linkName, fieldPath, reason string) {
+	p.w.Printf("  ! link: %s\n", linkName)
+	p.w.Printf("      field:  %s\n", fieldPath)
+	p.w.Printf("      reason: %s\n", reason)
+}
+
 // NoChanges prints a "no changes" message.
 func (p *Printer) NoChanges() {
 	p.w.Println("  (no field changes)")

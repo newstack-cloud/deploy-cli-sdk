@@ -455,7 +455,7 @@ func (s *InspectModelBehaviorTestSuite) Test_headless_link_event_printed_during_
 				LinkUpdateEvent: &container.LinkDeployUpdateMessage{
 					LinkName:      "service-a::service-b",
 					Status:        core.LinkStatusCreating,
-					PreciseStatus: core.PreciseLinkStatusUpdatingResourceA,
+					PreciseStatus: core.PreciseLinkStatusUpdatingLinkedResources,
 				},
 			},
 		},
@@ -464,7 +464,7 @@ func (s *InspectModelBehaviorTestSuite) Test_headless_link_event_printed_during_
 				LinkUpdateEvent: &container.LinkDeployUpdateMessage{
 					LinkName:      "service-a::service-b",
 					Status:        core.LinkStatusCreated,
-					PreciseStatus: core.PreciseLinkStatusResourceBUpdated,
+					PreciseStatus: core.PreciseLinkStatusLinkedResourcesUpdated,
 				},
 			},
 		},

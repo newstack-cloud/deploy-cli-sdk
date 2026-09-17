@@ -889,7 +889,8 @@ func (s *DeployItemsTestSuite) Test_GetChildren_builds_removed_links_from_resour
 		Changes: &changes.BlueprintChanges{
 			ResourceChanges: map[string]provider.Changes{
 				"resourceA": {
-					RemovedOutboundLinks: []string{"resourceA::resourceB"},
+					// Entries are the linked-to resource name only.
+					RemovedOutboundLinks: []string{"resourceB"},
 				},
 			},
 		},

@@ -8,18 +8,40 @@ import (
 
 // Icon characters used across deploy and destroy UIs.
 const (
-	IconPending     = "○"
-	IconInProgress  = "◐"
-	IconSuccess     = "✓"
-	IconFailed      = "✗"
-	IconRollingBack = "↺"
+	IconPending          = "○"
+	IconInProgress       = "◐"
+	IconSuccess          = "✓"
+	IconFailed           = "✗"
+	IconRollingBack      = "↺"
 	IconRollbackFailed   = "⚠"
 	IconRollbackComplete = "⟲"
 	IconInterrupted      = "⏹"
 	IconSkipped          = "⊘"
 	IconNoChange         = "─"
 	IconRetained         = "⊙"
+	IconDegraded         = "!"
 )
+
+// ResourceDegraded reports whether a resource reached a successful status but still
+// carries failure reasons.
+//
+// A resource whose links could not apply what they contribute is recorded with its own
+// status, which is the deployment the blueprint asked for and did succeed, and the reason
+// is attached alongside. Reading the status alone therefore shows it as healthy, and the
+// only account of what went wrong sits in a detail view nobody has been given a reason to
+// open.
+func ResourceDegraded(status core.ResourceStatus, failureReasons []string) bool {
+	if len(failureReasons) == 0 {
+		return false
+	}
+
+	switch status {
+	case core.ResourceStatusCreated, core.ResourceStatusUpdated, core.ResourceStatusDestroyed:
+		return true
+	default:
+		return false
+	}
+}
 
 // ResourceStatusIcon returns an icon character for the given resource status.
 // This handles all resource statuses (create, update, destroy).

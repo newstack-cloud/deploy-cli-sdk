@@ -226,6 +226,108 @@ func (s *StageRenderersTestSuite) Test_RenderDetails_resource_shows_removed_fiel
 	s.Contains(result, "spec.oldField")
 }
 
+func (s *StageRenderersTestSuite) Test_RenderDetails_resource_names_the_link_a_field_belongs_to() {
+	item := &StageItem{
+		Type:   ItemTypeResource,
+		Name:   "ordersFunction",
+		Action: ActionUpdate,
+		Changes: &provider.Changes{
+			RemovedFields: []string{"spec.environment.variables.TABLE_NAME_ordersTable"},
+			LinkOwnedFields: map[string]string{
+				"spec.environment.variables.TABLE_NAME_ordersTable": "ordersFunction::ordersTable",
+			},
+		},
+	}
+	result := s.renderer.RenderDetails(item, 80, s.testStyles)
+	s.Contains(result, "spec.environment.variables.TABLE_NAME_ordersTable")
+	s.Contains(result, "contributed by link ordersFunction::ordersTable")
+}
+
+// A field the blueprint declares is reported without an owner, since there is not one.
+func (s *StageRenderersTestSuite) Test_RenderDetails_resource_leaves_declared_fields_unattributed() {
+	item := &StageItem{
+		Type:   ItemTypeResource,
+		Name:   "ordersFunction",
+		Action: ActionUpdate,
+		Changes: &provider.Changes{
+			RemovedFields: []string{"spec.oldField"},
+			LinkOwnedFields: map[string]string{
+				"spec.environment.variables.TABLE_NAME_ordersTable": "ordersFunction::ordersTable",
+			},
+		},
+	}
+	result := s.renderer.RenderDetails(item, 80, s.testStyles)
+	s.Contains(result, "spec.oldField")
+	s.NotContains(result, "contributed by link")
+}
+
+// A field whose value is settled at deploy is listed, and one a link contributes is
+// attributed to that link.
+func (s *StageRenderersTestSuite) Test_RenderDetails_resource_attributes_a_link_contributed_value_known_on_deploy() {
+	item := &StageItem{
+		Type:   ItemTypeResource,
+		Name:   "ordersFunction",
+		Action: ActionUpdate,
+		Changes: &provider.Changes{
+			FieldChangesKnownOnDeploy: []string{
+				"spec.environment.variables.TABLE_NAME_ordersTable",
+				"spec.declaredValue",
+			},
+			LinkOwnedFields: map[string]string{
+				"spec.environment.variables.TABLE_NAME_ordersTable": "ordersFunction::ordersTable",
+			},
+		},
+	}
+	result := s.renderer.RenderDetails(item, 120, s.testStyles)
+	s.Contains(result, "Values Known On Deploy")
+	s.Contains(result, "spec.environment.variables.TABLE_NAME_ordersTable")
+	s.Contains(result, "contributed by link ordersFunction::ordersTable")
+	// The declared field is listed too, and without an owner, since it does not have one.
+	s.Contains(result, "spec.declaredValue")
+}
+
+// A resource whose only change is a value settled at deploy must not report "No changes",
+// since it is in the change set and will be deployed for exactly that reason.
+func (s *StageRenderersTestSuite) Test_RenderDetails_resource_with_only_values_known_on_deploy_is_not_reported_as_unchanged() {
+	item := &StageItem{
+		Type:   ItemTypeResource,
+		Name:   "ordersFunction",
+		Action: ActionUpdate,
+		Changes: &provider.Changes{
+			FieldChangesKnownOnDeploy: []string{"spec.environment.variables.TABLE_NAME_ordersTable"},
+			LinkOwnedFields: map[string]string{
+				"spec.environment.variables.TABLE_NAME_ordersTable": "ordersFunction::ordersTable",
+			},
+		},
+	}
+	result := s.renderer.RenderDetails(item, 120, s.testStyles)
+	s.NotContains(result, "No changes")
+	s.Contains(result, "Values Known On Deploy")
+}
+
+func (s *StageRenderersTestSuite) Test_RenderDetails_resource_reports_unapplied_link_contributions() {
+	item := &StageItem{
+		Type:   ItemTypeResource,
+		Name:   "ordersExecutionRole",
+		Action: ActionUpdate,
+		Changes: &provider.Changes{
+			ModifiedFields: []provider.FieldChange{{FieldPath: "spec.description"}},
+			UnappliedLinkFields: []provider.UnappliedLinkField{
+				{
+					LinkName:  "appVpc::statsFunction",
+					FieldPath: "spec.policies[0].policyDocument.statement[0]",
+					Reason:    "the value to inject does not match the selector that would locate it",
+				},
+			},
+		},
+	}
+	result := s.renderer.RenderDetails(item, 120, s.testStyles)
+	s.Contains(result, "Link Contributions Not Applied")
+	s.Contains(result, "appVpc::statsFunction")
+	s.Contains(result, "spec.policies[0].policyDocument.statement[0]")
+	s.Contains(result, "does not match the selector")
+}
+
 func (s *StageRenderersTestSuite) Test_RenderDetails_resource_shows_outbound_link_changes() {
 	item := &StageItem{
 		Type:   ItemTypeResource,
@@ -600,17 +702,17 @@ func (s *StageRenderersTestSuite) Test_RenderFooter_shows_all_counts() {
 
 type mockItem struct{}
 
-func (m *mockItem) GetID() string                                 { return "mock" }
-func (m *mockItem) GetName() string                               { return "mock" }
-func (m *mockItem) GetIcon(bool) string                           { return "" }
-func (m *mockItem) GetIconStyled(*styles.Styles, bool) string     { return "" }
-func (m *mockItem) GetAction() string                             { return "" }
-func (m *mockItem) GetDepth() int                                 { return 0 }
-func (m *mockItem) GetParentID() string                           { return "" }
-func (m *mockItem) GetItemType() string                           { return "" }
-func (m *mockItem) IsExpandable() bool                            { return false }
-func (m *mockItem) CanDrillDown() bool                            { return false }
-func (m *mockItem) GetChildren() []splitpane.Item                 { return nil }
+func (m *mockItem) GetID() string                             { return "mock" }
+func (m *mockItem) GetName() string                           { return "mock" }
+func (m *mockItem) GetIcon(bool) string                       { return "" }
+func (m *mockItem) GetIconStyled(*styles.Styles, bool) string { return "" }
+func (m *mockItem) GetAction() string                         { return "" }
+func (m *mockItem) GetDepth() int                             { return 0 }
+func (m *mockItem) GetParentID() string                       { return "" }
+func (m *mockItem) GetItemType() string                       { return "" }
+func (m *mockItem) IsExpandable() bool                        { return false }
+func (m *mockItem) CanDrillDown() bool                        { return false }
+func (m *mockItem) GetChildren() []splitpane.Item             { return nil }
 
 type mockFooterRenderer struct {
 	output string

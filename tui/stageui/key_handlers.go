@@ -6,6 +6,14 @@ import (
 
 // handleKeyMsg routes keyboard input to the appropriate handler based on current state.
 func (m StageModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// While a search term is being typed the split pane takes every key, so
+	// that letters land in the term rather than triggering shortcuts.
+	if m.splitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.splitPane, cmd = m.splitPane.Update(msg)
+		return m, cmd
+	}
+
 	if m.err != nil {
 		return m.handleKeyMsgInErrorState(msg)
 	}
@@ -39,6 +47,13 @@ func (m StageModel) handleKeyMsgInErrorState(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 // handleKeyMsgInExportsView handles keyboard input when viewing exports.
 func (m StageModel) handleKeyMsgInExportsView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key, so "e" types rather than closing the view.
+	if m.exportsModel.IsFiltering() {
+		var cmd tea.Cmd
+		m.exportsModel, cmd = m.exportsModel.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
 	case "e", "esc", "q":
 		m.showingExportsView = false
@@ -54,6 +69,14 @@ func (m StageModel) handleKeyMsgInExportsView(msg tea.KeyMsg) (tea.Model, tea.Cm
 
 // handleKeyMsgInDriftReview handles keyboard input during drift review.
 func (m StageModel) handleKeyMsgInDriftReview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A search term takes every key. This matters most here as "a" applies the
+	// reconciliation, which is not something to trigger by typing.
+	if m.driftSplitPane.IsFiltering() {
+		var cmd tea.Cmd
+		m.driftSplitPane, cmd = m.driftSplitPane.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
 	case "a", "A":
 		return m, applyReconciliationCmd(m)

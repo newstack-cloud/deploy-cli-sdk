@@ -36,12 +36,14 @@ func appendResourcesFromState(
 ) []deployui.DeployItem {
 	for _, resourceState := range instanceState.Resources {
 		item := &deployui.ResourceDeployItem{
-			Name:          resourceState.Name,
-			ResourceID:    resourceState.ResourceID,
-			ResourceType:  resourceState.Type,
-			Action:        shared.ActionInspect,
-			Status:        resourceState.Status,
-			ResourceState: resourceState,
+			Name:           resourceState.Name,
+			ResourceID:     resourceState.ResourceID,
+			ResourceType:   resourceState.Type,
+			Action:         shared.ActionInspect,
+			Status:         resourceState.Status,
+			ResourceState:  resourceState,
+			Durations:      resourceState.Durations,
+			FailureReasons: resourceState.FailureReasons,
 		}
 		resourcesByName[resourceState.Name] = item
 		items = append(items, deployui.DeployItem{
@@ -88,12 +90,14 @@ func appendLinksFromState(
 ) []deployui.DeployItem {
 	for linkName, linkState := range instanceState.Links {
 		item := &deployui.LinkDeployItem{
-			LinkID:        linkState.LinkID,
-			LinkName:      linkName,
-			ResourceAName: extractResourceAFromLinkName(linkName),
-			ResourceBName: extractResourceBFromLinkName(linkName),
-			Action:        shared.ActionInspect,
-			Status:        linkState.Status,
+			LinkID:         linkState.LinkID,
+			LinkName:       linkName,
+			ResourceAName:  extractResourceAFromLinkName(linkName),
+			ResourceBName:  extractResourceBFromLinkName(linkName),
+			Action:         shared.ActionInspect,
+			Status:         linkState.Status,
+			Durations:      linkState.Durations,
+			FailureReasons: linkState.FailureReasons,
 		}
 		linksByName[linkName] = item
 		items = append(items, deployui.DeployItem{

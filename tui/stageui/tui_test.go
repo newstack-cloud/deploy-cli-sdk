@@ -441,7 +441,7 @@ func (s *StageTUISuite) Test_successful_staging_with_link() {
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
-		"resource-a::resource-b",
+		"resource-a → resource-b",
 		"Links",
 	)
 
@@ -481,7 +481,7 @@ func (s *StageTUISuite) Test_successful_staging_with_mixed_items() {
 		"resource-a",
 		"resource-b",
 		"child-blueprint",
-		"resource-a::resource-b",
+		"resource-a → resource-b",
 		"Resources",
 		"Child Blueprints",
 		"Links",
@@ -637,7 +637,7 @@ func (s *StageTUISuite) Test_staging_headless_shows_field_changes() {
 	testutils.WaitForContainsAll(
 		s.T(),
 		headlessOutput,
-		"~",           // Modified field indicator
+		"~", // Modified field indicator
 		"spec.replicas",
 		"2",
 		"4",
@@ -664,7 +664,7 @@ func (s *StageTUISuite) Test_staging_validation_error() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(validationErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -711,7 +711,7 @@ func (s *StageTUISuite) Test_staging_validation_error_headless() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(validationErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -748,7 +748,7 @@ func (s *StageTUISuite) Test_staging_generic_error() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(genericErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(genericErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -840,7 +840,7 @@ func (s *StageTUISuite) Test_staging_headless_with_existing_link() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-existing"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-existing"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -890,7 +890,7 @@ func (s *StageTUISuite) Test_staging_headless_with_existing_child() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-existing"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-existing"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -950,7 +950,7 @@ func (s *StageTUISuite) Test_staging_headless_destroy_hint() {
 		s.T(),
 		headlessOutput,
 		"bluelink destroy",
-		"--changeset-id",
+		"--change-set-id",
 	)
 
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
@@ -1031,7 +1031,7 @@ func (s *StageTUISuite) Test_staging_headless_no_changes() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-no-changes"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-no-changes"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1071,7 +1071,7 @@ func (s *StageTUISuite) Test_staging_headless_stream_error() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(streamErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(streamErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1113,7 +1113,7 @@ func (s *StageTUISuite) Test_staging_headless_with_validation_errors() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(validationErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1151,7 +1151,7 @@ func (s *StageTUISuite) Test_staging_headless_generic_error() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(genericErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(genericErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1201,7 +1201,7 @@ func (s *StageTUISuite) Test_staging_headless_shows_link_field_changes() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-fields"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-link-fields"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1250,7 +1250,7 @@ func (s *StageTUISuite) Test_staging_headless_shows_child_change_counts() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-counts"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-child-counts"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1302,7 +1302,7 @@ func (s *StageTUISuite) Test_staging_headless_with_resource_outbound_links() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-outbound"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-outbound"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1347,7 +1347,7 @@ func (s *StageTUISuite) Test_staging_headless_with_export_changes() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
+		DeployEngine:   testutils.NewTestDeployEngineWithStaging(events, "test-changeset-exports"),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
@@ -1394,7 +1394,7 @@ func (s *StageTUISuite) Test_staging_headless_with_diagnostic_location() {
 	}
 
 	model := NewStageModel(StageModelConfig{
-		DeployEngine: testutils.NewTestDeployEngineWithStagingError(validationErr),
+		DeployEngine:   testutils.NewTestDeployEngineWithStagingError(validationErr),
 		Logger:         zap.NewNop(),
 		InstanceName:   "test-instance",
 		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),

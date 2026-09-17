@@ -78,6 +78,8 @@ func (m *StageModel) printHeadlessSummary() {
 		}
 	}
 
+	m.printHeadlessChangeDiagnostics()
+
 	w.DoubleSeparator(72)
 	w.Printf("Complete: %d %s, %d %s, %d %s\n",
 		resources, sdkstrings.Pluralize(resources, "resource", "resources"),
@@ -96,12 +98,36 @@ func (m *StageModel) printHeadlessSummary() {
 	m.printHeadlessApplyHint()
 }
 
+// Reports what the transform said about a blueprint it staged anyway.
+//
+// These are warnings and notes rather than errors, since an error fails the load. They
+// say things like a consumer's trigger having been skipped, which leaves a deployment
+// that succeeds and an application missing a feature. Printed before the tally so they
+// are not buried under the apply hint.
+func (m *StageModel) printHeadlessChangeDiagnostics() {
+	if m.completeChanges == nil || len(m.completeChanges.Diagnostics) == 0 {
+		return
+	}
+
+	w := m.printer.Writer()
+	w.DoubleSeparator(72)
+	w.Printf(
+		"Diagnostics (%d):\n",
+		len(m.completeChanges.Diagnostics),
+	)
+	w.PrintlnEmpty()
+	for _, diag := range m.completeChanges.Diagnostics {
+		m.printHeadlessDiagnostic(diag)
+	}
+	w.PrintlnEmpty()
+}
+
 func (m *StageModel) printHeadlessApplyHint() {
 	var cmd string
 	if m.destroy {
-		cmd = fmt.Sprintf("bluelink destroy --changeset-id %s", m.changesetID)
+		cmd = fmt.Sprintf("%s destroy --change-set-id %s", cliName, m.changesetID)
 	} else {
-		cmd = fmt.Sprintf("bluelink deploy --changeset-id %s", m.changesetID)
+		cmd = fmt.Sprintf("%s deploy --change-set-id %s", cliName, m.changesetID)
 	}
 	if m.instanceName != "" {
 		cmd += fmt.Sprintf(" --instance-name %s", m.instanceName)
@@ -257,8 +283,10 @@ func (m *StageModel) printHeadlessResourceChanges(resourceChanges *provider.Chan
 	hasOutboundLinkChanges := len(resourceChanges.NewOutboundLinks) > 0 ||
 		len(resourceChanges.OutboundLinkChanges) > 0 ||
 		len(resourceChanges.RemovedOutboundLinks) > 0
+	hasUnappliedLinkFields := len(resourceChanges.UnappliedLinkFields) > 0
+	hasKnownOnDeploy := len(resourceChanges.FieldChangesKnownOnDeploy) > 0
 
-	if !hasFieldChanges && !hasOutboundLinkChanges {
+	if !hasFieldChanges && !hasOutboundLinkChanges && !hasKnownOnDeploy {
 		m.printer.NoChanges()
 		return
 	}
@@ -266,22 +294,46 @@ func (m *StageModel) printHeadlessResourceChanges(resourceChanges *provider.Chan
 	w.Println("Field Changes:")
 	if hasFieldChanges {
 		for _, field := range resourceChanges.NewFields {
-			m.printer.FieldAdd(field.FieldPath, headless.FormatMappingNode(field.NewValue))
+			m.printer.FieldAdd(field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
+			m.printLinkContributor(resourceChanges.LinkOwnedFields, field.FieldPath)
 		}
 
 		for _, field := range resourceChanges.ModifiedFields {
 			m.printer.FieldModify(
 				field.FieldPath,
-				headless.FormatMappingNode(field.PrevValue),
-				headless.FormatMappingNode(field.NewValue),
+				headless.FormatFieldValue(field.Sensitive, field.PrevValue),
+				headless.FormatFieldValue(field.Sensitive, field.NewValue),
 			)
+			m.printLinkContributor(resourceChanges.LinkOwnedFields, field.FieldPath)
 		}
 
 		for _, fieldPath := range resourceChanges.RemovedFields {
 			m.printer.FieldRemove(fieldPath)
+			m.printLinkContributor(resourceChanges.LinkOwnedFields, fieldPath)
 		}
 	} else {
 		w.Println("  None")
+	}
+
+	if hasKnownOnDeploy {
+		w.PrintlnEmpty()
+		w.Println("Values Known On Deploy:")
+		for _, fieldPath := range resourceChanges.FieldChangesKnownOnDeploy {
+			m.printer.FieldKnownOnDeploy(fieldPath)
+			m.printLinkContributor(resourceChanges.LinkOwnedFields, fieldPath)
+		}
+	}
+
+	if hasUnappliedLinkFields {
+		w.PrintlnEmpty()
+		w.Println("Link Contributions Not Applied:")
+		for _, unapplied := range resourceChanges.UnappliedLinkFields {
+			m.printer.LinkContributionNotApplied(
+				unapplied.LinkName,
+				unapplied.FieldPath,
+				unapplied.Reason,
+			)
+		}
 	}
 
 	if hasOutboundLinkChanges {
@@ -325,13 +377,13 @@ func (m *StageModel) printHeadlessLinkFieldChanges(linkChanges *provider.LinkCha
 	w := m.printer.Writer()
 
 	for _, field := range linkChanges.NewFields {
-		w.Printf("%s+ %s: %s\n", indent, field.FieldPath, headless.FormatMappingNode(field.NewValue))
+		w.Printf("%s+ %s: %s\n", indent, field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
 	}
 
 	for _, field := range linkChanges.ModifiedFields {
 		w.Printf("%s± %s: %s -> %s\n", indent, field.FieldPath,
-			headless.FormatMappingNode(field.PrevValue),
-			headless.FormatMappingNode(field.NewValue))
+			headless.FormatFieldValue(field.Sensitive, field.PrevValue),
+			headless.FormatFieldValue(field.Sensitive, field.NewValue))
 	}
 
 	for _, fieldPath := range linkChanges.RemovedFields {
@@ -368,14 +420,14 @@ func (m *StageModel) printHeadlessLinkChanges(linkChanges *provider.LinkChanges)
 	}
 
 	for _, field := range regular.NewFields {
-		m.printer.FieldAdd(field.FieldPath, headless.FormatMappingNode(field.NewValue))
+		m.printer.FieldAdd(field.FieldPath, headless.FormatFieldValue(field.Sensitive, field.NewValue))
 	}
 
 	for _, field := range regular.ModifiedFields {
 		m.printer.FieldModify(
 			field.FieldPath,
-			headless.FormatMappingNode(field.PrevValue),
-			headless.FormatMappingNode(field.NewValue),
+			headless.FormatFieldValue(field.Sensitive, field.PrevValue),
+			headless.FormatFieldValue(field.Sensitive, field.NewValue),
 		)
 	}
 
@@ -603,18 +655,29 @@ func (m *StageModel) printHeadlessExportField(
 	if isModified {
 		prevValue := "(none)"
 		if change.PrevValue != nil {
-			prevValue = headless.FormatMappingNode(change.PrevValue)
+			prevValue = headless.FormatFieldValue(change.Sensitive, change.PrevValue)
 		}
 		newValue := "(known on deploy)"
 		if !isComputedAtDeploy && change.NewValue != nil {
-			newValue = headless.FormatMappingNode(change.NewValue)
+			newValue = headless.FormatFieldValue(change.Sensitive, change.NewValue)
 		}
 		m.printer.FieldModify(name, prevValue, newValue)
 	} else {
 		value := "(known on deploy)"
 		if !isComputedAtDeploy && change.NewValue != nil {
-			value = headless.FormatMappingNode(change.NewValue)
+			value = headless.FormatFieldValue(change.Sensitive, change.NewValue)
 		}
 		m.printer.FieldAdd(name, value)
 	}
+}
+
+// Names the link a field belongs to, where a link contributed it rather than the
+// blueprint declaring it.
+func (m *StageModel) printLinkContributor(linkOwnedFields map[string]string, fieldPath string) {
+	linkName, contributedByLink := linkOwnedFields[fieldPath]
+	if !contributedByLink {
+		return
+	}
+
+	m.printer.FieldContributedByLink(linkName)
 }

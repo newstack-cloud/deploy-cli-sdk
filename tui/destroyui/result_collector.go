@@ -14,6 +14,11 @@ type resultCollector struct {
 	failures        []ElementFailure
 	interrupted     []InterruptedElement
 	retained        []RetainedElement
+
+	// Maps a resource's parent path and name to the abstract
+	// resource it was expanded from, so links can inherit the group shared by
+	// both of their endpoints.
+	resourceGroups map[string]*shared.ResourceGroup
 }
 
 // Scans all items to collect destroyed elements,
@@ -27,6 +32,7 @@ func (m *DestroyModel) collectDestroyResults() {
 	}
 
 	collector.collectFromItems(m.items, "")
+	collector.assignLinkGroups()
 
 	m.destroyedElements = collector.destroyed
 	m.elementFailures = collector.failures
@@ -142,20 +148,25 @@ func lookupLink(m map[string]*LinkDestroyItem, pathKey, name string) *LinkDestro
 }
 
 func (c *resultCollector) collectResourceResult(item *ResourceDestroyItem, path string) {
+	group := item.AbstractGroup()
+	c.recordResourceGroup(item.Name, path, group)
+
 	if IsFailedResourceStatus(item.Status) && len(item.FailureReasons) > 0 {
 		c.failures = append(c.failures, ElementFailure{
 			ElementName:    item.Name,
 			ElementPath:    path,
 			ElementType:    item.ResourceType,
 			FailureReasons: item.FailureReasons,
+			AbstractGroup:  group,
 		})
 		return
 	}
 	if IsInterruptedResourceStatus(item.Status) {
 		c.interrupted = append(c.interrupted, InterruptedElement{
-			ElementName: item.Name,
-			ElementPath: path,
-			ElementType: item.ResourceType,
+			ElementName:   item.Name,
+			ElementPath:   path,
+			ElementType:   item.ResourceType,
+			AbstractGroup: group,
 		})
 		return
 	}
@@ -169,11 +180,76 @@ func (c *resultCollector) collectResourceResult(item *ResourceDestroyItem, path 
 	}
 	if IsSuccessResourceStatus(item.Status) {
 		c.destroyed = append(c.destroyed, DestroyedElement{
-			ElementName: item.Name,
-			ElementPath: path,
-			ElementType: item.ResourceType,
+			ElementName:   item.Name,
+			ElementPath:   path,
+			ElementType:   item.ResourceType,
+			AbstractGroup: group,
 		})
 	}
+}
+
+func (c *resultCollector) recordResourceGroup(name, path string, group *shared.ResourceGroup) {
+	if group == nil {
+		return
+	}
+	if c.resourceGroups == nil {
+		c.resourceGroups = map[string]*shared.ResourceGroup{}
+	}
+	parentPath := shared.ParentElementPath(path, "resources", name)
+	c.resourceGroups[shared.BuildMapKey(parentPath, name)] = group
+}
+
+// Assigns each collected link the abstract resource group
+// shared by both of its endpoints. Links that cross groups, or whose endpoints
+// are not grouped, are left ungrouped so they stay at the top level of the
+// overview rather than being filed under one side of the link.
+func (c *resultCollector) assignLinkGroups() {
+	if len(c.resourceGroups) == 0 {
+		return
+	}
+
+	for i := range c.destroyed {
+		elem := &c.destroyed[i]
+		if group := c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath); group != nil {
+			elem.AbstractGroup = group
+		}
+	}
+
+	for i := range c.failures {
+		elem := &c.failures[i]
+		if group := c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath); group != nil {
+			elem.AbstractGroup = group
+		}
+	}
+
+	for i := range c.interrupted {
+		elem := &c.interrupted[i]
+		if group := c.linkGroup(elem.ElementType, elem.ElementName, elem.ElementPath); group != nil {
+			elem.AbstractGroup = group
+		}
+	}
+}
+
+// Returns the group both endpoints of a link belong to.
+// Destroy elements carry the resource type in ElementType, so only the
+// literal "link" marker identifies a link.
+func (c *resultCollector) linkGroup(elementType, name, path string) *shared.ResourceGroup {
+	if elementType != "link" {
+		return nil
+	}
+
+	parentPath := shared.ParentElementPath(path, "links", name)
+	groupAMapKey := shared.BuildMapKey(parentPath, extractResourceAFromLinkName(name))
+	groupA := c.resourceGroups[groupAMapKey]
+
+	groupBMapKey := shared.BuildMapKey(parentPath, extractResourceBFromLinkName(name))
+	groupB := c.resourceGroups[groupBMapKey]
+
+	if groupA == nil || groupB == nil || *groupA != *groupB {
+		return nil
+	}
+
+	return groupA
 }
 
 func (c *resultCollector) collectChildResult(item *ChildDestroyItem, path string) {

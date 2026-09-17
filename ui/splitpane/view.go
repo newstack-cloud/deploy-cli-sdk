@@ -9,6 +9,10 @@ import (
 	"github.com/newstack-cloud/deploy-cli-sdk/ui"
 )
 
+// The minimum blank space kept between an item's name and its
+// right-aligned action badge.
+const actionGap = 2
+
 // View implements tea.Model
 func (m Model) View() string {
 	if !m.initialized {
@@ -46,6 +50,15 @@ func (m Model) renderLeftPane() string {
 		sb.WriteString(m.renderDefaultHeader())
 	}
 
+	m.renderFilterLine(&sb)
+
+	// The picker stands in for the item list, which is what it is narrowing,
+	// and carries its own keys, so nothing below it applies while it is open.
+	if m.statusPicker {
+		m.renderStatusPicker(&sb)
+		return sb.String()
+	}
+
 	if m.config.SectionGrouper != nil {
 		m.renderGroupedItems(&sb)
 	} else {
@@ -55,8 +68,149 @@ func (m Model) renderLeftPane() string {
 	return sb.String()
 }
 
+// Shows the active search term, how much it is hiding, and
+// while it is being typed, what can be typed into it.
+func (m Model) renderFilterLine(sb *strings.Builder) {
+	if !m.filterInput && !m.HasFilter() {
+		return
+	}
+
+	styles := m.config.Styles
+
+	sb.WriteString(styles.Category.Render("Filter: "))
+	if m.filterTerm == "" {
+		sb.WriteString(styles.Muted.Render(m.emptyFilterPrompt()))
+	} else {
+		sb.WriteString(styles.Selected.Render(m.filterTerm))
+	}
+	if m.filterInput {
+		sb.WriteString(styles.Selected.Render("▌"))
+	}
+	if m.HasFilter() {
+		sb.WriteString(styles.Muted.Render(fmt.Sprintf(
+			"  (%d of %d)", len(m.visibleItems()), m.totalItemCount(),
+		)))
+	}
+	sb.WriteString("\n")
+
+	// The picker lists the same statuses below, with counts, so the inline
+	// vocabulary and the keys it describes would both be wrong while it is open.
+	if m.statusPicker {
+		sb.WriteString("\n")
+		return
+	}
+
+	// The status vocabulary is only worth screen space while the term is being
+	// typed, which is also the only moment it can be acted on.
+	if m.filterInput {
+		if hints := m.statusHintLine(); hints != "" {
+			sb.WriteString(styles.Muted.Render(hints))
+			sb.WriteString("\n")
+		}
+		if m.statusPickerAvailable() {
+			sb.WriteString(styles.Muted.Render("tab to pick a status"))
+			sb.WriteString("\n")
+		}
+	}
+
+	hint := "enter to keep, esc to clear"
+	if !m.filterInput {
+		hint = "/ to edit, esc to clear"
+	}
+	sb.WriteString(styles.Muted.Render(hint))
+	sb.WriteString("\n\n")
+}
+
+func (m Model) emptyFilterPrompt() string {
+	if len(m.config.StatusFilterHints) > 0 {
+		return "name or status"
+	}
+	return "name to match"
+}
+
+// Follows a status list that had to be cut short.
+const truncationMarker = "…"
+
+// Lists the status words that fit the pane, whole, so the line
+// never ends mid-word, with a marker when more exist.
+//
+// A pane too narrow for even one of them still gets the bare qualifier, since
+// knowing the filter takes a status at all is most of what the line is for, and
+// a narrow pane is where filtering matters most.
+func (m Model) statusHintLine() string {
+	if len(m.config.StatusFilterHints) == 0 {
+		return ""
+	}
+
+	available := m.leftPane.Width - 4
+	if available <= 0 {
+		return ""
+	}
+
+	line := ""
+	shown := 0
+	for _, status := range m.config.StatusFilterHints {
+		candidate := StatusFilterPrefix + status
+		if line != "" {
+			candidate = line + "  " + candidate
+		}
+		if displayWidth(candidate) > available {
+			break
+		}
+		line = candidate
+		shown += 1
+	}
+
+	if shown == 0 {
+		return truncatedStatusHint(available)
+	}
+	if shown < len(m.config.StatusFilterHints) &&
+		displayWidth(line)+1+displayWidth(truncationMarker) <= available {
+		line += " " + truncationMarker
+	}
+	return line
+}
+
+func truncatedStatusHint(available int) string {
+	for _, candidate := range []string{
+		StatusFilterPrefix + truncationMarker,
+		StatusFilterPrefix,
+	} {
+		if displayWidth(candidate) <= available {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// Counts the columns a string occupies rather than its bytes, so
+// that a multi-byte marker is not mistaken for several columns.
+func displayWidth(s string) int {
+	return len([]rune(s))
+}
+
+// How many items would show with no filter, for the "n of m"
+// counter.
+func (m Model) totalItemCount() int {
+	if m.config.SectionGrouper == nil {
+		return len(m.items)
+	}
+
+	total := 0
+	for _, section := range m.config.SectionGrouper.GroupItems(m.items, m.isExpandedForDisplay) {
+		total += len(section.Items)
+	}
+	return total
+}
+
 func (m Model) renderGroupedItems(sb *strings.Builder) {
-	sections := m.config.SectionGrouper.GroupItems(m.items, m.IsExpanded)
+	sections := m.displaySections()
+	if len(sections) == 0 {
+		sb.WriteString(m.config.Styles.Muted.Render("No items match the filter"))
+		sb.WriteString("\n")
+		return
+	}
+
 	itemIndex := 0
 	for i, section := range sections {
 		if len(section.Items) == 0 {
@@ -82,7 +236,14 @@ func (m Model) renderGroupedItems(sb *strings.Builder) {
 }
 
 func (m Model) renderFlatItems(sb *strings.Builder) {
-	for i, item := range m.items {
+	items := m.visibleItems()
+	if len(items) == 0 && m.HasFilter() {
+		sb.WriteString(m.config.Styles.Muted.Render("No items match the filter"))
+		sb.WriteString("\n")
+		return
+	}
+
+	for i, item := range items {
 		line := m.renderItemLine(item, i == m.selectedIndex)
 		sb.WriteString(line)
 		sb.WriteString("\n")
@@ -141,27 +302,40 @@ func (m Model) renderItemLine(item Item, selected bool) string {
 	}
 
 	// For expandable items, show expand/collapse indicator
+	// The indicator has to follow what is actually rendered where a filter shows the
+	// children of every group, so a group cannot read as collapsed while its
+	// children are listed underneath it.
 	expandIndicator := ""
 	effectiveDepth := depth + len(m.navigationStack)
 	if item.IsExpandable() && effectiveDepth < m.config.MaxExpandDepth {
-		if m.expandedItems[item.GetID()] {
+		if m.isExpandedForDisplay(item.GetID()) {
 			expandIndicator = "▼ "
 		} else {
 			expandIndicator = "▶ "
 		}
 	}
 
-	// Calculate max name length accounting for indentation, type indicator, and expand indicator
-	maxNameLen := max(
-		m.leftPane.Width-20-len(indent)-len(typeIndicator)-len(expandIndicator),
-		10,
-	)
+	// A collapsed item's children are hidden, so say what is folded away.
+	summary := ""
+	if expandIndicator == "▶ " {
+		if summariser, ok := item.(CollapsedSummariser); ok {
+			if text := summariser.GetCollapsedSummary(); text != "" {
+				summary = "  " + text
+			}
+		}
+	}
+
+	// Budget the name against everything else that shares the line, rather than
+	// a flat reserve, so names are only shortened when they genuinely do not fit.
+	action := item.GetAction()
+	overhead := len(indent) + len(expandIndicator) + len(typeIndicator) +
+		lipgloss.Width(icon) + 1 + len(summary) + actionGap + len(action)
+	maxNameLen := max(m.leftPane.Width-4-overhead, 10)
 	name := sdkstrings.TruncateString(item.GetName(), maxNameLen)
 
-	line := fmt.Sprintf("%s%s%s%s %s", indent, expandIndicator, typeIndicator, icon, name)
+	line := fmt.Sprintf("%s%s%s%s %s%s", indent, expandIndicator, typeIndicator, icon, name, summary)
 
 	// Pad to align action badges
-	action := item.GetAction()
 	padding := m.leftPane.Width - 4 - lipgloss.Width(line) - len(action)
 	if padding > 0 {
 		line += strings.Repeat(" ", padding)
@@ -298,8 +472,13 @@ func (m Model) calculateSelectedLineNumber() int {
 	}
 	lineNumber += 1 // Empty line after header
 
+	// The filter line adds the term, its hint and a blank line.
+	if m.filterInput || m.HasFilter() {
+		lineNumber += 3
+	}
+
 	if m.config.SectionGrouper != nil {
-		sections := m.config.SectionGrouper.GroupItems(m.items, m.IsExpanded)
+		sections := m.displaySections()
 		itemIndex := 0
 		for _, section := range sections {
 			if len(section.Items) == 0 {

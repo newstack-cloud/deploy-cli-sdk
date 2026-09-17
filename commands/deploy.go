@@ -15,6 +15,7 @@ import (
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/deployui"
 	"github.com/newstack-cloud/deploy-cli-sdk/tui/driftui"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stageui"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/term"
@@ -146,6 +147,11 @@ func runDeployTUI(
 		if err := RunPreCommandStep(cmd.Context(), cfg.PreCommandStep, confProvider, "deploy", styles, headlessMode, os.Stdout); err != nil {
 			return err
 		}
+
+		// The step may generate the blueprint to work from rather than the one
+		// named on the command line, so the value is re-read instead of kept
+		// from before the step ran.
+		flags.blueprintFile, flags.isDefaultBlueprintFile = confProvider.GetString("deployBlueprintFile")
 	}
 
 	preflightModel := createPreflight(cmd.Context(), cfg, confProvider, "deploy", styles, headlessMode, flags.jsonMode)
@@ -201,6 +207,7 @@ func runDeployTUI(
 // parameterized by CLIConfig for branding and defaults.
 func SetupDeployCommand(rootCmd *cobra.Command, confProvider *config.Provider, cfg *CLIConfig) {
 	driftui.SetCLIName(cfg.CLIName)
+	stageui.SetCLIName(cfg.CLIName)
 	deployCmd := &cobra.Command{
 		Use:   "deploy",
 		Short: "Deploy a blueprint instance",

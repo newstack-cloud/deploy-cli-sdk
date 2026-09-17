@@ -4,6 +4,7 @@ package outpututil
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -18,6 +19,10 @@ import (
 // - < 60s: "X.XXs"
 // - >= 60s: "Xm Ys"
 func FormatDuration(milliseconds float64) string {
+	if !IsPlausibleDuration(milliseconds) {
+		return unavailableDuration
+	}
+
 	if milliseconds < 1000 {
 		return fmt.Sprintf("%.0fms", milliseconds)
 	}
@@ -27,9 +32,41 @@ func FormatDuration(milliseconds float64) string {
 		return fmt.Sprintf("%.2fs", seconds)
 	}
 
-	minutes := int(seconds) / 60
-	remainingSeconds := int(seconds) % 60
-	return fmt.Sprintf("%dm %ds", minutes, remainingSeconds)
+	totalSeconds := int(seconds)
+	minutes := totalSeconds / 60
+	remainingSeconds := totalSeconds % 60
+	if minutes < 60 {
+		return fmt.Sprintf("%dm %ds", minutes, remainingSeconds)
+	}
+
+	hours := minutes / 60
+	remainingMinutes := minutes % 60
+	if hours < 24 {
+		return fmt.Sprintf("%dh %dm %ds", hours, remainingMinutes, remainingSeconds)
+	}
+
+	return fmt.Sprintf("%dd %dh %dm", hours/24, hours%24, remainingMinutes)
+}
+
+// Stands in for a duration that was reported but cannot be
+// a measurement, so that a bad value reads as missing data rather than as a
+// deployment that took a large and incorrect amount of time.
+const unavailableDuration = "unavailable"
+
+// The largest duration treated as a real measurement.
+// A deployment step can legitimately run for hours, so the bar is set well
+// above anything real at 30 days. Values at the top of the range are not large
+// measurements but sentinels: an overflowed time.Duration carries
+// math.MaxInt64 nanoseconds, which arrives here as ~9.2e12 ms (292 years).
+const maxPlausibleDurationMs = 30 * 24 * 60 * 60 * 1000
+
+// IsPlausibleDuration reports whether a reported duration in milliseconds can
+// be a real measurement. Negative values and sentinels are rejected.
+func IsPlausibleDuration(milliseconds float64) bool {
+	if math.IsNaN(milliseconds) || math.IsInf(milliseconds, 0) {
+		return false
+	}
+	return milliseconds >= 0 && milliseconds <= maxPlausibleDurationMs
 }
 
 // OutputField holds a name-value pair for output rendering.
@@ -57,32 +94,82 @@ func RenderOutputsFromState(
 	return RenderOutputFields(fields, width, s)
 }
 
-// CollectOutputFields extracts field entries from spec data.
+// CollectOutputFields extracts field entries from spec data, with nested values
+// rendered concisely so that each field occupies a single line.
 // Uses computedFields paths if provided, otherwise extracts all top-level fields.
 func CollectOutputFields(specData *core.MappingNode, computedFields []string) []OutputField {
+	return collectOutputFields(specData, computedFields, headless.FormatMappingNode)
+}
+
+// CollectOutputFieldsPretty is CollectOutputFields with nested values rendered
+// as indented JSON. Use it in the full-screen views, where a value spanning
+// several lines costs nothing and collapsing it to "{...}" hides the output the
+// view exists to show.
+func CollectOutputFieldsPretty(specData *core.MappingNode, computedFields []string) []OutputField {
+	return collectOutputFields(specData, computedFields, formatPretty)
+}
+
+func formatPretty(node *core.MappingNode) string {
+	return headless.FormatMappingNodeWithOptions(
+		node,
+		headless.FormatMappingNodeOptions{PrettyPrint: true},
+	)
+}
+
+func collectOutputFields(
+	specData *core.MappingNode,
+	computedFields []string,
+	format func(*core.MappingNode) string,
+) []OutputField {
 	if len(computedFields) > 0 {
-		return collectFieldsFromPaths(specData, computedFields)
+		return collectFieldsFromPaths(specData, computedFields, format)
 	}
-	return collectTopLevelFields(specData)
+	return collectTopLevelFields(specData, format)
 }
 
 // collectFieldsFromPaths extracts field values using the provided paths.
-func collectFieldsFromPaths(specData *core.MappingNode, fieldPaths []string) []OutputField {
+func collectFieldsFromPaths(
+	specData *core.MappingNode,
+	fieldPaths []string,
+	format func(*core.MappingNode) string,
+) []OutputField {
 	var fields []OutputField
 	for _, fieldPath := range fieldPaths {
+		displayName := strings.TrimPrefix(fieldPath, "spec.")
+		if IsInternalFieldPath(displayName) {
+			continue
+		}
+
 		lookupPath := ConvertSpecPathToLookupPath(fieldPath)
 		value, err := core.GetPathValue(lookupPath, specData, 10)
 		if err != nil || value == nil {
 			continue
 		}
 
-		displayName := strings.TrimPrefix(fieldPath, "spec.")
-		formattedValue := headless.FormatMappingNode(value)
+		formattedValue := format(value)
 		if IsValidOutputValue(formattedValue) {
 			fields = append(fields, OutputField{Name: displayName, Value: formattedValue})
 		}
 	}
 	return fields
+}
+
+// Marks properties that providers keep on a resource for
+// their own bookkeeping, such as the Cloud Control primary identifier.
+// They are an implementation detail of the provider rather than part of the
+// resource a user declared, so they are left out of anything user-facing.
+const internalFieldPrefix = "__"
+
+// IsInternalFieldPath reports whether a spec field path refers to a provider
+// internal property, at any depth. The path is expected to have had its
+// "spec." prefix stripped already.
+func IsInternalFieldPath(fieldPath string) bool {
+	for _, segment := range strings.Split(fieldPath, ".") {
+		if strings.HasPrefix(segment, internalFieldPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertSpecPathToLookupPath converts a spec field path (e.g., "spec.id")
@@ -95,14 +182,20 @@ func ConvertSpecPathToLookupPath(fieldPath string) string {
 }
 
 // collectTopLevelFields extracts all top-level fields from spec data.
-func collectTopLevelFields(specData *core.MappingNode) []OutputField {
+func collectTopLevelFields(
+	specData *core.MappingNode,
+	format func(*core.MappingNode) string,
+) []OutputField {
 	if specData.Fields == nil {
 		return nil
 	}
 
 	var fields []OutputField
 	for fieldName, fieldValue := range specData.Fields {
-		formattedValue := headless.FormatMappingNode(fieldValue)
+		if IsInternalFieldPath(fieldName) {
+			continue
+		}
+		formattedValue := format(fieldValue)
 		if IsValidOutputValue(formattedValue) {
 			fields = append(fields, OutputField{Name: fieldName, Value: formattedValue})
 		}
@@ -255,7 +348,7 @@ func CollectNonComputedFields(specData *core.MappingNode, computedFields []strin
 	// Collect field names and sort them for consistent ordering
 	var fieldNames []string
 	for fieldName := range specData.Fields {
-		if !computedSet[fieldName] {
+		if !computedSet[fieldName] && !IsInternalFieldPath(fieldName) {
 			fieldNames = append(fieldNames, fieldName)
 		}
 	}
@@ -309,7 +402,7 @@ func CollectNonComputedFieldsPretty(specData *core.MappingNode, computedFields [
 	// Collect field names and sort them for consistent ordering
 	var fieldNames []string
 	for fieldName := range specData.Fields {
-		if !computedSet[fieldName] {
+		if !computedSet[fieldName] && !IsInternalFieldPath(fieldName) {
 			fieldNames = append(fieldNames, fieldName)
 		}
 	}

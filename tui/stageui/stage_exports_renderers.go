@@ -226,7 +226,7 @@ func (r *StageExportsDetailsRenderer) renderExportChange(
 	if isModified {
 		// For modified exports, show previous and new values
 		if change.PrevValue != nil {
-			prevValueStr := headless.FormatMappingNode(change.PrevValue)
+			prevValueStr := headless.FormatFieldValue(change.Sensitive, change.PrevValue)
 			sb.WriteString(s.Muted.Render(fmt.Sprintf("    Previous: %s", prevValueStr)))
 			sb.WriteString("\n")
 		}
@@ -234,7 +234,7 @@ func (r *StageExportsDetailsRenderer) renderExportChange(
 			sb.WriteString(s.Muted.Render("    New: (known on deploy)"))
 			sb.WriteString("\n")
 		} else if change.NewValue != nil {
-			newValueStr := headless.FormatMappingNode(change.NewValue)
+			newValueStr := headless.FormatFieldValue(change.Sensitive, change.NewValue)
 			sb.WriteString(s.Muted.Render(fmt.Sprintf("    New: %s", newValueStr)))
 			sb.WriteString("\n")
 		}
@@ -244,7 +244,7 @@ func (r *StageExportsDetailsRenderer) renderExportChange(
 			sb.WriteString(s.Muted.Render("    Value: (known on deploy)"))
 			sb.WriteString("\n")
 		} else if change.NewValue != nil {
-			newValueStr := headless.FormatMappingNode(change.NewValue)
+			newValueStr := headless.FormatFieldValue(change.Sensitive, change.NewValue)
 			sb.WriteString(s.Muted.Render(fmt.Sprintf("    Value: %s", newValueStr)))
 			sb.WriteString("\n")
 		}

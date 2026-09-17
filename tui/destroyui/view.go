@@ -128,13 +128,22 @@ func (m DestroyModel) renderDestroyedElements(sb *strings.Builder, successStyle 
 	sb.WriteString(successStyle.Render(fmt.Sprintf("  %d Destroyed %s:", len(m.destroyedElements), elementLabel)))
 	sb.WriteString("\n\n")
 
-	for _, elem := range m.destroyedElements {
-		sb.WriteString(successStyle.Render("  ✓ "))
-		sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
-		if elem.ElementType != "" && elem.ElementType != "child" && elem.ElementType != "link" {
-			sb.WriteString(m.styles.Muted.Render(" (" + elem.ElementType + ")"))
+	groups := shared.GroupOverviewEntries(m.destroyedElements, func(e DestroyedElement) *shared.ResourceGroup {
+		return e.AbstractGroup
+	})
+
+	for _, group := range groups {
+		shared.RenderOverviewGroupHeader(sb, group.Group, "  ", m.styles)
+		indent := shared.OverviewEntryIndent("  ", group.Group)
+		for _, elem := range group.Entries {
+			sb.WriteString(indent)
+			sb.WriteString(successStyle.Render("✓ "))
+			sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
+			if elem.ElementType != "" && elem.ElementType != "child" && elem.ElementType != "link" {
+				sb.WriteString(m.styles.Muted.Render(" (" + elem.ElementType + ")"))
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
 }
@@ -154,13 +163,22 @@ func (m DestroyModel) renderInterruptedElements(sb *strings.Builder) {
 	sb.WriteString(m.styles.Warning.Render(fmt.Sprintf("  %d %s Interrupted:", len(m.interruptedElements), elementLabel)))
 	sb.WriteString("\n\n")
 
-	for _, elem := range m.interruptedElements {
-		sb.WriteString(m.styles.Warning.Render("  ⏹ "))
-		sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
-		if elem.ElementType != "" && elem.ElementType != "child" && elem.ElementType != "link" {
-			sb.WriteString(m.styles.Muted.Render(" (" + elem.ElementType + ")"))
+	groups := shared.GroupOverviewEntries(m.interruptedElements, func(e InterruptedElement) *shared.ResourceGroup {
+		return e.AbstractGroup
+	})
+
+	for _, group := range groups {
+		shared.RenderOverviewGroupHeader(sb, group.Group, "  ", m.styles)
+		indent := shared.OverviewEntryIndent("  ", group.Group)
+		for _, elem := range group.Entries {
+			sb.WriteString(indent)
+			sb.WriteString(m.styles.Warning.Render("⏹ "))
+			sb.WriteString(m.styles.Selected.Render(elem.ElementPath))
+			if elem.ElementType != "" && elem.ElementType != "child" && elem.ElementType != "link" {
+				sb.WriteString(m.styles.Muted.Render(" (" + elem.ElementType + ")"))
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
 	sb.WriteString(m.styles.Muted.Render("    These elements were interrupted and their state is unknown."))

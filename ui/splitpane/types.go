@@ -29,6 +29,15 @@ type Item interface {
 	GetChildren() []Item
 }
 
+// CollapsedSummariser is an optional interface for items whose children are
+// hidden while collapsed. The summary is shown next to the item's name so that
+// what is folded away is still visible when scanning the list.
+type CollapsedSummariser interface {
+	// GetCollapsedSummary describes the hidden children, e.g. "2 resources, 1 link".
+	// An empty string renders nothing.
+	GetCollapsedSummary() string
+}
+
 // Section groups items under a header in the left pane
 type Section struct {
 	Name  string
