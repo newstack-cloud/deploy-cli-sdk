@@ -11,9 +11,9 @@ git config core.hooksPath .githooks
 
 ### Requirements
 
-- [Go](https://go.dev/doc/install) >= 1.24.4
+- [Go](https://go.dev/doc/install) >= 1.26.4 (`go.mod`)
 - [Node.js](https://nodejs.org/en/download/) >= 22.20.0
-- [Yarn](https://yarnpkg.com/getting-started/install) >= 4.3.1
+- [Yarn](https://yarnpkg.com/getting-started/install) 4 (`packageManager` in `package.json`)
 
 ### NPM dependencies
 
@@ -44,17 +44,21 @@ To run unit tests only (without integration tests):
 bash scripts/run-tests.sh
 ```
 
-To update test snapshots (if any):
-
-```bash
-bash scripts/run-tests.sh --update-snapshots
-```
-
 To run tests for a specific package:
 
 ```bash
 go test -v ./styles/...
 go test -v ./config/...
+```
+
+`stateio`'s tests, unit tests included, need the integration stack, so `go test ./...` fails
+there without it; use `bash scripts/run-tests.sh --integration` for that package.
+
+The integration run needs docker, the `aws` CLI, `jq` and `curl`, and test credentials for
+LocalStack, as CI sets them:
+
+```bash
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test bash scripts/run-tests.sh --integration
 ```
 
 ## Linting

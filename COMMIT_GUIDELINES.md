@@ -10,13 +10,13 @@ a base for more advanced tooling to allow for efficient searches for decisions a
 
 ### Commit types
 
-**The following commit types are supported in the Bluelink project:**
+**The following commit types are supported in this repo:**
 
 - `fix:` - Should be used for any bug fixes.
 - `revert:` - Should be used for any commits that revert changes.
 - `wip:` - Should be used for commits that contain work in progress.
 - `feat:` - Should be used for any new features added, regardless of the size of the feature.
-- `chore:` - Should be used for tasks such as releases or patching dependencies.
+- `chore:` - Should be used for tasks such as releases.
 - `ci:` - Should be used for any work on GitHub Action workflows or scripts used in CI.
 - `docs:`- Should be used for adding or modifying documentation.
 - `style:` - Should be used for code formatting commits and linting fixes.
@@ -27,7 +27,7 @@ a base for more advanced tooling to allow for efficient searches for decisions a
 
 ### Example commit
 
-#### With commit scope
+#### Example
 
 ```bash
 git commit -m 'feat: add select component with preview
