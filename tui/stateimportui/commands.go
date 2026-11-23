@@ -33,15 +33,25 @@ func startDownloadCmd(filePath string) tea.Cmd {
 	}
 }
 
+type importOptions struct {
+	fileEncryption       *stateio.StateEncryptionKeyConfig
+	requireEncryptedFile bool
+	force                bool
+}
+
 func startImportCmd(
 	engineConfig *stateio.EngineConfig,
 	filePath string,
+	opts importOptions,
 ) tea.Cmd {
 	return func() tea.Msg {
 		result, err := stateio.Import(stateio.ImportParams{
-			FilePath:     filePath,
-			EngineConfig: engineConfig,
-			FileSystem:   afero.NewOsFs(),
+			FilePath:             filePath,
+			EngineConfig:         engineConfig,
+			FileSystem:           afero.NewOsFs(),
+			FileEncryption:       opts.fileEncryption,
+			RequireEncryptedFile: opts.requireEncryptedFile,
+			Force:                opts.force,
 		})
 		return ImportCompleteMsg{Result: result, Err: err}
 	}
@@ -50,12 +60,16 @@ func startImportCmd(
 func startImportWithDataCmd(
 	engineConfig *stateio.EngineConfig,
 	data []byte,
+	opts importOptions,
 ) tea.Cmd {
 	return func() tea.Msg {
 		result, err := stateio.Import(stateio.ImportParams{
-			EngineConfig: engineConfig,
-			FileSystem:   afero.NewOsFs(),
-			FileData:     data,
+			EngineConfig:         engineConfig,
+			FileSystem:           afero.NewOsFs(),
+			FileData:             data,
+			FileEncryption:       opts.fileEncryption,
+			RequireEncryptedFile: opts.requireEncryptedFile,
+			Force:                opts.force,
 		})
 		return ImportCompleteMsg{Result: result, Err: err}
 	}

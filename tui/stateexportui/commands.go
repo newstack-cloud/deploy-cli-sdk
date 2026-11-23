@@ -19,12 +19,14 @@ func startExportCmd(
 	engineConfig *stateio.EngineConfig,
 	filePath string,
 	instanceFilters []string,
+	fileEncryption *stateio.StateEncryptionKeyConfig,
 ) tea.Cmd {
 	return func() tea.Msg {
 		result, err := stateio.Export(stateio.ExportParams{
 			FilePath:        filePath,
 			InstanceFilters: instanceFilters,
 			EngineConfig:    engineConfig,
+			FileEncryption:  fileEncryption,
 			FileSystem:      afero.NewOsFs(),
 		})
 		return ExportCompleteMsg{Result: result, Err: err}

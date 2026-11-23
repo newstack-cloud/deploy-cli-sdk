@@ -35,75 +35,67 @@ func (s *ExportModelSuite) newModel(cfg ExportModelConfig) *ExportModel {
 	return NewExportModel(cfg)
 }
 
-
-func (s *ExportModelSuite) Test_renderResult_with_error() {
+func (s *ExportModelSuite) Test_View_shows_a_failed_export() {
 	testErr := errors.New("something went wrong during export")
 	m := s.newModel(ExportModelConfig{
 		FilePath: "/tmp/out.json",
 	})
-	m.err = testErr
-	m.finished = true
+	m.Update(ExportCompleteMsg{Err: testErr})
 
-	view := m.renderResult()
-	s.Contains(view, "Export failed:", "should contain failure heading")
-	s.Contains(view, testErr.Error(), "should contain the error message")
-	s.Contains(view, "Press q to quit", "should contain quit hint")
+	view := m.View()
+	s.Equal(
+		"\n  ✗ Export failed\n\n"+
+			"    Source: state\n"+
+			"    Error:  something went wrong during export\n\n"+
+			"  Press q to quit\n",
+		view,
+	)
 }
 
-func (s *ExportModelSuite) Test_renderResult_with_nil_result() {
-	// finished with no error and no result
+func (s *ExportModelSuite) Test_View_shows_an_export_with_no_result() {
 	m := s.newModel(ExportModelConfig{
 		FilePath: "/tmp/out.json",
 	})
-	m.finished = true
-	m.result = nil
-	m.err = nil
+	m.Update(ExportCompleteMsg{})
 
-	view := m.renderResult()
-	s.Contains(view, "Export completed with no result.")
-	s.Contains(view, "Press q to quit")
+	view := m.View()
+	s.Equal("\n  Export completed with no result.\n\n  Press q to quit\n", view)
 }
 
-func (s *ExportModelSuite) Test_View_exporting_contains_file_path() {
+func (s *ExportModelSuite) Test_View_exporting_describes_the_source_state() {
 	m := s.newModel(ExportModelConfig{
 		FilePath: "/tmp/mystate.json",
 	})
-	m.exporting = true
+	m.Update(ExportStartedMsg{})
 
 	view := m.View()
-	s.Contains(view, "Exporting state to /tmp/mystate.json")
+	s.Equal("\n  ⣾  Exporting state...\n", view)
 }
 
-func (s *ExportModelSuite) Test_writeTextOutput_with_error() {
-	var buf bytes.Buffer
-	testErr := fmt.Errorf("disk full")
-	m := s.newModel(ExportModelConfig{
-		Headless:       true,
-		HeadlessWriter: &buf,
-	})
-	m.err = testErr
-	m.finished = true
-
-	m.writeTextOutput()
-
-	s.Contains(buf.String(), "Export failed: disk full")
-}
-
-func (s *ExportModelSuite) Test_writeTextOutput_with_result() {
+func (s *ExportModelSuite) Test_headless_text_output_with_error() {
 	var buf bytes.Buffer
 	m := s.newModel(ExportModelConfig{
 		Headless:       true,
 		HeadlessWriter: &buf,
 	})
-	m.result = &stateio.ExportResult{
+	m.Update(ExportCompleteMsg{Err: fmt.Errorf("disk full")})
+
+	s.Equal("Export failed: disk full\n  Source: state\n", buf.String())
+}
+
+func (s *ExportModelSuite) Test_headless_text_output_with_result() {
+	var buf bytes.Buffer
+	m := s.newModel(ExportModelConfig{
+		Headless:       true,
+		HeadlessWriter: &buf,
+	})
+	m.Update(ExportCompleteMsg{Result: &stateio.ExportResult{
 		Success:        true,
 		InstancesCount: 3,
 		Message:        "Successfully exported 3 instances",
-	}
+	}})
 
-	m.writeTextOutput()
-
-	s.Contains(buf.String(), "Successfully exported 3 instances")
+	s.Equal("Successfully exported 3 instances\nSource: state\n", buf.String())
 }
 
 func TestExportModelSuite(t *testing.T) {
@@ -175,7 +167,7 @@ func (s *MainModelInteractiveSuite) Test_View_interactive_mode_shows_file_select
 	testutils.WaitForContainsAll(
 		s.T(),
 		testModel.Output(),
-		"export",
+		"Where do you want to save the output file?",
 	)
 
 	testModel.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -315,14 +307,14 @@ func (s *MainModelInteractiveSuite) Test_View_quitting_renders_goodbye() {
 		Headless:     false,
 	})
 	s.Require().NoError(err)
-	mainModel.quitting = true
 
-	view := mainModel.View()
+	quitModel, _ := mainModel.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+
+	view := quitModel.View()
 	s.Contains(view, "See you next time.")
 }
 
-// Test_handleKeyMsg_q_does_not_quit_while_running verifies 'q' is a no-op mid-export.
-func (s *MainModelInteractiveSuite) Test_handleKeyMsg_q_noop_during_export() {
+func (s *MainModelInteractiveSuite) Test_q_does_not_quit_during_export() {
 	mainModel, err := NewStateExportApp(StateExportAppConfig{
 		FilePath:     s.outputFile,
 		EngineConfig: s.engineConfig,
@@ -330,9 +322,9 @@ func (s *MainModelInteractiveSuite) Test_handleKeyMsg_q_noop_during_export() {
 		Headless:     false,
 	})
 	s.Require().NoError(err)
-	mainModel.sessionState = stateExportRunning
 
-	_, cmd := mainModel.handleKeyMsg(tea.KeyMsg{
+	// Given an output file, the export starts running straight away.
+	_, cmd := mainModel.Update(tea.KeyMsg{
 		Type:  tea.KeyRunes,
 		Runes: []rune("q"),
 	})

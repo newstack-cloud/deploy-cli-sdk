@@ -3,9 +3,7 @@ package stateexportui
 import (
 	"errors"
 	"io"
-	"os"
 
-	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/newstack-cloud/deploy-cli-sdk/consts"
@@ -14,45 +12,15 @@ import (
 	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
 )
 
-func createFilePicker(styles *stylespkg.Styles, allowedTypes []string) (filepicker.Model, error) {
-	fp := filepicker.New()
-	fpStyles := filepicker.DefaultStyles()
-	fpStyles.Selected = styles.Selected
-	fpStyles.File = styles.Selectable
-	fpStyles.Directory = styles.Selectable
-	fpStyles.Cursor = styles.Selected
-	fp.Styles = fpStyles
-	fp.AllowedTypes = allowedTypes
-
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return filepicker.Model{}, err
-	}
-	fp.CurrentDirectory = currentDir
-
-	return fp, nil
-}
-
-func createSelectFileModel(
-	styles *stylespkg.Styles,
-	filePath string,
-	autoSelect bool,
-) (*sharedui.SelectFileModel, error) {
-	allowedTypes := []string{".json"}
-	fileTypeName := "output file"
-
-	fp, err := createFilePicker(styles, allowedTypes)
-	if err != nil {
-		return nil, err
-	}
-
+// The output file of an export usually does not exist yet, so the selector asks for a
+// path to write to rather than offering a picker of existing files.
+func createSelectFileModel(styles *stylespkg.Styles) (*sharedui.SelectFileModel, error) {
 	return sharedui.NewSelectFile(sharedui.SelectFileConfig{
-		InitialFile:  filePath,
-		AutoSelect:   autoSelect,
-		Action:       "export",
-		Styles:       styles,
-		FilePicker:   &fp,
-		FileTypeName: fileTypeName,
+		Action:          "export",
+		Styles:          styles,
+		FileTypeName:    "output file",
+		Mode:            sharedui.SelectFileModeSave,
+		DefaultFileName: "state-export.json",
 		SupportedSources: []string{
 			consts.FileSourceLocal,
 			consts.FileSourceS3,
@@ -121,6 +89,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MainModel) handleSelectFileMsg(msg sharedui.SelectFileMsg) (tea.Model, tea.Cmd) {
+	// A completed remote file form keeps sending its selection, and only the first may
+	// start an export.
+	if m.sessionState != stateExportFileSelect {
+		return m, nil
+	}
 	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
 	m.sessionState = stateExportRunning
 	m.exportModel.SetFilePath(m.filePath)
@@ -155,7 +128,8 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-	return m, nil
+	// Every other key belongs to the active screen, e.g. the file source selector.
+	return m.handleSessionStateRouting(msg)
 }
 
 func (m MainModel) handleSpinnerTickMsg(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
@@ -215,7 +189,8 @@ func (m MainModel) View() string {
 		}
 		return ""
 	case stateExportRunning, stateExportComplete:
-		selected := "\n  Exporting to: " + m.styles.Selected.Render(m.filePath) + "\n"
+		header := sharedui.WrapLabelled("  Exporting to: ", m.styles.Selected.Render(m.filePath), m.width)
+		selected := "\n" + header + "\n"
 		return selected + m.exportModel.View()
 	}
 
@@ -231,6 +206,8 @@ type StateExportAppConfig struct {
 	Headless        bool
 	HeadlessWriter  io.Writer
 	JSONMode        bool
+	// FileEncryption is the key the output file is encrypted with, if any.
+	FileEncryption *stateio.StateEncryptionKeyConfig
 }
 
 // NewStateExportApp creates a new state export application.
@@ -249,7 +226,7 @@ func NewStateExportApp(config StateExportAppConfig) (*MainModel, error) {
 		// Interactive mode - start with file selection
 		sessionState = stateExportFileSelect
 		var err error
-		selectFile, err = createSelectFileModel(config.Styles, "", false)
+		selectFile, err = createSelectFileModel(config.Styles)
 		if err != nil {
 			return nil, err
 		}
@@ -263,6 +240,7 @@ func NewStateExportApp(config StateExportAppConfig) (*MainModel, error) {
 		Headless:        config.Headless,
 		HeadlessWriter:  config.HeadlessWriter,
 		JSONMode:        config.JSONMode,
+		FileEncryption:  config.FileEncryption,
 	})
 
 	return &MainModel{

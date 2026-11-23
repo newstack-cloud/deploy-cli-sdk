@@ -3,40 +3,48 @@ package stateimportui
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/newstack-cloud/deploy-cli-sdk/jsonout"
 	"github.com/newstack-cloud/deploy-cli-sdk/stateio"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
+	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
 )
 
 // ImportModelConfig holds configuration for the import model.
 type ImportModelConfig struct {
-	EngineConfig   *stateio.EngineConfig
-	FilePath       string
-	Styles         *stylespkg.Styles
-	Headless       bool
-	HeadlessWriter io.Writer
-	JSONMode       bool
+	EngineConfig         *stateio.EngineConfig
+	FilePath             string
+	Styles               *stylespkg.Styles
+	Headless             bool
+	HeadlessWriter       io.Writer
+	JSONMode             bool
+	FileEncryption       *stateio.StateEncryptionKeyConfig
+	RequireEncryptedFile bool
+	Force                bool
 }
 
 // ImportModel handles the import progress display.
 type ImportModel struct {
-	spinner        spinner.Model
-	engineConfig   *stateio.EngineConfig
-	filePath       string
-	downloading    bool
-	importing      bool
-	result         *stateio.ImportResult
-	err            error
-	finished       bool
-	headless       bool
-	headlessWriter io.Writer
-	jsonMode       bool
-	styles         *stylespkg.Styles
-	width          int
+	spinner              spinner.Model
+	engineConfig         *stateio.EngineConfig
+	filePath             string
+	fileEncryption       *stateio.StateEncryptionKeyConfig
+	requireEncryptedFile bool
+	force                bool
+	downloading          bool
+	importing            bool
+	result               *stateio.ImportResult
+	err                  error
+	finished             bool
+	headless             bool
+	headlessWriter       io.Writer
+	jsonMode             bool
+	styles               *stylespkg.Styles
+	width                int
 }
 
 // NewImportModel creates a new import model.
@@ -46,14 +54,17 @@ func NewImportModel(config ImportModelConfig) *ImportModel {
 	s.Style = config.Styles.Spinner
 
 	return &ImportModel{
-		spinner:        s,
-		engineConfig:   config.EngineConfig,
-		filePath:       config.FilePath,
-		headless:       config.Headless,
-		headlessWriter: config.HeadlessWriter,
-		jsonMode:       config.JSONMode,
-		styles:         config.Styles,
-		width:          80, // Default width, will be updated on first WindowSizeMsg
+		spinner:              s,
+		engineConfig:         config.EngineConfig,
+		filePath:             config.FilePath,
+		fileEncryption:       config.FileEncryption,
+		requireEncryptedFile: config.RequireEncryptedFile,
+		force:                config.Force,
+		headless:             config.Headless,
+		headlessWriter:       config.HeadlessWriter,
+		jsonMode:             config.JSONMode,
+		styles:               config.Styles,
+		width:                80, // Default width, will be updated on first WindowSizeMsg
 	}
 }
 
@@ -78,7 +89,7 @@ func (m *ImportModel) Update(msg tea.Msg) (*ImportModel, tea.Cmd) {
 			return m, nil
 		}
 		m.importing = true
-		return m, startImportWithDataCmd(m.engineConfig, msg.Data)
+		return m, startImportWithDataCmd(m.engineConfig, msg.Data, m.importOptions())
 	case ImportStartedMsg:
 		m.importing = true
 		return m, nil
@@ -102,11 +113,13 @@ func (m *ImportModel) View() string {
 	}
 
 	if m.downloading {
-		return fmt.Sprintf("\n  %s Downloading from %s...\n", m.spinner.View(), m.filePath)
+		status := fmt.Sprintf("Downloading from %s...", m.filePath)
+		return stateutil.RenderProgress(m.spinner.View(), status, m.width)
 	}
 
 	if m.importing {
-		return fmt.Sprintf("\n  %s Importing state...\n", m.spinner.View())
+		status := fmt.Sprintf("Importing into %s...", stateutil.DescribeEngineState(m.engineConfig))
+		return stateutil.RenderProgress(m.spinner.View(), status, m.width)
 	}
 
 	if m.finished {
@@ -118,30 +131,26 @@ func (m *ImportModel) View() string {
 
 func (m *ImportModel) renderResult() string {
 	if m.err != nil {
-		// Calculate maximum width for error message wrapping
-		maxWidth := max(
-			// Account for indent and margins
-			m.width-6,
-			40,
-		)
-
-		// Use lipgloss to wrap the error message
-		wrapStyle := lipgloss.NewStyle().Width(maxWidth)
-		wrappedError := wrapStyle.Render(m.err.Error())
-
-		return fmt.Sprintf("\n  %s Import failed:\n\n  %s\n\n  Press q to quit\n",
-			m.styles.Error.Render("✗"),
-			wrappedError,
-		)
+		// The input file is already shown above the result, in the main view's header.
+		details := []stateutil.LabelledValue{{Label: "Target", Value: stateutil.DescribeEngineState(m.engineConfig)}}
+		failure := stateutil.RenderFailure(m.styles, "Import failed", details, m.err, m.width)
+		return failure + "\n  Press q to quit\n"
 	}
 
 	if m.result == nil {
 		return "\n  Import completed with no result.\n\n  Press q to quit\n"
 	}
 
-	return fmt.Sprintf("\n  %s Import complete\n\n    Instances imported: %d\n\n  Press q to quit\n",
+	exportedAt := ""
+	if !m.result.FileExportedAt.IsZero() {
+		exportedAt = fmt.Sprintf("    File exported at: %s\n", formatExportTime(m.result.FileExportedAt))
+	}
+
+	return fmt.Sprintf("\n  %s Import complete\n\n%s\n    Instances imported: %d\n%s\n  Press q to quit\n",
 		m.styles.Success.Render("✓"),
+		sharedui.WrapLabelled("    Target: ", stateutil.DescribeEngineState(m.engineConfig), m.width),
 		m.result.InstancesCount,
+		exportedAt,
 	)
 }
 
@@ -170,6 +179,10 @@ func (m *ImportModel) writeJSONOutput() {
 			Mode:           "import",
 			InstancesCount: m.result.InstancesCount,
 			Message:        m.result.Message,
+			Encrypted:      m.result.Encrypted,
+		}
+		if !m.result.FileExportedAt.IsZero() {
+			output.FileExportedAt = m.result.FileExportedAt.UTC().Format(time.RFC3339)
 		}
 		jsonout.WriteJSON(m.headlessWriter, output)
 	}
@@ -177,13 +190,23 @@ func (m *ImportModel) writeJSONOutput() {
 
 func (m *ImportModel) writeTextOutput() {
 	if m.err != nil {
-		fmt.Fprintf(m.headlessWriter, "Import failed: %v\n", m.err)
+		details := []stateutil.LabelledValue{{Label: "Target", Value: stateutil.DescribeEngineState(m.engineConfig)}}
+		fmt.Fprint(m.headlessWriter, stateutil.FormatFailureText("Import failed", details, m.err))
 		return
 	}
 
 	if m.result != nil {
 		fmt.Fprintf(m.headlessWriter, "%s\n", m.result.Message)
+		fmt.Fprintf(m.headlessWriter, "Target: %s\n", stateutil.DescribeEngineState(m.engineConfig))
+		if !m.result.FileExportedAt.IsZero() {
+			fmt.Fprintf(m.headlessWriter, "File exported at: %s\n", formatExportTime(m.result.FileExportedAt))
+		}
 	}
+}
+
+// Shown so an older export than the one expected can be spotted before it is relied on.
+func formatExportTime(exportedAt time.Time) string {
+	return exportedAt.UTC().Format("2006-01-02 15:04:05 UTC")
 }
 
 // SetFilePath sets the file path for the import.
@@ -206,5 +229,13 @@ func (m *ImportModel) StartImport() tea.Cmd {
 	if stateio.IsRemoteFile(m.filePath) {
 		return startDownloadCmd(m.filePath)
 	}
-	return startImportCmd(m.engineConfig, m.filePath)
+	return startImportCmd(m.engineConfig, m.filePath, m.importOptions())
+}
+
+func (m *ImportModel) importOptions() importOptions {
+	return importOptions{
+		fileEncryption:       m.fileEncryption,
+		requireEncryptedFile: m.requireEncryptedFile,
+		force:                m.force,
+	}
 }

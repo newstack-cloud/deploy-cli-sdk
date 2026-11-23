@@ -3,13 +3,15 @@ package stateexportui
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/newstack-cloud/deploy-cli-sdk/jsonout"
 	"github.com/newstack-cloud/deploy-cli-sdk/stateio"
 	stylespkg "github.com/newstack-cloud/deploy-cli-sdk/styles"
+	"github.com/newstack-cloud/deploy-cli-sdk/tui/stateutil"
+	sharedui "github.com/newstack-cloud/deploy-cli-sdk/ui"
 )
 
 // ExportModelConfig holds configuration for the export model.
@@ -21,6 +23,7 @@ type ExportModelConfig struct {
 	Headless        bool
 	HeadlessWriter  io.Writer
 	JSONMode        bool
+	FileEncryption  *stateio.StateEncryptionKeyConfig
 }
 
 // ExportModel handles the export progress display.
@@ -29,6 +32,7 @@ type ExportModel struct {
 	engineConfig    *stateio.EngineConfig
 	filePath        string
 	instanceFilters []string
+	fileEncryption  *stateio.StateEncryptionKeyConfig
 	exporting       bool
 	result          *stateio.ExportResult
 	err             error
@@ -51,6 +55,7 @@ func NewExportModel(config ExportModelConfig) *ExportModel {
 		engineConfig:    config.EngineConfig,
 		filePath:        config.FilePath,
 		instanceFilters: config.InstanceFilters,
+		fileEncryption:  config.FileEncryption,
 		headless:        config.Headless,
 		headlessWriter:  config.HeadlessWriter,
 		jsonMode:        config.JSONMode,
@@ -92,7 +97,9 @@ func (m *ExportModel) View() string {
 	}
 
 	if m.exporting {
-		return fmt.Sprintf("\n  %s Exporting state to %s...\n", m.spinner.View(), m.filePath)
+		// The output file is already shown above, in the main view's header.
+		status := fmt.Sprintf("Exporting %s...", stateutil.DescribeEngineState(m.engineConfig))
+		return stateutil.RenderProgress(m.spinner.View(), status, m.width)
 	}
 
 	if m.finished {
@@ -104,26 +111,43 @@ func (m *ExportModel) View() string {
 
 func (m *ExportModel) renderResult() string {
 	if m.err != nil {
-		maxWidth := max(m.width-6, 40)
-
-		wrapStyle := lipgloss.NewStyle().Width(maxWidth)
-		wrappedError := wrapStyle.Render(m.err.Error())
-
-		return fmt.Sprintf("\n  %s Export failed:\n\n  %s\n\n  Press q to quit\n",
-			m.styles.Error.Render("✗"),
-			wrappedError,
-		)
+		// The output file is already shown above the result, in the main view's header.
+		details := []stateutil.LabelledValue{{Label: "Source", Value: stateutil.DescribeEngineState(m.engineConfig)}}
+		failure := stateutil.RenderFailure(m.styles, "Export failed", details, m.err, m.width)
+		return failure + "\n  Press q to quit\n"
 	}
 
 	if m.result == nil {
 		return "\n  Export completed with no result.\n\n  Press q to quit\n"
 	}
 
-	return fmt.Sprintf("\n  %s Export complete\n\n    Instances exported: %d\n    Output file: %s\n\n  Press q to quit\n",
+	return fmt.Sprintf("\n  %s Export complete\n\n%s\n    Instances exported: %d\n%s\n%s\n  Press q to quit\n",
 		m.styles.Success.Render("✓"),
+		sharedui.WrapLabelled("    Source: ", stateutil.DescribeEngineState(m.engineConfig), m.width),
 		m.result.InstancesCount,
-		m.result.FilePath,
+		sharedui.WrapLabelled("    Output file: ", m.result.FilePath+encryptedSuffix(m.result.Encrypted), m.width),
+		m.renderWarnings(),
 	)
+}
+
+func encryptedSuffix(encrypted bool) string {
+	if encrypted {
+		return " (encrypted)"
+	}
+	return ""
+}
+
+func (m *ExportModel) renderWarnings() string {
+	if len(m.result.Warnings) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, warning := range m.result.Warnings {
+		prefix := "  " + m.styles.Warning.Render("!") + " "
+		builder.WriteString("\n" + sharedui.WrapLabelled(prefix, warning, m.width) + "\n")
+	}
+	return builder.String()
 }
 
 func (m *ExportModel) writeHeadlessOutput() {
@@ -151,6 +175,8 @@ func (m *ExportModel) writeJSONOutput() {
 			Mode:           "export",
 			InstancesCount: m.result.InstancesCount,
 			Message:        m.result.Message,
+			Encrypted:      m.result.Encrypted,
+			Warnings:       m.result.Warnings,
 		}
 		jsonout.WriteJSON(m.headlessWriter, output)
 	}
@@ -158,12 +184,17 @@ func (m *ExportModel) writeJSONOutput() {
 
 func (m *ExportModel) writeTextOutput() {
 	if m.err != nil {
-		fmt.Fprintf(m.headlessWriter, "Export failed: %v\n", m.err)
+		details := []stateutil.LabelledValue{{Label: "Source", Value: stateutil.DescribeEngineState(m.engineConfig)}}
+		fmt.Fprint(m.headlessWriter, stateutil.FormatFailureText("Export failed", details, m.err))
 		return
 	}
 
 	if m.result != nil {
 		fmt.Fprintf(m.headlessWriter, "%s\n", m.result.Message)
+		fmt.Fprintf(m.headlessWriter, "Source: %s\n", stateutil.DescribeEngineState(m.engineConfig))
+		for _, warning := range m.result.Warnings {
+			fmt.Fprintf(m.headlessWriter, "Warning: %s\n", warning)
+		}
 	}
 }
 
@@ -184,5 +215,5 @@ func (m *ExportModel) IsFinished() bool {
 
 // StartExport returns a command to start the export process.
 func (m *ExportModel) StartExport() tea.Cmd {
-	return startExportCmd(m.engineConfig, m.filePath, m.instanceFilters)
+	return startExportCmd(m.engineConfig, m.filePath, m.instanceFilters, m.fileEncryption)
 }

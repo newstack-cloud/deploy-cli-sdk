@@ -2,7 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"maps"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -51,7 +54,23 @@ type SelectFileConfig struct {
 	// SupportedSources specifies which file sources are available for selection.
 	// If nil or empty, all sources are supported (Local, S3, GCS, Azure Blob, HTTPS).
 	SupportedSources []string
+	// Mode is SelectFileModeOpen (the default) to choose an existing file, or
+	// SelectFileModeSave to choose where a new file will be written.
+	Mode SelectFileMode
+	// DefaultFileName pre-fills the local file path in SelectFileModeSave.
+	DefaultFileName string
 }
+
+// SelectFileMode determines whether the selected file is read or written.
+type SelectFileMode int
+
+const (
+	// SelectFileModeOpen chooses an existing file to read, with a file picker for local files.
+	SelectFileModeOpen SelectFileMode = iota
+	// SelectFileModeSave chooses where a file will be written, with a path input for local
+	// files so the file does not need to exist yet.
+	SelectFileModeSave
+)
 
 type selectFileStage int
 
@@ -90,9 +109,11 @@ type SelectFileStartMsg struct {
 func (m SelectFileModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{}
 
-	fcmd := m.selectLocalFile.Init()
-	rcmd := m.inputRemoteFile.Init()
-	cmds = append(cmds, fcmd, rcmd)
+	// The save mode path input is started when its screen is shown instead.
+	if m.config.Mode != SelectFileModeSave {
+		cmds = append(cmds, m.selectLocalFile.Init())
+	}
+	cmds = append(cmds, m.inputRemoteFile.Init())
 
 	if m.autoSelect {
 		cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedSource))
@@ -116,13 +137,12 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedSource))
 		}
 	case SelectFileSourceMsg:
-		m.stage = fileStageFromSource(msg.Source)
-		m.selectedSource = msg.Source
-		var inputRemoteFileCmd tea.Cmd
-		m.inputRemoteFile, inputRemoteFileCmd = m.inputRemoteFile.Update(msg)
-		cmds = append(cmds, inputRemoteFileCmd)
+		var sourceCmd tea.Cmd
+		m, sourceCmd = m.handleSourceSelected(msg)
+		cmds = append(cmds, sourceCmd)
 	case SelectFileMsg:
 		m.selectedFile = msg.File
+		m.selectedSource = msg.Source
 		m.stage = selectFileStageSelected
 	case clearErrorMsg:
 		m.err = nil
@@ -140,9 +160,11 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
 		cmds = append(cmds, selectLocalFileCmd)
 	default:
-		var selectLocalFileCmd tea.Cmd
-		m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
-		cmds = append(cmds, selectLocalFileCmd)
+		if m.localFileTakesAllMessages() {
+			var selectLocalFileCmd tea.Cmd
+			m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
+			cmds = append(cmds, selectLocalFileCmd)
+		}
 	}
 
 	switch m.stage {
@@ -161,6 +183,27 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m SelectFileModel) handleSourceSelected(msg SelectFileSourceMsg) (SelectFileModel, tea.Cmd) {
+	m.stage = fileStageFromSource(msg.Source)
+	m.selectedSource = msg.Source
+	cmds := []tea.Cmd{}
+	if m.config.Mode == SelectFileModeSave && m.stage == selectFileStageSelectLocalFile {
+		cmds = append(cmds, m.selectLocalFile.Init())
+	}
+	var inputRemoteFileCmd tea.Cmd
+	m.inputRemoteFile, inputRemoteFileCmd = m.inputRemoteFile.Update(msg)
+	cmds = append(cmds, inputRemoteFileCmd)
+	return m, tea.Batch(cmds...)
+}
+
+// The file picker loads its directory listing in the background, so it takes every
+// message. The save mode path input is a huh form, and huh's messages are not tied to a
+// form: one sent while the remote file form is in use would submit the path input as well,
+// so it only takes messages while its screen is shown.
+func (m SelectFileModel) localFileTakesAllMessages() bool {
+	return m.config.Mode != SelectFileModeSave || m.stage == selectFileStageSelectLocalFile
 }
 
 func (m SelectFileModel) View() string {
@@ -222,11 +265,15 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		fileTypeName = "file"
 	}
 
-	startPrompt := fmt.Sprintf("Get started by choosing a %s", fileTypeName)
-	sourcePrompt := fmt.Sprintf("Where is the %s that you want to %s stored?", fileTypeName, config.Action)
-	localFilePrompt := fmt.Sprintf("Pick a %s:", fileTypeName)
+	workingDir, err := selectFileWorkingDir(config.FilePicker)
+	if err != nil {
+		return nil, err
+	}
 
-	selectLocalFile, err := NewSelectLocalFile(config.FilePicker, config.Styles, localFilePrompt, fileTypeName)
+	startPrompt := fmt.Sprintf("Get started by choosing a %s", fileTypeName)
+	sourcePrompt := selectFileSourcePrompt(config, fileTypeName)
+
+	selectLocalFile, err := newLocalFileModel(config, fileTypeName, workingDir)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +286,7 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		false,
 	)
 
-	sourceItems := fileSourceListItems(config.SupportedSources)
+	sourceItems := fileSourceListItems(selectFileSources(config))
 	source := NewSelect(
 		sourcePrompt,
 		sourceItems,
@@ -248,16 +295,12 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		false,
 	)
 
-	remoteConfig := config.RemoteFileConfig
-	if remoteConfig == nil {
-		remoteConfig = &SelectRemoteFileConfig{}
-	}
-	inputRemoteFile := NewSelectRemoteFile(config.InitialFile, config.Styles, remoteConfig)
+	inputRemoteFile := NewSelectRemoteFile(config.InitialFile, config.Styles, remoteFileConfig(config))
 
 	defaultFile, defaultSource := initialFileAndSource(config.InitialFile)
 	selectedFile := defaultFile
 	if defaultSource == consts.FileSourceLocal && !filepath.IsAbs(defaultFile) {
-		selectedFile = filepath.Join(config.FilePicker.CurrentDirectory, defaultFile)
+		selectedFile = filepath.Join(workingDir, defaultFile)
 	}
 
 	// If there's no initial file, skip the start screen and go directly to source selection
@@ -277,6 +320,77 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		stage:           initialStage,
 		config:          config,
 	}, nil
+}
+
+func selectFileWorkingDir(fp *filepicker.Model) (string, error) {
+	if fp != nil && fp.CurrentDirectory != "" {
+		return fp.CurrentDirectory, nil
+	}
+	return os.Getwd()
+}
+
+// A public HTTPS URL can only be read from, so it is never offered as somewhere to save.
+func selectFileSources(config SelectFileConfig) []string {
+	if config.Mode != SelectFileModeSave {
+		return config.SupportedSources
+	}
+
+	sources := config.SupportedSources
+	if len(sources) == 0 {
+		sources = make([]string, 0, len(allFileSourceItems))
+		for _, item := range allFileSourceItems {
+			sources = append(sources, item.Key)
+		}
+	}
+	return slices.DeleteFunc(slices.Clone(sources), func(source string) bool {
+		return source == consts.FileSourceHTTPS
+	})
+}
+
+func selectFileSourcePrompt(config SelectFileConfig, fileTypeName string) string {
+	if config.Mode == SelectFileModeSave {
+		return fmt.Sprintf("Where do you want to save the %s?", fileTypeName)
+	}
+	return fmt.Sprintf("Where is the %s that you want to %s stored?", fileTypeName, config.Action)
+}
+
+func newLocalFileModel(config SelectFileConfig, fileTypeName string, workingDir string) (tea.Model, error) {
+	if config.Mode == SelectFileModeSave {
+		return NewInputLocalFile(config.Styles, fileTypeName, config.DefaultFileName, workingDir), nil
+	}
+	localFilePrompt := fmt.Sprintf("Pick a %s:", fileTypeName)
+	return NewSelectLocalFile(config.FilePicker, config.Styles, localFilePrompt, fileTypeName)
+}
+
+// The remote form's default wording describes a file being read, so save mode fills in
+// wording for a file being written for each source the caller has not worded itself.
+func remoteFileConfig(config SelectFileConfig) *SelectRemoteFileConfig {
+	remoteConfig := SelectRemoteFileConfig{}
+	if config.RemoteFileConfig != nil {
+		remoteConfig = *config.RemoteFileConfig
+	}
+	if config.Mode != SelectFileModeSave {
+		return &remoteConfig
+	}
+
+	remoteConfig.BucketNameDescription = withDefaults(remoteConfig.BucketNameDescription, map[string]string{
+		consts.FileSourceS3:        "The name of the S3 bucket to save the file to.",
+		consts.FileSourceGCS:       "The name of the GCS bucket to save the file to.",
+		consts.FileSourceAzureBlob: "The name of the Azure Blob Storage container to save the file to.",
+	})
+	remoteConfig.ObjectPathDescription = withDefaults(remoteConfig.ObjectPathDescription, map[string]string{
+		consts.FileSourceS3:        "The path to save the file to in the S3 bucket.",
+		consts.FileSourceGCS:       "The path to save the file to in the GCS bucket.",
+		consts.FileSourceAzureBlob: "The path to save the file to in the Azure Blob Storage container.",
+	})
+	return &remoteConfig
+}
+
+// The caller's own wording wins, and defaults only fill the gaps it leaves.
+func withDefaults(values map[string]string, defaults map[string]string) map[string]string {
+	merged := maps.Clone(defaults)
+	maps.Copy(merged, values)
+	return merged
 }
 
 func initialFileAndSource(filePath string) (string, string) {

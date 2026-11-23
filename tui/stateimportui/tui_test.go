@@ -3,6 +3,8 @@ package stateimportui
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,6 +74,7 @@ func (s *StateImportTUISuite) Test_successful_import() {
 		s.T(),
 		testModel.Output(),
 		"Import complete",
+		"Target: memfile state in",
 	)
 
 	testutils.KeyQ(testModel)
@@ -103,6 +106,7 @@ func (s *StateImportTUISuite) Test_successful_import_headless() {
 		s.T(),
 		headlessOutput,
 		"Successfully imported",
+		"Target: memfile state in",
 	)
 
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
@@ -228,6 +232,74 @@ func (s *StateImportTUISuite) Test_import_error_json_output() {
 	)
 
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+}
+
+func (s *StateImportTUISuite) Test_imports_a_file_chosen_in_the_file_selector() {
+	// The file picker lists the working directory, so it holds only the file to choose.
+	pickDir := filepath.Join(s.tempDir, "pick")
+	s.Require().NoError(os.MkdirAll(pickDir, 0755))
+	instancesJSON, err := os.ReadFile(s.testFile)
+	s.Require().NoError(err)
+	s.Require().NoError(os.WriteFile(filepath.Join(pickDir, "chosen.json"), instancesJSON, 0644))
+	s.T().Chdir(pickDir)
+
+	mainModel, err := NewStateImportApp(StateImportAppConfig{
+		EngineConfig:   s.engineConfig,
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
+	s.Require().NoError(err)
+
+	testModel := teatest.NewTestModel(
+		s.T(),
+		mainModel,
+		teatest.WithInitialTermSize(300, 100),
+	)
+
+	testutils.WaitForContains(s.T(), testModel.Output(), "Local file")
+	testutils.KeyEnter(testModel)
+	testutils.WaitForContains(s.T(), testModel.Output(), "chosen.json")
+	testutils.KeyEnter(testModel)
+	testutils.WaitForContains(s.T(), testModel.Output(), "Import complete")
+
+	testutils.KeyQ(testModel)
+	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
+
+	finalModel := testModel.FinalModel(s.T()).(MainModel)
+	s.Nil(finalModel.Error)
+}
+
+func (s *StateImportTUISuite) Test_wraps_a_long_target_under_its_label() {
+	longStateDir := filepath.Join(s.tempDir, "a-fairly-long-directory-name", "and-another-nested-directory", "state")
+	s.Require().NoError(os.MkdirAll(longStateDir, 0755))
+	s.engineConfig.State.MemFileStateDir = longStateDir
+
+	mainModel, err := NewStateImportApp(StateImportAppConfig{
+		FilePath:       s.testFile,
+		EngineConfig:   s.engineConfig,
+		Styles:         stylespkg.NewStyles(lipgloss.NewRenderer(os.Stdout), stylespkg.NewBluelinkPalette()),
+		HeadlessWriter: os.Stdout,
+	})
+	s.Require().NoError(err)
+
+	const width = 60
+	testModel := teatest.NewTestModel(s.T(), mainModel, teatest.WithInitialTermSize(width, 40))
+	testutils.WaitForContains(s.T(), testModel.Output(), "Import complete")
+	// Quitting from outside keeps the result on screen, where q replaces it with a goodbye.
+	s.Require().NoError(testModel.Quit())
+
+	view := testModel.FinalModel(s.T()).View()
+	lines := strings.Split(view, "\n")
+	targetLine := slices.IndexFunc(lines, func(line string) bool {
+		return strings.HasPrefix(line, "    Target: memfile state in")
+	})
+	s.Require().GreaterOrEqual(targetLine, 0, view)
+
+	continuation := lines[targetLine+1]
+	s.True(strings.HasPrefix(continuation, strings.Repeat(" ", len("    Target: "))), view)
+	for _, line := range lines {
+		s.LessOrEqual(lipgloss.Width(line), width, line)
+	}
 }
 
 func (s *StateImportTUISuite) Test_ctrl_c_quits() {

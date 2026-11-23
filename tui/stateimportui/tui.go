@@ -121,6 +121,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MainModel) handleSelectFileMsg(msg sharedui.SelectFileMsg) (tea.Model, tea.Cmd) {
+	// A completed remote file form keeps sending its selection, and only the first may
+	// start an import.
+	if m.sessionState != stateImportFileSelect {
+		return m, nil
+	}
 	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
 	m.sessionState = stateImportRunning
 	m.importModel.SetFilePath(m.filePath)
@@ -156,7 +161,8 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-	return m, nil
+	// Every other key belongs to the active screen, e.g. the file source selector.
+	return m.handleSessionStateRouting(msg)
 }
 
 func (m MainModel) handleSpinnerTickMsg(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
@@ -217,7 +223,8 @@ func (m MainModel) View() string {
 		}
 		return ""
 	case stateImportRunning, stateImportComplete:
-		selected := "\n  Importing from: " + m.styles.Selected.Render(m.filePath) + "\n"
+		header := sharedui.WrapLabelled("  Importing from: ", m.styles.Selected.Render(m.filePath), m.width)
+		selected := "\n" + header + "\n"
 		return selected + m.importModel.View()
 	}
 
@@ -232,6 +239,13 @@ type StateImportAppConfig struct {
 	Headless       bool
 	HeadlessWriter io.Writer
 	JSONMode       bool
+	// FileEncryption is the key to decrypt the input file with when it is encrypted.
+	FileEncryption *stateio.StateEncryptionKeyConfig
+	// RequireEncryptedFile refuses an input file that is not encrypted, see
+	// stateio.ImportParams.
+	RequireEncryptedFile bool
+	// Force allows importing over instances that have an operation in progress.
+	Force bool
 }
 
 // NewStateImportApp creates a new state import application.
@@ -257,12 +271,15 @@ func NewStateImportApp(config StateImportAppConfig) (*MainModel, error) {
 	}
 
 	importModel := NewImportModel(ImportModelConfig{
-		EngineConfig:   config.EngineConfig,
-		FilePath:       config.FilePath,
-		Styles:         config.Styles,
-		Headless:       config.Headless,
-		HeadlessWriter: config.HeadlessWriter,
-		JSONMode:       config.JSONMode,
+		EngineConfig:         config.EngineConfig,
+		FilePath:             config.FilePath,
+		Styles:               config.Styles,
+		Headless:             config.Headless,
+		HeadlessWriter:       config.HeadlessWriter,
+		JSONMode:             config.JSONMode,
+		FileEncryption:       config.FileEncryption,
+		RequireEncryptedFile: config.RequireEncryptedFile,
+		Force:                config.Force,
 	})
 
 	return &MainModel{

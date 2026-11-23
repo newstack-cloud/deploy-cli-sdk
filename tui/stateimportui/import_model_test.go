@@ -54,33 +54,52 @@ func (s *ImportModelSuite) TearDownTest() {
 	os.RemoveAll(s.tempDir)
 }
 
+// Views are rendered wide enough that the temporary state directory, whose length differs
+// between machines, is never wrapped, so they can be asserted whole. Wrapping in a narrow
+// terminal is covered by the TUI tests.
+const viewTestWidth = 1000
+
 func (s *ImportModelSuite) newImportModel(filePath string) *ImportModel {
-	return NewImportModel(ImportModelConfig{
+	m := NewImportModel(ImportModelConfig{
 		EngineConfig: s.engineConfig,
 		FilePath:     filePath,
 		Styles:       s.styles,
 		Headless:     false,
 	})
+	m.SetWidth(viewTestWidth)
+	return m
 }
 
 func (s *ImportModelSuite) Test_Update_DownloadCompleteMsg_with_error_sets_finished_with_error() {
 	m := s.newImportModel("s3://bucket/state.json")
-	m.downloading = true
+	m.Update(DownloadStartedMsg{})
 
 	downloadErr := errors.New("network failure")
 	_, cmd := m.Update(DownloadCompleteMsg{Err: downloadErr})
 
 	s.Nil(cmd)
+	s.True(m.IsFinished())
+	s.Equal(
+		"\n  ✗ Import failed\n\n"+
+			"    Target: memfile state in "+s.stateDir+"\n"+
+			"    Error:  network failure\n\n"+
+			"  Press q to quit\n",
+		m.View(),
+	)
 }
 
 func (s *ImportModelSuite) Test_Update_DownloadCompleteMsg_with_success_starts_import() {
 	m := s.newImportModel("s3://bucket/state.json")
-	m.downloading = true
+	m.Update(DownloadStartedMsg{})
 
 	data := []byte(`[{"id":"inst-1","name":"Test","status":2}]`)
 	_, cmd := m.Update(DownloadCompleteMsg{Data: data, Err: nil})
 
-	s.NotNil(cmd, "should return a command to start import")
+	s.Require().NotNil(cmd, "should return a command to start import")
+	completeMsg, ok := cmd().(ImportCompleteMsg)
+	s.Require().True(ok)
+	s.Require().NoError(completeMsg.Err)
+	s.Equal(1, completeMsg.Result.InstancesCount)
 }
 
 func (s *ImportModelSuite) Test_Update_ImportStartedMsg_sets_importing_true() {
@@ -108,40 +127,92 @@ func (s *ImportModelSuite) Test_Update_ImportCompleteMsg_headless_writes_output(
 	}
 	m.Update(ImportCompleteMsg{Result: result})
 
-	s.Contains(buf.String(), "Successfully imported")
+	s.Equal("Successfully imported 1 instances\nTarget: memfile state in "+s.stateDir+"\n", buf.String())
 }
 
-func (s *ImportModelSuite) Test_renderResult_with_error_contains_import_failed() {
-	m := s.newImportModel(s.testFile)
-	m.err = errors.New("something went wrong")
-	m.finished = true
+func (s *ImportModelSuite) Test_headless_output_shows_when_an_encrypted_file_was_exported() {
+	exportedAt := time.Date(2026, 11, 19, 9, 30, 0, 0, time.UTC)
+	result := &stateio.ImportResult{
+		Success:        true,
+		InstancesCount: 1,
+		Message:        "Successfully imported 1 instances",
+		Encrypted:      true,
+		FileExportedAt: exportedAt,
+	}
 
-	view := m.renderResult()
-	s.Contains(view, "Import failed")
-	s.Contains(view, "something went wrong")
+	var text bytes.Buffer
+	m := NewImportModel(ImportModelConfig{
+		EngineConfig: s.engineConfig, FilePath: s.testFile, Styles: s.styles,
+		Headless: true, HeadlessWriter: &text,
+	})
+	m.Update(ImportCompleteMsg{Result: result})
+	s.Equal(
+		"Successfully imported 1 instances\n"+
+			"Target: memfile state in "+s.stateDir+"\n"+
+			"File exported at: 2026-11-19 09:30:00 UTC\n",
+		text.String(),
+	)
+
+	var jsonOutput bytes.Buffer
+	m = NewImportModel(ImportModelConfig{
+		EngineConfig: s.engineConfig, FilePath: s.testFile, Styles: s.styles,
+		Headless: true, HeadlessWriter: &jsonOutput, JSONMode: true,
+	})
+	m.Update(ImportCompleteMsg{Result: result})
+	s.Equal(
+		`{
+  "success": true,
+  "mode": "import",
+  "instancesCount": 1,
+  "message": "Successfully imported 1 instances",
+  "encrypted": true,
+  "fileExportedAt": "2026-11-19T09:30:00Z"
+}
+`,
+		jsonOutput.String(),
+	)
 }
 
-func (s *ImportModelSuite) Test_renderResult_with_nil_result_shows_no_result_message() {
+func (s *ImportModelSuite) Test_View_with_error_contains_import_failed() {
 	m := s.newImportModel(s.testFile)
-	m.finished = true
-	m.result = nil
+	m.Update(ImportCompleteMsg{Err: errors.New("something went wrong")})
 
-	view := m.renderResult()
-	s.Contains(view, "Import completed with no result")
+	view := m.View()
+	s.Equal(
+		"\n  ✗ Import failed\n\n"+
+			"    Target: memfile state in "+s.stateDir+"\n"+
+			"    Error:  something went wrong\n\n"+
+			"  Press q to quit\n",
+		view,
+	)
 }
 
-func (s *ImportModelSuite) Test_renderResult_with_result_shows_instance_count() {
+func (s *ImportModelSuite) Test_View_with_nil_result_shows_no_result_message() {
 	m := s.newImportModel(s.testFile)
-	m.finished = true
-	m.result = &stateio.ImportResult{
+	m.Update(ImportCompleteMsg{})
+
+	view := m.View()
+	s.Equal("\n  Import completed with no result.\n\n  Press q to quit\n", view)
+}
+
+func (s *ImportModelSuite) Test_View_with_result_shows_instance_count_and_export_time() {
+	m := s.newImportModel(s.testFile)
+	m.Update(ImportCompleteMsg{Result: &stateio.ImportResult{
 		Success:        true,
 		InstancesCount: 5,
 		Message:        "done",
-	}
+		FileExportedAt: time.Date(2026, 11, 19, 9, 30, 0, 0, time.UTC),
+	}})
 
-	view := m.renderResult()
-	s.Contains(view, "Import complete")
-	s.Contains(view, "5")
+	view := m.View()
+	s.Equal(
+		"\n  ✓ Import complete\n\n"+
+			"    Target: memfile state in "+s.stateDir+"\n"+
+			"    Instances imported: 5\n"+
+			"    File exported at: 2026-11-19 09:30:00 UTC\n\n"+
+			"  Press q to quit\n",
+		view,
+	)
 }
 
 func (s *ImportModelSuite) Test_View_returns_empty_in_headless_mode() {
@@ -156,32 +227,36 @@ func (s *ImportModelSuite) Test_View_returns_empty_in_headless_mode() {
 
 func (s *ImportModelSuite) Test_View_shows_downloading_state() {
 	m := s.newImportModel("s3://bucket/state.json")
-	m.downloading = true
+	m.Update(DownloadStartedMsg{})
 
 	view := m.View()
-	s.Contains(view, "Downloading from")
-	s.Contains(view, "s3://bucket/state.json")
+	s.Equal("\n  ⣾  Downloading from s3://bucket/state.json...\n", view)
 }
 
 func (s *ImportModelSuite) Test_View_shows_importing_state() {
 	m := s.newImportModel(s.testFile)
-	m.importing = true
+	m.Update(ImportStartedMsg{})
 
 	view := m.View()
-	s.Contains(view, "Importing state")
+	s.Equal("\n  ⣾  Importing into memfile state in "+s.stateDir+"...\n", view)
 }
 
 func (s *ImportModelSuite) Test_View_shows_result_when_finished() {
 	m := s.newImportModel(s.testFile)
-	m.finished = true
-	m.result = &stateio.ImportResult{
+	m.Update(ImportCompleteMsg{Result: &stateio.ImportResult{
 		Success:        true,
 		InstancesCount: 2,
 		Message:        "done",
-	}
+	}})
 
 	view := m.View()
-	s.Contains(view, "Import complete")
+	s.Equal(
+		"\n  ✓ Import complete\n\n"+
+			"    Target: memfile state in "+s.stateDir+"\n"+
+			"    Instances imported: 2\n\n"+
+			"  Press q to quit\n",
+		view,
+	)
 }
 
 func (s *ImportModelSuite) Test_View_returns_empty_when_not_started() {
@@ -189,7 +264,7 @@ func (s *ImportModelSuite) Test_View_returns_empty_when_not_started() {
 	s.Equal("", m.View())
 }
 
-func (s *ImportModelSuite) Test_writeHeadlessOutput_with_nil_writer_does_not_panic() {
+func (s *ImportModelSuite) Test_headless_output_with_nil_writer_does_not_panic() {
 	m := NewImportModel(ImportModelConfig{
 		EngineConfig:   s.engineConfig,
 		FilePath:       s.testFile,
@@ -197,11 +272,8 @@ func (s *ImportModelSuite) Test_writeHeadlessOutput_with_nil_writer_does_not_pan
 		Headless:       true,
 		HeadlessWriter: nil,
 	})
-	m.finished = true
-	m.result = &stateio.ImportResult{Success: true, Message: "done"}
-
 	s.NotPanics(func() {
-		m.writeHeadlessOutput()
+		m.Update(ImportCompleteMsg{Result: &stateio.ImportResult{Success: true, Message: "done"}})
 	})
 }
 
@@ -235,23 +307,12 @@ func (s *ImportModelSuite) Test_StartImport_with_gcs_path_returns_download_cmd()
 	s.True(ok, "expected DownloadCompleteMsg from gcs remote file import")
 }
 
-func (s *ImportModelSuite) Test_startImportWithDataCmd_imports_from_memory() {
-	data := []byte(`[{"id":"inst-1","name":"Test","status":2}]`)
-	cmd := startImportWithDataCmd(s.engineConfig, data)
+func (s *ImportModelSuite) Test_downloaded_invalid_data_fails_the_import() {
+	m := s.newImportModel("s3://bucket/state.json")
+	_, cmd := m.Update(DownloadCompleteMsg{Data: []byte("not-valid-json")})
 
-	msg := cmd()
-	completeMsg, ok := msg.(ImportCompleteMsg)
-	s.True(ok)
-	s.Nil(completeMsg.Err)
-	s.NotNil(completeMsg.Result)
-	s.Equal(1, completeMsg.Result.InstancesCount)
-}
-
-func (s *ImportModelSuite) Test_startImportWithDataCmd_with_invalid_data_returns_error() {
-	cmd := startImportWithDataCmd(s.engineConfig, []byte("not-valid-json"))
-
-	msg := cmd()
-	completeMsg, ok := msg.(ImportCompleteMsg)
+	s.Require().NotNil(cmd)
+	completeMsg, ok := cmd().(ImportCompleteMsg)
 	s.True(ok)
 	s.NotNil(completeMsg.Err)
 }
@@ -299,24 +360,6 @@ func (s *ImportModelSuite) Test_headless_import_with_error_writes_error_output()
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
 }
 
-func (s *ImportModelSuite) Test_MainModel_View_in_file_select_state_with_no_select_model() {
-	// Edge case: sessionState is fileSelect but selectFile is nil (shouldn't normally happen
-	// but we test the View() fallback)
-	mainModel, err := NewStateImportApp(StateImportAppConfig{
-		FilePath:       "",
-		EngineConfig:   s.engineConfig,
-		Styles:         s.styles,
-		Headless:       false,
-		HeadlessWriter: os.Stdout,
-	})
-	s.Require().NoError(err)
-
-	// Replace the selectFile with nil to test the nil branch in View()
-	mainModel.selectFile = nil
-	view := mainModel.View()
-	s.Equal("", view)
-}
-
 func (s *ImportModelSuite) Test_MainModel_View_in_running_state_shows_file_path() {
 	mainModel, err := NewStateImportApp(StateImportAppConfig{
 		FilePath:       s.testFile,
@@ -344,7 +387,6 @@ func (s *ImportModelSuite) Test_MainModel_View_in_running_state_shows_file_path(
 	testModel.WaitFinished(s.T(), teatest.WithFinalTimeout(5*time.Second))
 }
 
-
 func (s *ImportModelSuite) Test_session_state_routing_in_file_select_state_routes_to_select_model() {
 	mainModel, err := NewStateImportApp(StateImportAppConfig{
 		FilePath:       "",
@@ -359,24 +401,6 @@ func (s *ImportModelSuite) Test_session_state_routing_in_file_select_state_route
 	type unknownMsg struct{}
 	// Should not panic or error
 	mainModel.Update(unknownMsg{})
-}
-
-func (s *ImportModelSuite) Test_session_state_routing_without_select_model_returns_unchanged() {
-	mainModel, err := NewStateImportApp(StateImportAppConfig{
-		FilePath:       "",
-		EngineConfig:   s.engineConfig,
-		Styles:         s.styles,
-		Headless:       false,
-		HeadlessWriter: os.Stdout,
-	})
-	s.Require().NoError(err)
-
-	mainModel.selectFile = nil
-
-	type unknownMsg struct{}
-	_, cmd := mainModel.Update(unknownMsg{})
-
-	s.Nil(cmd)
 }
 
 func TestImportModelSuite(t *testing.T) {
