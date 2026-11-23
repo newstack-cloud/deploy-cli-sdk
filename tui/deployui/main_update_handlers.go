@@ -102,9 +102,28 @@ func (m MainModel) handleDeployConfigMsg(msg DeployConfigMsg) (tea.Model, tea.Cm
 }
 
 func (m MainModel) handleInstanceResolvedMsg(msg InstanceResolvedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		// The deploy model reports the failure, in the TUI or as headless output.
+		m.sessionState = deployExecute
+		var cmd tea.Cmd
+		m.deploy, cmd = m.deploy.Update(DeployErrorMsg{Err: msg.Err})
+		return m, cmd
+	}
+
 	// Instance identifiers have been resolved - set them on staging model and start staging
 	m.staging.SetInstanceID(msg.InstanceID)
 	m.staging.SetInstanceName(msg.InstanceName)
+
+	// The deploy that follows staging deploys to the instance staging found, updating an
+	// existing instance by its ID or creating a new one, rather than looking the name up
+	// again (see resolveDeployInstanceID).
+	m.instanceID = msg.InstanceID
+	if deployModel, ok := m.deploy.(DeployModel); ok {
+		deployModel.instanceID = msg.InstanceID
+		deployModel.instanceResolved = true
+		deployModel.footerRenderer.InstanceID = msg.InstanceID
+		m.deploy = deployModel
+	}
 	return m, m.staging.StartStaging()
 }
 

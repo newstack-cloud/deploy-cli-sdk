@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -9,9 +10,20 @@ import (
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
+	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/consts"
 )
+
+// ReconciliationConfig returns the operation config to send with a reconciliation request.
+// The deploy engine requires a config on reconciliation requests, while the operation
+// config is nil when no deploy config file is configured, so an empty config is sent then.
+func ReconciliationConfig(operationConfig *types.BlueprintOperationConfig) *types.BlueprintOperationConfig {
+	if operationConfig == nil {
+		return &types.BlueprintOperationConfig{}
+	}
+	return operationConfig
+}
 
 // BuildResourceActions converts resource reconciliation results to action payloads.
 func BuildResourceActions(resources []container.ResourceReconcileResult) []types.ResourceReconcileActionPayload {
@@ -134,10 +146,52 @@ type InstanceLookup interface {
 	GetBlueprintInstance(ctx context.Context, instanceIDOrName string) (*state.InstanceState, error)
 }
 
+// LookupInstanceID returns the ID of the instance with the given name, or an empty ID when
+// no instance has that name. Any other lookup failure is returned as an error, so that an
+// engine that cannot be reached is never mistaken for an instance that does not exist yet.
+func LookupInstanceID(ctx context.Context, lookup InstanceLookup, instanceName string) (string, error) {
+	instance, err := lookup.GetBlueprintInstance(ctx, instanceName)
+	if err != nil {
+		if _, isNotFound := engineerrors.IsNotFoundError(err); isNotFound {
+			return "", nil
+		}
+		return "", fmt.Errorf("looking up instance %q: %w", instanceName, err)
+	}
+	if instance == nil {
+		return "", nil
+	}
+	return instance.InstanceID, nil
+}
+
+// ResolveInstance returns the ID and name of the instance a command targets. An instance ID
+// that is already known is returned as it is. Otherwise the instance is looked up by name,
+// and empty strings are returned when no instance has that name, meaning a new deployment.
+// Any other lookup failure is returned as an error, as LookupInstanceID does.
+func ResolveInstance(
+	ctx context.Context,
+	lookup InstanceLookup,
+	instanceID string,
+	instanceName string,
+) (string, string, error) {
+	if instanceID != "" || instanceName == "" {
+		return instanceID, instanceName, nil
+	}
+
+	foundID, err := LookupInstanceID(ctx, lookup, instanceName)
+	if err != nil || foundID == "" {
+		return "", "", err
+	}
+	return foundID, instanceName, nil
+}
+
 // ResolveInstanceIdentifiers looks up instance identifiers, returning the resolved ID and name.
 // If an instance ID is already provided, it's returned as-is.
 // If only a name is provided, it looks up the instance to get its ID.
 // If the instance doesn't exist, empty strings are returned (indicating new deployment).
+//
+// Deprecated: a failed lookup is also returned as empty strings, so a network or
+// authentication failure is taken for an instance that does not exist. Use
+// ResolveInstance, which returns the error.
 func ResolveInstanceIdentifiers(ctx context.Context, resolver InstanceResolver) (instanceID, instanceName string) {
 	if resolver.GetInstanceID() != "" {
 		return resolver.GetInstanceID(), resolver.GetInstanceName()

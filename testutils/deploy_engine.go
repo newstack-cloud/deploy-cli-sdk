@@ -3,12 +3,15 @@ package testutils
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sync"
 	"time"
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint-state/manage"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/changes"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/container"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
+	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
 	"github.com/newstack-cloud/deploy-cli-sdk/engine"
 )
@@ -31,6 +34,20 @@ type testDeployEngine struct {
 	streamErr             error
 	streamErrDelay        time.Duration
 	lastValidationPayload *types.CreateBlueprintValidationPayload
+	// The name GetBlueprintInstance reports as not found, as the engine does for a name
+	// no instance has yet.
+	unknownInstanceName string
+	// How many lookups of unknownInstanceName report it as not found before it is found,
+	// for an instance created by another deploy; zero means it is never found.
+	notFoundLookups int
+	nameLookups     int
+
+	// Calls are recorded from command goroutines and read by tests.
+	callsMu                        sync.Mutex
+	instanceCreates                int
+	instanceUpdates                []string
+	lastApplyReconciliationPayload *types.ApplyReconciliationPayload
+	lastChangesetPayload           *types.CreateChangesetPayload
 }
 
 func NewTestDeployEngine(stubValidationEvents []*types.BlueprintValidationEvent) engine.DeployEngine {
@@ -48,6 +65,43 @@ func NewTestDeployEngineWithStaging(
 		stagingEvents: stubStagingEvents,
 		changesetID:   changesetID,
 	}
+}
+
+// NewTestDeployEngineWithStagingAndDeployment creates a test deploy engine for staging
+// changes and then deploying them: staging streams stubStagingEvents for changesetID, and
+// the deployment streams stubDeploymentEvents for instanceState, which GetBlueprintInstance
+// also returns for any ID or name.
+func NewTestDeployEngineWithStagingAndDeployment(
+	stubStagingEvents []*types.ChangeStagingEvent,
+	changesetID string,
+	stubDeploymentEvents []*types.BlueprintInstanceEvent,
+	instanceState *state.InstanceState,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		stagingEvents:    stubStagingEvents,
+		changesetID:      changesetID,
+		deploymentEvents: stubDeploymentEvents,
+		instanceID:       instanceState.InstanceID,
+		instanceState:    instanceState,
+	}
+}
+
+// NewTestDeployEngineWithInstanceLookupError creates a test deploy engine whose
+// GetBlueprintInstance fails with err, for an engine that cannot be reached.
+func NewTestDeployEngineWithInstanceLookupError(err error) engine.DeployEngine {
+	return &testDeployEngine{getInstanceStateErr: err}
+}
+
+// LastChangesetPayloadFromEngine returns the last CreateChangeset payload received by the
+// test engine. Returns nil if the engine is not a test engine, or if no changes were staged.
+func LastChangesetPayloadFromEngine(eng engine.DeployEngine) *types.CreateChangesetPayload {
+	d, ok := eng.(*testDeployEngine)
+	if !ok {
+		return nil
+	}
+	d.callsMu.Lock()
+	defer d.callsMu.Unlock()
+	return d.lastChangesetPayload
 }
 
 // NewTestDeployEngineWithStagingError creates a test deploy engine that returns an error on CreateChangeset.
@@ -157,6 +211,81 @@ func NewTestDeployEngineWithDestroyError(err error) engine.DeployEngine {
 }
 
 var errInstanceNotFound = fmt.Errorf("instance not found")
+
+// NewTestDeployEngineWithUnknownInstanceName creates a test deploy engine for deploying a
+// new instance by name: GetBlueprintInstance returns a 404 client error for
+// unknownInstanceName, and the deployment creates instanceState.
+func NewTestDeployEngineWithUnknownInstanceName(
+	stubDeploymentEvents []*types.BlueprintInstanceEvent,
+	instanceID string,
+	instanceState *state.InstanceState,
+	unknownInstanceName string,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		deploymentEvents:    stubDeploymentEvents,
+		instanceID:          instanceID,
+		instanceState:       instanceState,
+		unknownInstanceName: unknownInstanceName,
+	}
+}
+
+// NewTestDeployEngineWithInstanceCreatedAfterLookup creates a test deploy engine for
+// staging and deploying a name that another deploy takes in between: the first lookup of
+// instanceName reports it as not found, and later lookups find instanceState.
+func NewTestDeployEngineWithInstanceCreatedAfterLookup(
+	stubStagingEvents []*types.ChangeStagingEvent,
+	changesetID string,
+	stubDeploymentEvents []*types.BlueprintInstanceEvent,
+	instanceState *state.InstanceState,
+	instanceName string,
+) engine.DeployEngine {
+	return &testDeployEngine{
+		stagingEvents:       stubStagingEvents,
+		changesetID:         changesetID,
+		deploymentEvents:    stubDeploymentEvents,
+		instanceID:          instanceState.InstanceID,
+		instanceState:       instanceState,
+		unknownInstanceName: instanceName,
+		notFoundLookups:     1,
+	}
+}
+
+// InstanceCreatesFromEngine returns how many times CreateBlueprintInstance was called on
+// the test engine. Returns 0 if the engine is not a test engine.
+func InstanceCreatesFromEngine(eng engine.DeployEngine) int {
+	d, ok := eng.(*testDeployEngine)
+	if !ok {
+		return 0
+	}
+	d.callsMu.Lock()
+	defer d.callsMu.Unlock()
+	return d.instanceCreates
+}
+
+// InstanceUpdatesFromEngine returns the instance IDs UpdateBlueprintInstance was called
+// with on the test engine, in order. Returns nil if the engine is not a test engine.
+func InstanceUpdatesFromEngine(eng engine.DeployEngine) []string {
+	d, ok := eng.(*testDeployEngine)
+	if !ok {
+		return nil
+	}
+	d.callsMu.Lock()
+	defer d.callsMu.Unlock()
+	return append([]string(nil), d.instanceUpdates...)
+}
+
+// LastApplyReconciliationPayloadFromEngine returns the last ApplyReconciliation payload
+// received by the test engine. Returns nil if the engine is not a test engine, or if no
+// reconciliation has been applied.
+func LastApplyReconciliationPayloadFromEngine(eng engine.DeployEngine) *types.ApplyReconciliationPayload {
+	d, ok := eng.(*testDeployEngine)
+	if !ok {
+		return nil
+	}
+	d.callsMu.Lock()
+	defer d.callsMu.Unlock()
+	return d.lastApplyReconciliationPayload
+}
 
 func (d *testDeployEngine) CreateBlueprintValidation(
 	ctx context.Context,
@@ -295,6 +424,9 @@ func (d *testDeployEngine) CreateChangeset(
 	ctx context.Context,
 	payload *types.CreateChangesetPayload,
 ) (*types.ChangesetResponse, error) {
+	d.callsMu.Lock()
+	d.lastChangesetPayload = payload
+	d.callsMu.Unlock()
 	if d.createError != nil {
 		return nil, d.createError
 	}
@@ -347,6 +479,9 @@ func (d *testDeployEngine) CreateBlueprintInstance(
 	ctx context.Context,
 	payload *types.BlueprintInstancePayload,
 ) (*types.BlueprintInstanceResponse, error) {
+	d.callsMu.Lock()
+	d.instanceCreates++
+	d.callsMu.Unlock()
 	if d.createInstanceErr != nil {
 		return nil, d.createInstanceErr
 	}
@@ -367,6 +502,9 @@ func (d *testDeployEngine) UpdateBlueprintInstance(
 	instanceID string,
 	payload *types.BlueprintInstancePayload,
 ) (*types.BlueprintInstanceResponse, error) {
+	d.callsMu.Lock()
+	d.instanceUpdates = append(d.instanceUpdates, instanceID)
+	d.callsMu.Unlock()
 	if d.updateInstanceErr != nil {
 		return nil, d.updateInstanceErr
 	}
@@ -386,6 +524,9 @@ func (d *testDeployEngine) GetBlueprintInstance(
 	ctx context.Context,
 	instanceID string,
 ) (*state.InstanceState, error) {
+	if d.reportsNotFound(instanceID) {
+		return nil, &engineerrors.ClientError{StatusCode: http.StatusNotFound, Message: "instance not found"}
+	}
 	if d.getInstanceStateErr != nil {
 		return nil, d.getInstanceStateErr
 	}
@@ -395,6 +536,16 @@ func (d *testDeployEngine) GetBlueprintInstance(
 	return &state.InstanceState{
 		InstanceID: instanceID,
 	}, nil
+}
+
+func (d *testDeployEngine) reportsNotFound(instanceIDOrName string) bool {
+	if d.unknownInstanceName == "" || instanceIDOrName != d.unknownInstanceName {
+		return false
+	}
+	d.callsMu.Lock()
+	defer d.callsMu.Unlock()
+	d.nameLookups++
+	return d.notFoundLookups == 0 || d.nameLookups <= d.notFoundLookups
 }
 
 func (d *testDeployEngine) ListBlueprintInstances(
@@ -459,7 +610,10 @@ func (d *testDeployEngine) ApplyReconciliation(
 	instanceID string,
 	payload *types.ApplyReconciliationPayload,
 ) (*container.ApplyReconciliationResult, error) {
-	return nil, nil
+	d.callsMu.Lock()
+	d.lastApplyReconciliationPayload = payload
+	d.callsMu.Unlock()
+	return &container.ApplyReconciliationResult{InstanceID: instanceID}, nil
 }
 
 // NewTestDeployEngineForInspect creates a test deploy engine for inspect scenarios.

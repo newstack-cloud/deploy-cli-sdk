@@ -166,6 +166,7 @@ func buildAcceptExternalPayload(
 		BlueprintDocumentInfo: buildBlueprintDocumentInfoFromModel(model),
 		ResourceActions:       shared.BuildResourceActions(result.Resources),
 		LinkActions:           shared.BuildLinkActions(result.Links),
+		Config:                shared.ReconciliationConfig(model.operationConfig),
 	}
 }
 

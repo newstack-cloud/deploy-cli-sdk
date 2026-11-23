@@ -200,6 +200,7 @@ type DeployModel struct {
 	streaming                bool
 	fetchingPreDeployState   bool // True while fetching pre-deploy instance state
 	fetchingChangeset        bool // True while fetching the changes for an existing change set
+	instanceResolved         bool // True once staging has looked up the instance name
 	finished                 bool
 	finalStatus              core.InstanceStatus
 	failureReasons           []string             // generic failure messages from backend

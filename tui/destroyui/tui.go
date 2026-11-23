@@ -125,9 +125,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDestroyConfig(msg)
 
 	case InstanceResolvedMsg:
-		m.staging.SetInstanceID(msg.InstanceID)
-		m.staging.SetInstanceName(msg.InstanceName)
-		cmds = append(cmds, m.staging.StartStaging())
+		return m.handleInstanceResolved(msg)
 
 	case stageui.StageCompleteMsg:
 		return m.handleStageComplete(msg)
@@ -239,6 +237,20 @@ func (m MainModel) handleDestroyConfig(msg DestroyConfigMsg) (tea.Model, tea.Cmd
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m MainModel) handleInstanceResolved(msg InstanceResolvedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		// The destroy model reports the failure, in the TUI or as headless output.
+		m.sessionState = destroyExecute
+		var cmd tea.Cmd
+		m.destroy, cmd = m.destroy.Update(DestroyErrorMsg{Err: msg.Err})
+		return m, cmd
+	}
+
+	m.staging.SetInstanceID(msg.InstanceID)
+	m.staging.SetInstanceName(msg.InstanceName)
+	return m, m.staging.StartStaging()
 }
 
 func (m MainModel) handleStageComplete(msg stageui.StageCompleteMsg) (tea.Model, tea.Cmd) {

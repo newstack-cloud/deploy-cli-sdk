@@ -51,11 +51,19 @@ type ConfirmDeployMsg struct {
 type InstanceResolvedMsg struct {
 	InstanceID   string
 	InstanceName string
+	// Err is set when the instance could not be looked up for a reason other than it not
+	// existing, in which case staging must not go ahead as if it were a new instance.
+	Err error
 }
 
 func startDeploymentCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
 		payload, err := createDeployPayload(model)
+		if err != nil {
+			return DeployErrorMsg{Err: err}
+		}
+
+		model.instanceID, err = resolveDeployInstanceID(model)
 		if err != nil {
 			return DeployErrorMsg{Err: err}
 		}
@@ -78,6 +86,21 @@ func startDeploymentCmd(model DeployModel) tea.Cmd {
 
 		return DeployStartedMsg{InstanceID: response.Data.InstanceID}
 	}
+}
+
+// The engine only creates an instance whose name is free, so a deploy given just the name
+// of an existing instance has to go through update. A name that is not found is a new
+// deployment; any other lookup failure is reported rather than guessed at.
+//
+// When staging ran first, it has already looked the name up and staged the change set
+// for what it found, so that answer is kept: looking again could find an instance that
+// was created since and apply a change set staged for a new instance to it.
+func resolveDeployInstanceID(model DeployModel) (string, error) {
+	if model.instanceResolved || model.instanceID != "" || model.instanceName == "" {
+		return model.instanceID, nil
+	}
+
+	return shared.LookupInstanceID(model.reqCtx(), model.engine, model.instanceName)
 }
 
 // createOrUpdateInstance creates a new instance or updates an existing one.
@@ -166,13 +189,14 @@ func checkForErrCmd(model DeployModel) tea.Cmd {
 // we need to check if the instance exists. If it doesn't exist (new deployment), we stage
 // with no instance ID/name so staging treats it as a new deployment.
 // If it exists, we use the instance ID for staging against the existing instance.
+// Any other lookup failure is returned in the message, since staging an existing instance
+// as a new one would produce a change set that recreates everything.
 func resolveInstanceIdentifiersCmd(model MainModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceID, instanceName := shared.ResolveInstanceIdentifiers(context.Background(), model)
-		return InstanceResolvedMsg{
-			InstanceID:   instanceID,
-			InstanceName: instanceName,
-		}
+		instanceID, instanceName, err := shared.ResolveInstance(
+			context.Background(), model.engine, model.instanceID, model.instanceName,
+		)
+		return InstanceResolvedMsg{InstanceID: instanceID, InstanceName: instanceName, Err: err}
 	}
 }
 
@@ -207,6 +231,7 @@ func buildAcceptExternalPayload(
 		BlueprintDocumentInfo: buildBlueprintDocumentInfo(model),
 		ResourceActions:       shared.BuildResourceActions(result.Resources),
 		LinkActions:           shared.BuildLinkActions(result.Links),
+		Config:                shared.ReconciliationConfig(model.operationConfig),
 	}
 }
 
@@ -224,6 +249,11 @@ func buildBlueprintDocumentInfo(model DeployModel) types.BlueprintDocumentInfo {
 func continueDeploymentCmd(model DeployModel) tea.Cmd {
 	return func() tea.Msg {
 		payload, err := createDeployPayload(model)
+		if err != nil {
+			return DeployErrorMsg{Err: err}
+		}
+
+		model.instanceID, err = resolveDeployInstanceID(model)
 		if err != nil {
 			return DeployErrorMsg{Err: err}
 		}

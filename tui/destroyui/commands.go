@@ -40,9 +40,11 @@ type ConfirmDestroyMsg struct {
 }
 
 // InstanceResolvedMsg is a message indicating instance identifiers have been resolved.
+// Err is set when the instance name could not be looked up, in which case nothing is staged.
 type InstanceResolvedMsg struct {
 	InstanceID   string
 	InstanceName string
+	Err          error
 }
 
 // PostDestroyInstanceStateFetchedMsg is sent when instance state has been fetched after destroy.
@@ -150,11 +152,10 @@ func checkForDestroyErrCmd(model DestroyModel) tea.Cmd {
 // resolveInstanceIdentifiersCmd resolves instance identifiers for staging in the destroy context.
 func resolveInstanceIdentifiersCmd(model MainModel) tea.Cmd {
 	return func() tea.Msg {
-		instanceID, instanceName := shared.ResolveInstanceIdentifiers(context.Background(), model)
-		return InstanceResolvedMsg{
-			InstanceID:   instanceID,
-			InstanceName: instanceName,
-		}
+		instanceID, instanceName, err := shared.ResolveInstance(
+			context.Background(), model.engine, model.instanceID, model.instanceName,
+		)
+		return InstanceResolvedMsg{InstanceID: instanceID, InstanceName: instanceName, Err: err}
 	}
 }
 
@@ -164,7 +165,7 @@ func applyReconciliationCmd(model DestroyModel) tea.Cmd {
 			return driftui.ReconciliationErrorMsg{Err: nil}
 		}
 
-		payload := buildAcceptExternalPayload(model.driftResult)
+		payload := buildAcceptExternalPayload(model.driftResult, model.operationConfig)
 		instanceID := shared.GetEffectiveInstanceID(model.instanceID, model.instanceName)
 
 		_, err := model.engine.ApplyReconciliation(model.reqCtx(), instanceID, payload)
@@ -181,10 +182,12 @@ func applyReconciliationCmd(model DestroyModel) tea.Cmd {
 
 func buildAcceptExternalPayload(
 	result *container.ReconciliationCheckResult,
+	operationConfig *types.BlueprintOperationConfig,
 ) *types.ApplyReconciliationPayload {
 	return &types.ApplyReconciliationPayload{
 		ResourceActions: shared.BuildResourceActions(result.Resources),
 		LinkActions:     shared.BuildLinkActions(result.Links),
+		Config:          shared.ReconciliationConfig(operationConfig),
 	}
 }
 
