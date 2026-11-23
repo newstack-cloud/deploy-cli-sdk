@@ -19,18 +19,18 @@ import (
 // SelectFileModel provides a generalized file selection interface that supports
 // both local files and remote storage (S3, GCS, Azure Blob, HTTPS).
 type SelectFileModel struct {
-	start           tea.Model
-	source          tea.Model
-	selectLocalFile tea.Model
-	inputRemoteFile tea.Model
-	selectedSource  string
-	selectedFile    string
-	autoSelect      bool
-	stage           selectFileStage
-	quitting        bool
-	err             error
-	config          SelectFileConfig
-	width           int
+	start            tea.Model
+	selectLocation   tea.Model
+	selectLocalFile  tea.Model
+	inputRemoteFile  tea.Model
+	selectedLocation string
+	selectedFile     string
+	autoSelect       bool
+	stage            selectFileStage
+	quitting         bool
+	err              error
+	config           SelectFileConfig
+	width            int
 }
 
 // SelectFileConfig holds configuration for the file selector.
@@ -51,9 +51,9 @@ type SelectFileConfig struct {
 	FileTypeName string
 	// RemoteFileConfig provides configuration for remote file input.
 	RemoteFileConfig *SelectRemoteFileConfig
-	// SupportedSources specifies which file sources are available for selection.
-	// If nil or empty, all sources are supported (Local, S3, GCS, Azure Blob, HTTPS).
-	SupportedSources []string
+	// SupportedLocations specifies which file locations are available for selection.
+	// If nil or empty, all locations are supported (Local, S3, GCS, Azure Blob, HTTPS).
+	SupportedLocations []string
 	// Mode is SelectFileModeOpen (the default) to choose an existing file, or
 	// SelectFileModeSave to choose where a new file will be written.
 	Mode SelectFileMode
@@ -76,21 +76,21 @@ type selectFileStage int
 
 const (
 	selectFileStageStart selectFileStage = iota
-	selectFileStageSelectSource
-	selectFileStageInputFileLocation
+	selectFileStageSelectLocation
+	selectFileStageInputRemoteFile
 	selectFileStageSelectLocalFile
 	selectFileStageSelected
 )
 
 // SelectFileMsg is sent when a file has been selected.
 type SelectFileMsg struct {
-	File   string
-	Source string
+	File     string
+	Location string
 }
 
-// SelectFileSourceMsg is sent when a source has been selected.
-type SelectFileSourceMsg struct {
-	Source string
+// SelectFileLocationMsg is sent when a location has been selected.
+type SelectFileLocationMsg struct {
+	Location string
 }
 
 // ClearSelectedFileMsg is sent to clear the current selection.
@@ -116,7 +116,7 @@ func (m SelectFileModel) Init() tea.Cmd {
 	cmds = append(cmds, m.inputRemoteFile.Init())
 
 	if m.autoSelect {
-		cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedSource))
+		cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedLocation))
 	}
 
 	return tea.Batch(cmds...)
@@ -134,15 +134,15 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SelectFileStartMsg:
 		m.stage = fileStageFromStartSelection(msg.Selection)
 		if m.stage == selectFileStageSelected {
-			cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedSource))
+			cmds = append(cmds, selectFileCmd(m.selectedFile, m.selectedLocation))
 		}
-	case SelectFileSourceMsg:
-		var sourceCmd tea.Cmd
-		m, sourceCmd = m.handleSourceSelected(msg)
-		cmds = append(cmds, sourceCmd)
+	case SelectFileLocationMsg:
+		var locationCmd tea.Cmd
+		m, locationCmd = m.handleLocationSelected(msg)
+		cmds = append(cmds, locationCmd)
 	case SelectFileMsg:
 		m.selectedFile = msg.File
-		m.selectedSource = msg.Source
+		m.selectedLocation = msg.Location
 		m.stage = selectFileStageSelected
 	case clearErrorMsg:
 		m.err = nil
@@ -152,9 +152,9 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.start, startCmd = m.start.Update(msg)
 		cmds = append(cmds, startCmd)
 
-		var sourceCmd tea.Cmd
-		m.source, sourceCmd = m.source.Update(msg)
-		cmds = append(cmds, sourceCmd)
+		var locationCmd tea.Cmd
+		m.selectLocation, locationCmd = m.selectLocation.Update(msg)
+		cmds = append(cmds, locationCmd)
 
 		var selectLocalFileCmd tea.Cmd
 		m.selectLocalFile, selectLocalFileCmd = m.selectLocalFile.Update(msg)
@@ -172,11 +172,11 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var startCmd tea.Cmd
 		m.start, startCmd = m.start.Update(msg)
 		cmds = append(cmds, startCmd)
-	case selectFileStageSelectSource:
-		var sourceCmd tea.Cmd
-		m.source, sourceCmd = m.source.Update(msg)
-		cmds = append(cmds, sourceCmd)
-	case selectFileStageInputFileLocation:
+	case selectFileStageSelectLocation:
+		var locationCmd tea.Cmd
+		m.selectLocation, locationCmd = m.selectLocation.Update(msg)
+		cmds = append(cmds, locationCmd)
+	case selectFileStageInputRemoteFile:
 		var inputRemoteFileCmd tea.Cmd
 		m.inputRemoteFile, inputRemoteFileCmd = m.inputRemoteFile.Update(msg)
 		cmds = append(cmds, inputRemoteFileCmd)
@@ -185,9 +185,9 @@ func (m SelectFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m SelectFileModel) handleSourceSelected(msg SelectFileSourceMsg) (SelectFileModel, tea.Cmd) {
-	m.stage = fileStageFromSource(msg.Source)
-	m.selectedSource = msg.Source
+func (m SelectFileModel) handleLocationSelected(msg SelectFileLocationMsg) (SelectFileModel, tea.Cmd) {
+	m.stage = fileStageFromLocation(msg.Location)
+	m.selectedLocation = msg.Location
 	cmds := []tea.Cmd{}
 	if m.config.Mode == SelectFileModeSave && m.stage == selectFileStageSelectLocalFile {
 		cmds = append(cmds, m.selectLocalFile.Init())
@@ -230,14 +230,14 @@ func (m SelectFileModel) View() string {
 			s.WriteString(fmt.Sprintf("%s%s \n\n", prefix, displayPath))
 		}
 		s.WriteString(m.start.View() + "\n")
-	case selectFileStageSelectSource:
-		s.WriteString("\n\n" + m.source.View() + "\n")
+	case selectFileStageSelectLocation:
+		s.WriteString("\n\n" + m.selectLocation.View() + "\n")
 	case selectFileStageSelectLocalFile:
 		s.WriteString("\n\n" + m.selectLocalFile.View() + "\n")
-	case selectFileStageInputFileLocation:
+	case selectFileStageInputRemoteFile:
 		s.WriteString("\n\n" + m.inputRemoteFile.View() + "\n")
 	case selectFileStageSelected:
-		fullPath := ToFullFilePath(m.selectedFile, m.selectedSource)
+		fullPath := ToFullFilePath(m.selectedFile, m.selectedLocation)
 		capitalizedTypeName := strings.ToUpper(fileTypeName[:1]) + fileTypeName[1:]
 		prefix := fmt.Sprintf("%s selected: ", capitalizedTypeName)
 		maxPathLen := SafeWidth(m.width) - len(prefix)
@@ -253,9 +253,9 @@ func (m SelectFileModel) SelectedFile() string {
 	return m.selectedFile
 }
 
-// SelectedSource returns the source type of the selected file.
-func (m SelectFileModel) SelectedSource() string {
-	return m.selectedSource
+// SelectedLocation returns the location type of the selected file.
+func (m SelectFileModel) SelectedLocation() string {
+	return m.selectedLocation
 }
 
 // NewSelectFile creates a new file selection model.
@@ -271,7 +271,7 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 	}
 
 	startPrompt := fmt.Sprintf("Get started by choosing a %s", fileTypeName)
-	sourcePrompt := selectFileSourcePrompt(config, fileTypeName)
+	locationPrompt := selectFileLocationPrompt(config, fileTypeName)
 
 	selectLocalFile, err := newLocalFileModel(config, fileTypeName, workingDir)
 	if err != nil {
@@ -286,39 +286,39 @@ func NewSelectFile(config SelectFileConfig) (*SelectFileModel, error) {
 		false,
 	)
 
-	sourceItems := fileSourceListItems(selectFileSources(config))
-	source := NewSelect(
-		sourcePrompt,
-		sourceItems,
+	locationItems := fileLocationListItems(selectFileLocations(config))
+	selectLocation := NewSelect(
+		locationPrompt,
+		locationItems,
 		config.Styles,
-		selectFileSourceCmd,
+		selectFileLocationCmd,
 		false,
 	)
 
 	inputRemoteFile := NewSelectRemoteFile(config.InitialFile, config.Styles, remoteFileConfig(config))
 
-	defaultFile, defaultSource := initialFileAndSource(config.InitialFile)
+	defaultFile, defaultLocation := initialFileAndLocation(config.InitialFile)
 	selectedFile := defaultFile
-	if defaultSource == consts.FileSourceLocal && !filepath.IsAbs(defaultFile) {
+	if defaultLocation == consts.FileLocationLocal && !filepath.IsAbs(defaultFile) {
 		selectedFile = filepath.Join(workingDir, defaultFile)
 	}
 
-	// If there's no initial file, skip the start screen and go directly to source selection
+	// If there's no initial file, skip the start screen and go directly to location selection
 	initialStage := selectFileStageStart
 	if config.InitialFile == "" {
-		initialStage = selectFileStageSelectSource
+		initialStage = selectFileStageSelectLocation
 	}
 
 	return &SelectFileModel{
-		selectLocalFile: selectLocalFile,
-		inputRemoteFile: inputRemoteFile,
-		autoSelect:      config.AutoSelect,
-		start:           start,
-		source:          source,
-		selectedSource:  defaultSource,
-		selectedFile:    selectedFile,
-		stage:           initialStage,
-		config:          config,
+		selectLocalFile:  selectLocalFile,
+		inputRemoteFile:  inputRemoteFile,
+		autoSelect:       config.AutoSelect,
+		start:            start,
+		selectLocation:   selectLocation,
+		selectedLocation: defaultLocation,
+		selectedFile:     selectedFile,
+		stage:            initialStage,
+		config:           config,
 	}, nil
 }
 
@@ -330,24 +330,24 @@ func selectFileWorkingDir(fp *filepicker.Model) (string, error) {
 }
 
 // A public HTTPS URL can only be read from, so it is never offered as somewhere to save.
-func selectFileSources(config SelectFileConfig) []string {
+func selectFileLocations(config SelectFileConfig) []string {
 	if config.Mode != SelectFileModeSave {
-		return config.SupportedSources
+		return config.SupportedLocations
 	}
 
-	sources := config.SupportedSources
-	if len(sources) == 0 {
-		sources = make([]string, 0, len(allFileSourceItems))
-		for _, item := range allFileSourceItems {
-			sources = append(sources, item.Key)
+	locations := config.SupportedLocations
+	if len(locations) == 0 {
+		locations = make([]string, 0, len(allFileLocationItems))
+		for _, item := range allFileLocationItems {
+			locations = append(locations, item.Key)
 		}
 	}
-	return slices.DeleteFunc(slices.Clone(sources), func(source string) bool {
-		return source == consts.FileSourceHTTPS
+	return slices.DeleteFunc(slices.Clone(locations), func(location string) bool {
+		return location == consts.FileLocationHTTPS
 	})
 }
 
-func selectFileSourcePrompt(config SelectFileConfig, fileTypeName string) string {
+func selectFileLocationPrompt(config SelectFileConfig, fileTypeName string) string {
 	if config.Mode == SelectFileModeSave {
 		return fmt.Sprintf("Where do you want to save the %s?", fileTypeName)
 	}
@@ -363,7 +363,7 @@ func newLocalFileModel(config SelectFileConfig, fileTypeName string, workingDir 
 }
 
 // The remote form's default wording describes a file being read, so save mode fills in
-// wording for a file being written for each source the caller has not worded itself.
+// wording for a file being written for each location the caller has not worded itself.
 func remoteFileConfig(config SelectFileConfig) *SelectRemoteFileConfig {
 	remoteConfig := SelectRemoteFileConfig{}
 	if config.RemoteFileConfig != nil {
@@ -374,14 +374,14 @@ func remoteFileConfig(config SelectFileConfig) *SelectRemoteFileConfig {
 	}
 
 	remoteConfig.BucketNameDescription = withDefaults(remoteConfig.BucketNameDescription, map[string]string{
-		consts.FileSourceS3:        "The name of the S3 bucket to save the file to.",
-		consts.FileSourceGCS:       "The name of the GCS bucket to save the file to.",
-		consts.FileSourceAzureBlob: "The name of the Azure Blob Storage container to save the file to.",
+		consts.FileLocationS3:        "The name of the S3 bucket to save the file to.",
+		consts.FileLocationGCS:       "The name of the GCS bucket to save the file to.",
+		consts.FileLocationAzureBlob: "The name of the Azure Blob Storage container to save the file to.",
 	})
 	remoteConfig.ObjectPathDescription = withDefaults(remoteConfig.ObjectPathDescription, map[string]string{
-		consts.FileSourceS3:        "The path to save the file to in the S3 bucket.",
-		consts.FileSourceGCS:       "The path to save the file to in the GCS bucket.",
-		consts.FileSourceAzureBlob: "The path to save the file to in the Azure Blob Storage container.",
+		consts.FileLocationS3:        "The path to save the file to in the S3 bucket.",
+		consts.FileLocationGCS:       "The path to save the file to in the GCS bucket.",
+		consts.FileLocationAzureBlob: "The path to save the file to in the Azure Blob Storage container.",
 	})
 	return &remoteConfig
 }
@@ -393,34 +393,34 @@ func withDefaults(values map[string]string, defaults map[string]string) map[stri
 	return merged
 }
 
-func initialFileAndSource(filePath string) (string, string) {
+func initialFileAndLocation(filePath string) (string, string) {
 	if strings.HasPrefix(filePath, "https://") {
-		return filePath, consts.FileSourceHTTPS
+		return filePath, consts.FileLocationHTTPS
 	}
 
 	if withoutScheme, ok := strings.CutPrefix(filePath, "s3://"); ok {
-		return withoutScheme, consts.FileSourceS3
+		return withoutScheme, consts.FileLocationS3
 	}
 
 	if withoutScheme, ok := strings.CutPrefix(filePath, "gcs://"); ok {
-		return withoutScheme, consts.FileSourceGCS
+		return withoutScheme, consts.FileLocationGCS
 	}
 
 	if withoutScheme, ok := strings.CutPrefix(filePath, "azureblob://"); ok {
-		return withoutScheme, consts.FileSourceAzureBlob
+		return withoutScheme, consts.FileLocationAzureBlob
 	}
 
-	return filePath, consts.FileSourceLocal
+	return filePath, consts.FileLocationLocal
 }
 
-func fileStageFromSource(source string) selectFileStage {
-	switch source {
-	case consts.FileSourceLocal:
+func fileStageFromLocation(location string) selectFileStage {
+	switch location {
+	case consts.FileLocationLocal:
 		return selectFileStageSelectLocalFile
-	case consts.FileSourceS3, consts.FileSourceGCS, consts.FileSourceAzureBlob, consts.FileSourceHTTPS:
-		return selectFileStageInputFileLocation
+	case consts.FileLocationS3, consts.FileLocationGCS, consts.FileLocationAzureBlob, consts.FileLocationHTTPS:
+		return selectFileStageInputRemoteFile
 	}
-	return selectFileStageSelectSource
+	return selectFileStageSelectLocation
 }
 
 func fileStageFromStartSelection(selection string) selectFileStage {
@@ -428,37 +428,37 @@ func fileStageFromStartSelection(selection string) selectFileStage {
 	case "default":
 		return selectFileStageSelected
 	case "select":
-		return selectFileStageSelectSource
+		return selectFileStageSelectLocation
 	}
 	return selectFileStageStart
 }
 
-// ToFullFilePath returns the full path including the scheme for remote sources.
-func ToFullFilePath(file, source string) string {
-	switch source {
-	case consts.FileSourceS3:
+// ToFullFilePath returns the full path including the scheme for remote locations.
+func ToFullFilePath(file, location string) string {
+	switch location {
+	case consts.FileLocationS3:
 		return "s3://" + file
-	case consts.FileSourceGCS:
+	case consts.FileLocationGCS:
 		return "gcs://" + file
-	case consts.FileSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return "azureblob://" + file
 	}
 	return file
 }
 
-func selectFileCmd(file, source string) tea.Cmd {
+func selectFileCmd(file, location string) tea.Cmd {
 	return func() tea.Msg {
 		return SelectFileMsg{
-			File:   file,
-			Source: source,
+			File:     file,
+			Location: location,
 		}
 	}
 }
 
-func selectFileSourceCmd(source string) tea.Cmd {
+func selectFileLocationCmd(location string) tea.Cmd {
 	return func() tea.Msg {
-		return SelectFileSourceMsg{
-			Source: source,
+		return SelectFileLocationMsg{
+			Location: location,
 		}
 	}
 }
@@ -488,7 +488,7 @@ func selectFileStartCmd(selection string) tea.Cmd {
 func selectFileStartListItems(hasInitialFile bool) []list.Item {
 	if !hasInitialFile {
 		// When there's no initial file, skip the start screen entirely
-		// by returning items that will trigger source selection
+		// by returning items that will trigger location selection
 		return []list.Item{
 			BluelinkListItem{Key: "select", Label: "Select a file"},
 		}
@@ -499,33 +499,30 @@ func selectFileStartListItems(hasInitialFile bool) []list.Item {
 	}
 }
 
-// allFileSourceItems contains the full list of file source options.
-var allFileSourceItems = []BluelinkListItem{
-	{Key: consts.FileSourceLocal, Label: "Local file"},
-	{Key: consts.FileSourceS3, Label: "AWS S3 Bucket"},
-	{Key: consts.FileSourceGCS, Label: "Google Cloud Storage Bucket"},
-	{Key: consts.FileSourceAzureBlob, Label: "Azure Blob Storage Container"},
-	{Key: consts.FileSourceHTTPS, Label: "Public HTTPS URL"},
+var allFileLocationItems = []BluelinkListItem{
+	{Key: consts.FileLocationLocal, Label: "Local file"},
+	{Key: consts.FileLocationS3, Label: "AWS S3 Bucket"},
+	{Key: consts.FileLocationGCS, Label: "Google Cloud Storage Bucket"},
+	{Key: consts.FileLocationAzureBlob, Label: "Azure Blob Storage Container"},
+	{Key: consts.FileLocationHTTPS, Label: "Public HTTPS URL"},
 }
 
-// fileSourceListItems returns the list items for file source selection.
-// If supportedSources is nil or empty, all sources are returned.
-func fileSourceListItems(supportedSources []string) []list.Item {
-	if len(supportedSources) == 0 {
-		items := make([]list.Item, len(allFileSourceItems))
-		for i, item := range allFileSourceItems {
+func fileLocationListItems(supportedLocations []string) []list.Item {
+	if len(supportedLocations) == 0 {
+		items := make([]list.Item, len(allFileLocationItems))
+		for i, item := range allFileLocationItems {
 			items[i] = item
 		}
 		return items
 	}
 
-	supportedSet := make(map[string]bool, len(supportedSources))
-	for _, s := range supportedSources {
+	supportedSet := make(map[string]bool, len(supportedLocations))
+	for _, s := range supportedLocations {
 		supportedSet[s] = true
 	}
 
 	var items []list.Item
-	for _, item := range allFileSourceItems {
+	for _, item := range allFileLocationItems {
 		if supportedSet[item.Key] {
 			items = append(items, item)
 		}

@@ -59,7 +59,7 @@ func (m InputLocalFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The form stays completed, so the selection is only sent once.
 	if m.form.State == huh.StateCompleted && !m.submitted {
 		m.submitted = true
-		return m, tea.Batch(cmd, selectFileCmd(resolveLocalPath(m.path.Get(), m.workingDir), consts.FileSourceLocal))
+		return m, tea.Batch(cmd, selectFileCmd(resolveLocalPath(m.path.Get(), m.workingDir), consts.FileLocationLocal))
 	}
 
 	return m, cmd

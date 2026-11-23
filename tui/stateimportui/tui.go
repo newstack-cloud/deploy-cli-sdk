@@ -53,11 +53,11 @@ func createSelectFileModel(
 		Styles:       styles,
 		FilePicker:   &fp,
 		FileTypeName: fileTypeName,
-		SupportedSources: []string{
-			consts.FileSourceLocal,
-			consts.FileSourceS3,
-			consts.FileSourceGCS,
-			consts.FileSourceAzureBlob,
+		SupportedLocations: []string{
+			consts.FileLocationLocal,
+			consts.FileLocationS3,
+			consts.FileLocationGCS,
+			consts.FileLocationAzureBlob,
 		},
 	})
 }
@@ -126,7 +126,7 @@ func (m MainModel) handleSelectFileMsg(msg sharedui.SelectFileMsg) (tea.Model, t
 	if m.sessionState != stateImportFileSelect {
 		return m, nil
 	}
-	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Source)
+	m.filePath = sharedui.ToFullFilePath(msg.File, msg.Location)
 	m.sessionState = stateImportRunning
 	m.importModel.SetFilePath(m.filePath)
 	return m, m.importModel.StartImport()
@@ -161,7 +161,7 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-	// Every other key belongs to the active screen, e.g. the file source selector.
+	// Every other key belongs to the active screen, e.g. the file location selector.
 	return m.handleSessionStateRouting(msg)
 }
 

@@ -5,26 +5,12 @@ import (
 	"strings"
 
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
-	"github.com/newstack-cloud/deploy-cli-sdk/consts"
 )
 
-// BlueprintSourceFromPath determines the blueprint source type from a file path.
-// It checks for URL schemes (https://, s3://, gcs://, azureblob://) and returns
-// the appropriate source constant, defaulting to file source for local paths.
+// BlueprintSourceFromPath determines where a blueprint is loaded from, returning
+// one of the consts.BlueprintSource* constants.
 func BlueprintSourceFromPath(blueprintFile string) string {
-	if strings.HasPrefix(blueprintFile, "https://") {
-		return consts.BlueprintSourceHTTPS
-	}
-	if strings.HasPrefix(blueprintFile, "s3://") {
-		return consts.BlueprintSourceS3
-	}
-	if strings.HasPrefix(blueprintFile, "gcs://") {
-		return consts.BlueprintSourceGCS
-	}
-	if strings.HasPrefix(blueprintFile, "azureblob://") {
-		return consts.BlueprintSourceAzureBlob
-	}
-	return consts.BlueprintSourceFile
+	return FileLocationFromPath(blueprintFile)
 }
 
 // StripObjectStorageScheme removes the scheme prefix from an object storage path.
@@ -32,8 +18,8 @@ func BlueprintSourceFromPath(blueprintFile string) string {
 // If the path doesn't have the expected scheme prefix, it's returned unchanged.
 func StripObjectStorageScheme(blueprintFile, scheme string) string {
 	prefix := scheme + "://"
-	if strings.HasPrefix(blueprintFile, prefix) {
-		return strings.TrimPrefix(blueprintFile, prefix)
+	if after, ok := strings.CutPrefix(blueprintFile, prefix); ok {
+		return after
 	}
 	return blueprintFile
 }

@@ -45,7 +45,10 @@ func (s *RemoteFileTestSuite) Test_DownloadRemoteFile_returns_error_for_unsuppor
 	importErr, ok := err.(*ImportError)
 	s.True(ok)
 	s.Equal(ErrCodeFileNotFound, importErr.Code)
-	s.Equal("unsupported remote source type for path: /local/path/file.tar.gz", importErr.Message)
+	s.Equal(
+		"unsupported location for path /local/path/file.tar.gz: only s3://, gcs:// and azureblob:// are supported",
+		importErr.Message,
+	)
 }
 
 func TestRemoteFileTestSuite(t *testing.T) {

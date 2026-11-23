@@ -33,9 +33,9 @@ func (m SelectBlueprintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SelectBlueprintStartMsg:
 		msg = SelectFileStartMsg(typedMsg)
 	case SelectBlueprintSourceMsg:
-		msg = SelectFileSourceMsg(typedMsg)
+		msg = SelectFileLocationMsg{Location: typedMsg.Source}
 	case SelectBlueprintMsg:
-		msg = SelectFileMsg{File: typedMsg.BlueprintFile, Source: typedMsg.Source}
+		msg = SelectFileMsg{File: typedMsg.BlueprintFile, Location: typedMsg.Source}
 	case ClearSelectedBlueprintMsg:
 		msg = ClearSelectedFileMsg{}
 	case SelectBlueprintFileErrorMsg:
@@ -74,9 +74,9 @@ func translateFileMsg(msg tea.Msg) tea.Msg {
 		}
 		return tea.BatchMsg(translated)
 	case SelectFileMsg:
-		return SelectBlueprintMsg{BlueprintFile: m.File, Source: m.Source}
-	case SelectFileSourceMsg:
-		return SelectBlueprintSourceMsg(m)
+		return SelectBlueprintMsg{BlueprintFile: m.File, Source: m.Location}
+	case SelectFileLocationMsg:
+		return SelectBlueprintSourceMsg{Source: m.Location}
 	case SelectFileStartMsg:
 		return SelectBlueprintStartMsg(m)
 	case ClearSelectedFileMsg:
@@ -98,7 +98,7 @@ func (m SelectBlueprintModel) SelectedFile() string {
 
 // SelectedSource returns the source type of the selected blueprint file.
 func (m SelectBlueprintModel) SelectedSource() string {
-	return m.fileSelector.SelectedSource()
+	return m.fileSelector.SelectedLocation()
 }
 
 // NewSelectBlueprint creates a new blueprint selection model.
@@ -122,14 +122,14 @@ func NewSelectBlueprint(
 				URLDescription: "The public URL of the blueprint to download.",
 				URLPlaceholder: "https://assets.example.com/project.blueprint",
 				BucketNameDescription: map[string]string{
-					consts.FileSourceS3:        "The name of the S3 bucket containing the blueprint file.",
-					consts.FileSourceGCS:       "The name of the GCS bucket containing the blueprint file.",
-					consts.FileSourceAzureBlob: "The name of the Azure Blob Storage container containing the blueprint file.",
+					consts.FileLocationS3:        "The name of the S3 bucket containing the blueprint file.",
+					consts.FileLocationGCS:       "The name of the GCS bucket containing the blueprint file.",
+					consts.FileLocationAzureBlob: "The name of the Azure Blob Storage container containing the blueprint file.",
 				},
 				ObjectPathDescription: map[string]string{
-					consts.FileSourceS3:        "The path of the blueprint file in the S3 bucket.",
-					consts.FileSourceGCS:       "The path of the blueprint file in the GCS bucket.",
-					consts.FileSourceAzureBlob: "The path of the blueprint file in the Azure Blob Storage container.",
+					consts.FileLocationS3:        "The path of the blueprint file in the S3 bucket.",
+					consts.FileLocationGCS:       "The path of the blueprint file in the GCS bucket.",
+					consts.FileLocationAzureBlob: "The path of the blueprint file in the Azure Blob Storage container.",
 				},
 			},
 		},

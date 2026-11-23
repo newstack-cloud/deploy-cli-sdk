@@ -1,19 +1,19 @@
 package consts
 
-// File source constants for generalized file selection.
+// File location constants: where the file picker reads a file from or saves it to.
 const (
-	FileSourceLocal     = "file"
-	FileSourceS3        = "s3"
-	FileSourceGCS       = "gcs"
-	FileSourceAzureBlob = "azureblob"
-	FileSourceHTTPS     = "https"
+	FileLocationLocal     = "file"
+	FileLocationS3        = "s3"
+	FileLocationGCS       = "gcs"
+	FileLocationAzureBlob = "azureblob"
+	FileLocationHTTPS     = "https"
 )
 
-// Blueprint-specific aliases for backwards compatibility.
+// Blueprint source aliases: where a blueprint is loaded from.
 const (
-	BlueprintSourceFile      = FileSourceLocal
-	BlueprintSourceS3        = FileSourceS3
-	BlueprintSourceGCS       = FileSourceGCS
-	BlueprintSourceAzureBlob = FileSourceAzureBlob
-	BlueprintSourceHTTPS     = FileSourceHTTPS
+	BlueprintSourceFile      = FileLocationLocal
+	BlueprintSourceS3        = FileLocationS3
+	BlueprintSourceGCS       = FileLocationGCS
+	BlueprintSourceAzureBlob = FileLocationAzureBlob
+	BlueprintSourceHTTPS     = FileLocationHTTPS
 )

@@ -42,28 +42,31 @@ func DownloadRemoteFile(ctx context.Context, filePath string, opts *RemoteDownlo
 		opts = &RemoteDownloadOptions{}
 	}
 
-	source := shared.BlueprintSourceFromPath(filePath)
-	switch source {
-	case consts.BlueprintSourceS3:
+	location := shared.FileLocationFromPath(filePath)
+	switch location {
+	case consts.FileLocationS3:
 		return downloadFromS3(ctx, filePath, opts)
-	case consts.BlueprintSourceGCS:
+	case consts.FileLocationGCS:
 		return downloadFromGCS(ctx, filePath, opts)
-	case consts.BlueprintSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return downloadFromAzureBlob(ctx, filePath, opts)
 	default:
 		return nil, &ImportError{
 			Code:    ErrCodeFileNotFound,
-			Message: fmt.Sprintf("unsupported remote source type for path: %s", filePath),
+			Message: fmt.Sprintf(
+				"unsupported location for path %s: only s3://, gcs:// and azureblob:// are supported",
+				filePath,
+			),
 		}
 	}
 }
 
 // IsRemoteFile returns true if the file path refers to a remote storage location.
 func IsRemoteFile(filePath string) bool {
-	source := shared.BlueprintSourceFromPath(filePath)
-	return source == consts.BlueprintSourceS3 ||
-		source == consts.BlueprintSourceGCS ||
-		source == consts.BlueprintSourceAzureBlob
+	location := shared.FileLocationFromPath(filePath)
+	return location == consts.FileLocationS3 ||
+		location == consts.FileLocationGCS ||
+		location == consts.FileLocationAzureBlob
 }
 
 func downloadFromS3(ctx context.Context, filePath string, opts *RemoteDownloadOptions) ([]byte, error) {
@@ -289,18 +292,21 @@ func UploadRemoteFile(ctx context.Context, filePath string, data []byte, opts *R
 		opts = &RemoteUploadOptions{}
 	}
 
-	source := shared.BlueprintSourceFromPath(filePath)
-	switch source {
-	case consts.BlueprintSourceS3:
+	location := shared.FileLocationFromPath(filePath)
+	switch location {
+	case consts.FileLocationS3:
 		return uploadToS3(ctx, filePath, data, opts)
-	case consts.BlueprintSourceGCS:
+	case consts.FileLocationGCS:
 		return uploadToGCS(ctx, filePath, data, opts)
-	case consts.BlueprintSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return uploadToAzureBlob(ctx, filePath, data, opts)
 	default:
 		return &ExportError{
 			Code:    ErrCodeRemoteUploadFailed,
-			Message: fmt.Sprintf("unsupported remote source type for path: %s", filePath),
+			Message: fmt.Sprintf(
+				"unsupported location for path %s: only s3://, gcs:// and azureblob:// are supported",
+				filePath,
+			),
 		}
 	}
 }

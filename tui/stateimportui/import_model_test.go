@@ -327,7 +327,7 @@ func (s *ImportModelSuite) Test_handleSelectFileMsg_transitions_to_running_state
 	})
 	s.Require().NoError(err)
 
-	selectMsg := sharedui.SelectFileMsg{File: s.testFile, Source: "file"}
+	selectMsg := sharedui.SelectFileMsg{File: s.testFile, Location: "file"}
 	mainModel.Update(selectMsg)
 }
 

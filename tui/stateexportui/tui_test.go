@@ -376,8 +376,8 @@ func (s *StateExportTUISuite) Test_starts_one_export_for_a_repeated_file_selecti
 
 	testModel := teatest.NewTestModel(s.T(), mainModel, teatest.WithInitialTermSize(300, 100))
 	testutils.WaitForContains(s.T(), testModel.Output(), "Where do you want to save the output file?")
-	testModel.Send(sharedui.SelectFileMsg{File: s.outputFile, Source: consts.FileSourceLocal})
-	testModel.Send(sharedui.SelectFileMsg{File: secondFile, Source: consts.FileSourceLocal})
+	testModel.Send(sharedui.SelectFileMsg{File: s.outputFile, Location: consts.FileLocationLocal})
+	testModel.Send(sharedui.SelectFileMsg{File: secondFile, Location: consts.FileLocationLocal})
 	testutils.WaitForContains(s.T(), testModel.Output(), "Export complete")
 	s.Require().NoError(testModel.Quit())
 

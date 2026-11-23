@@ -35,9 +35,9 @@ func (s *SelectFileSaveSuite) startSaveSelectorWithWidth(width int) *teatest.Tes
 		FileTypeName:    "output file",
 		Mode:            SelectFileModeSave,
 		DefaultFileName: "state-export.json",
-		SupportedSources: []string{
-			consts.FileSourceLocal,
-			consts.FileSourceS3,
+		SupportedLocations: []string{
+			consts.FileLocationLocal,
+			consts.FileLocationS3,
 		},
 	})
 	s.Require().NoError(err)
@@ -74,7 +74,7 @@ func (s *SelectFileSaveSuite) Test_accepts_the_default_file_name_in_the_working_
 
 	finalModel := s.finalSelection(testModel)
 	s.Equal(expected, finalModel.SelectedFile())
-	s.Equal(consts.FileSourceLocal, finalModel.SelectedSource())
+	s.Equal(consts.FileLocationLocal, finalModel.SelectedLocation())
 }
 
 func (s *SelectFileSaveSuite) Test_accepts_a_new_file_in_a_subdirectory() {
@@ -179,7 +179,7 @@ func (s *SelectFileSaveSuite) Test_saves_to_a_remote_object_path() {
 	testutils.WaitForContains(s.T(), testModel.Output(), "Output file selected: s3://state-bucket/exports/prod.json")
 	finalModel := s.finalSelection(testModel)
 	s.Equal("state-bucket/exports/prod.json", finalModel.SelectedFile())
-	s.Equal(consts.FileSourceS3, finalModel.SelectedSource())
+	s.Equal(consts.FileLocationS3, finalModel.SelectedLocation())
 }
 
 func (s *SelectFileSaveSuite) Test_never_offers_an_https_url_to_save_to() {
@@ -197,16 +197,16 @@ func (s *SelectFileSaveSuite) Test_never_offers_an_https_url_to_save_to() {
 	s.NotContains(s.finalSelection(testModel).View(), "Public HTTPS URL")
 }
 
-func (s *SelectFileSaveSuite) Test_fills_in_save_wording_for_sources_the_caller_did_not_word() {
+func (s *SelectFileSaveSuite) Test_fills_in_save_wording_for_locations_the_caller_did_not_word() {
 	selectModel, err := NewSelectFile(SelectFileConfig{
 		Action:       "export",
 		Styles:       styles.NewStyles(lipgloss.NewRenderer(os.Stdout), styles.NewBluelinkPalette()),
 		FileTypeName: "output file",
 		Mode:         SelectFileModeSave,
 		RemoteFileConfig: &SelectRemoteFileConfig{
-			BucketNameDescription: map[string]string{consts.FileSourceS3: "The S3 bucket for exports."},
+			BucketNameDescription: map[string]string{consts.FileLocationS3: "The S3 bucket for exports."},
 		},
-		SupportedSources: []string{consts.FileSourceS3, consts.FileSourceGCS},
+		SupportedLocations: []string{consts.FileLocationS3, consts.FileLocationGCS},
 	})
 	s.Require().NoError(err)
 

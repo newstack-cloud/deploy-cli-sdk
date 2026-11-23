@@ -24,22 +24,22 @@ type SelectRemoteFileConfig struct {
 	// URLPlaceholder is the placeholder for the HTTPS URL input field.
 	// Defaults to "https://assets.example.com/project.blueprint".
 	URLPlaceholder string
-	// BucketNameTitle overrides the bucket name title for a specific source.
-	// Map keys are source constants (e.g., consts.FileSourceS3).
+	// BucketNameTitle overrides the bucket name title for a specific location.
+	// Map keys are location constants (e.g., consts.FileLocationS3).
 	BucketNameTitle map[string]string
-	// BucketNameDescription overrides the bucket name description for a specific source.
+	// BucketNameDescription overrides the bucket name description for a specific location.
 	BucketNameDescription map[string]string
-	// BucketNamePlaceholder overrides the bucket name placeholder for a specific source.
+	// BucketNamePlaceholder overrides the bucket name placeholder for a specific location.
 	BucketNamePlaceholder map[string]string
-	// ObjectPathDescription overrides the object path description for a specific source.
+	// ObjectPathDescription overrides the object path description for a specific location.
 	ObjectPathDescription map[string]string
 }
 
-// SelectRemoteFileModel provides forms for selecting files from remote sources.
+// SelectRemoteFileModel provides forms for selecting files from remote locations.
 type SelectRemoteFileModel struct {
 	styles            *stylespkg.Styles
 	selectedFile      string
-	source            *string
+	location          *string
 	urlForm           *huh.Form
 	objectStorageForm *huh.Form
 	config            *SelectRemoteFileConfig
@@ -53,11 +53,11 @@ func (m SelectRemoteFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
-	case SelectFileSourceMsg:
-		*m.source = msg.Source
+	case SelectFileLocationMsg:
+		*m.location = msg.Location
 	}
 
-	if stringhelpers.FromPointer(m.source) == consts.FileSourceHTTPS {
+	if stringhelpers.FromPointer(m.location) == consts.FileLocationHTTPS {
 		urlFormModel, cmd := m.urlForm.Update(msg)
 		if form, ok := urlFormModel.(*huh.Form); ok {
 			m.urlForm = form
@@ -69,7 +69,7 @@ func (m SelectRemoteFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds,
 				selectFileCmd(
 					m.urlForm.GetString("fileUrl"),
-					consts.FileSourceHTTPS,
+					consts.FileLocationHTTPS,
 				),
 			)
 		}
@@ -85,7 +85,7 @@ func (m SelectRemoteFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds,
 				selectFileCmd(
 					createRemoteObjectPath(m.objectStorageForm),
-					stringhelpers.FromPointer(m.source),
+					stringhelpers.FromPointer(m.location),
 				),
 			)
 		}
@@ -95,7 +95,7 @@ func (m SelectRemoteFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m SelectRemoteFileModel) View() string {
-	if stringhelpers.FromPointer(m.source) == consts.FileSourceHTTPS {
+	if stringhelpers.FromPointer(m.location) == consts.FileLocationHTTPS {
 		return m.urlForm.View()
 	}
 
@@ -112,12 +112,12 @@ func NewSelectRemoteFile(
 		config = &SelectRemoteFileConfig{}
 	}
 
-	initSource := ""
+	initLocation := ""
 
 	model := &SelectRemoteFileModel{
 		styles:       styles,
 		selectedFile: initialFile,
-		source:       &initSource,
+		location:     &initLocation,
 		config:       config,
 	}
 
@@ -156,14 +156,14 @@ func NewSelectRemoteFile(
 			huh.NewInput().
 				Key("bucketName").
 				TitleFunc(func() string {
-					return remoteBucketNameTitle(stringhelpers.FromPointer(model.source), config)
-				}, model.source).
+					return remoteBucketNameTitle(stringhelpers.FromPointer(model.location), config)
+				}, model.location).
 				DescriptionFunc(func() string {
-					return remoteBucketNameDescription(stringhelpers.FromPointer(model.source), config)
-				}, model.source).
+					return remoteBucketNameDescription(stringhelpers.FromPointer(model.location), config)
+				}, model.location).
 				PlaceholderFunc(func() string {
-					return remoteBucketNamePlaceholder(stringhelpers.FromPointer(model.source), config)
-				}, model.source).
+					return remoteBucketNamePlaceholder(stringhelpers.FromPointer(model.location), config)
+				}, model.location).
 				Validate(func(value string) error {
 					if strings.TrimSpace(value) == "" {
 						return errors.New("bucket name cannot be empty")
@@ -175,8 +175,8 @@ func NewSelectRemoteFile(
 				Key("objectPath").
 				Title("Object path").
 				DescriptionFunc(func() string {
-					return remoteObjectPathDescription(stringhelpers.FromPointer(model.source), config)
-				}, model.source).
+					return remoteObjectPathDescription(stringhelpers.FromPointer(model.location), config)
+				}, model.location).
 				Placeholder("path/to/file").
 				Validate(func(value string) error {
 					if strings.TrimSpace(value) == "" {
@@ -191,69 +191,69 @@ func NewSelectRemoteFile(
 	return model
 }
 
-func remoteBucketNameTitle(source string, config *SelectRemoteFileConfig) string {
+func remoteBucketNameTitle(location string, config *SelectRemoteFileConfig) string {
 	if config != nil && config.BucketNameTitle != nil {
-		if title, ok := config.BucketNameTitle[source]; ok {
+		if title, ok := config.BucketNameTitle[location]; ok {
 			return title
 		}
 	}
-	switch source {
-	case consts.FileSourceS3:
+	switch location {
+	case consts.FileLocationS3:
 		return "S3 bucket"
-	case consts.FileSourceGCS:
+	case consts.FileLocationGCS:
 		return "Google Cloud Storage bucket"
-	case consts.FileSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return "Azure Blob Storage container"
 	}
 	return ""
 }
 
-func remoteBucketNameDescription(source string, config *SelectRemoteFileConfig) string {
+func remoteBucketNameDescription(location string, config *SelectRemoteFileConfig) string {
 	if config != nil && config.BucketNameDescription != nil {
-		if desc, ok := config.BucketNameDescription[source]; ok {
+		if desc, ok := config.BucketNameDescription[location]; ok {
 			return desc
 		}
 	}
-	switch source {
-	case consts.FileSourceS3:
+	switch location {
+	case consts.FileLocationS3:
 		return "The name of the S3 bucket containing the file."
-	case consts.FileSourceGCS:
+	case consts.FileLocationGCS:
 		return "The name of the GCS bucket containing the file."
-	case consts.FileSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return "The name of the Azure Blob Storage container containing the file."
 	}
 	return ""
 }
 
-func remoteBucketNamePlaceholder(source string, config *SelectRemoteFileConfig) string {
+func remoteBucketNamePlaceholder(location string, config *SelectRemoteFileConfig) string {
 	if config != nil && config.BucketNamePlaceholder != nil {
-		if placeholder, ok := config.BucketNamePlaceholder[source]; ok {
+		if placeholder, ok := config.BucketNamePlaceholder[location]; ok {
 			return placeholder
 		}
 	}
-	switch source {
-	case consts.FileSourceS3:
+	switch location {
+	case consts.FileLocationS3:
 		return "s3-bucket"
-	case consts.FileSourceGCS:
+	case consts.FileLocationGCS:
 		return "gcs-bucket"
-	case consts.FileSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return "azure-blob-container"
 	}
 	return ""
 }
 
-func remoteObjectPathDescription(source string, config *SelectRemoteFileConfig) string {
+func remoteObjectPathDescription(location string, config *SelectRemoteFileConfig) string {
 	if config != nil && config.ObjectPathDescription != nil {
-		if desc, ok := config.ObjectPathDescription[source]; ok {
+		if desc, ok := config.ObjectPathDescription[location]; ok {
 			return desc
 		}
 	}
-	switch source {
-	case consts.FileSourceS3:
+	switch location {
+	case consts.FileLocationS3:
 		return "The path of the file in the S3 bucket."
-	case consts.FileSourceGCS:
+	case consts.FileLocationGCS:
 		return "The path of the file in the GCS bucket."
-	case consts.FileSourceAzureBlob:
+	case consts.FileLocationAzureBlob:
 		return "The path of the file in the Azure Blob Storage container."
 	}
 	return ""

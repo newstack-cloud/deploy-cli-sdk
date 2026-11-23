@@ -34,7 +34,7 @@ func (m SelectLocalFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if didSelect, file := m.filepicker.DidSelectFile(msg); didSelect {
 		m.selectedFile = file
-		cmds = append(cmds, selectFileCmd(file, consts.FileSourceLocal))
+		cmds = append(cmds, selectFileCmd(file, consts.FileLocationLocal))
 	}
 
 	if didSelect, path := m.filepicker.DidSelectDisabledFile(msg); didSelect {
