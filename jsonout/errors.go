@@ -1,12 +1,12 @@
 package jsonout
 
 import (
-	"github.com/newstack-cloud/deploy-cli-sdk/diagutils"
-	"github.com/newstack-cloud/deploy-cli-sdk/stateio"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/errors"
 	engineerrors "github.com/newstack-cloud/bluelink/libs/deploy-engine-client/errors"
+	"github.com/newstack-cloud/deploy-cli-sdk/diagutils"
 	"github.com/newstack-cloud/deploy-cli-sdk/headless"
+	"github.com/newstack-cloud/deploy-cli-sdk/stateio"
 )
 
 // NewErrorOutput converts an error to an ErrorOutput struct.
@@ -26,24 +26,15 @@ func NewErrorOutput(err error) ErrorOutput {
 		return newClientErrorOutput(clientErr)
 	}
 
-	// Handle stateio export errors
-	if exportErr, ok := err.(*stateio.ExportError); ok {
+	// Handle state import and export errors, which can be wrapped with context
+	if explanation := stateio.ExplainError(err); explanation.Code != "" {
 		return ErrorOutput{
 			Success: false,
 			Error: ErrorDetail{
-				Type:    string(exportErr.Code),
-				Message: exportErr.Message,
-			},
-		}
-	}
-
-	// Handle stateio import errors
-	if importErr, ok := err.(*stateio.ImportError); ok {
-		return ErrorOutput{
-			Success: false,
-			Error: ErrorDetail{
-				Type:    string(importErr.Code),
-				Message: importErr.Message,
+				Type:    explanation.Code,
+				Message: explanation.Summary,
+				Hint:    explanation.Hint,
+				Cause:   explanation.Cause,
 			},
 		}
 	}

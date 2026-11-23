@@ -38,3 +38,6 @@ tmp-*.md
 stateio/postgres/
 
 var/
+
+# Local planning docs, kept out of version control.
+docs/plans/

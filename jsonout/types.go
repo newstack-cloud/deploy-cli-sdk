@@ -18,11 +18,11 @@ type StageOutput struct {
 
 // StageDriftOutput represents drift detected during staging.
 type StageDriftOutput struct {
-	Success        bool                                `json:"success"`
-	DriftDetected  bool                                `json:"driftDetected"`
-	InstanceID     string                              `json:"instanceId"`
-	InstanceName   string                              `json:"instanceName,omitempty"`
-	Message        string                              `json:"message"`
+	Success        bool                                 `json:"success"`
+	DriftDetected  bool                                 `json:"driftDetected"`
+	InstanceID     string                               `json:"instanceId"`
+	InstanceName   string                               `json:"instanceName,omitempty"`
+	Message        string                               `json:"message"`
 	Reconciliation *container.ReconciliationCheckResult `json:"reconciliation"`
 }
 
@@ -36,6 +36,8 @@ type ErrorOutput struct {
 type ErrorDetail struct {
 	Type        string            `json:"type"` // "validation", "stream", "client", "internal"
 	Message     string            `json:"message"`
+	Hint        string            `json:"hint,omitempty"`
+	Cause       string            `json:"cause,omitempty"`
 	StatusCode  int               `json:"statusCode,omitempty"`
 	Diagnostics []Diagnostic      `json:"diagnostics,omitempty"`
 	Validation  []ValidationError `json:"validation,omitempty"`
@@ -96,10 +98,10 @@ type Diagnostic struct {
 
 // SuggestedAction represents an actionable suggestion for resolving an error.
 type SuggestedAction struct {
-	Type        string `json:"type"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Commands    []string `json:"commands,omitempty"`
+	Type        string       `json:"type"`
+	Title       string       `json:"title"`
+	Description string       `json:"description,omitempty"`
+	Commands    []string     `json:"commands,omitempty"`
 	Links       []ActionLink `json:"links,omitempty"`
 }
 
@@ -118,14 +120,14 @@ type ValidationError struct {
 
 // DeployOutput represents a successful deployment result.
 type DeployOutput struct {
-	Success          bool                              `json:"success"`
-	InstanceID       string                            `json:"instanceId"`
-	InstanceName     string                            `json:"instanceName,omitempty"`
-	ChangesetID      string                            `json:"changesetId"`
-	Status           string                            `json:"status"`
-	InstanceState    *state.InstanceState              `json:"instanceState,omitempty"`
+	Success          bool                               `json:"success"`
+	InstanceID       string                             `json:"instanceId"`
+	InstanceName     string                             `json:"instanceName,omitempty"`
+	ChangesetID      string                             `json:"changesetId"`
+	Status           string                             `json:"status"`
+	InstanceState    *state.InstanceState               `json:"instanceState,omitempty"`
 	PreRollbackState *container.PreRollbackStateMessage `json:"preRollbackState,omitempty"`
-	Summary          DeploySummary                     `json:"summary"`
+	Summary          DeploySummary                      `json:"summary"`
 }
 
 // DeploySummary contains deployment result summary.
@@ -141,9 +143,9 @@ type DeploySummary struct {
 type DeployedElement struct {
 	Name           string   `json:"name"`
 	Path           string   `json:"path"`
-	Type           string   `json:"type"`                     // "resource", "child", "link"
+	Type           string   `json:"type"` // "resource", "child", "link"
 	Status         string   `json:"status"`
-	Action         string   `json:"action,omitempty"`         // "created", "updated", "destroyed", etc.
+	Action         string   `json:"action,omitempty"` // "created", "updated", "destroyed", etc.
 	FailureReasons []string `json:"failureReasons,omitempty"`
 }
 
@@ -200,10 +202,10 @@ type DestroyDriftOutput struct {
 
 // ListInstancesOutput represents the result of listing instances.
 type ListInstancesOutput struct {
-	Success    bool                    `json:"success"`
-	Instances  []ListInstanceItem      `json:"instances"`
-	TotalCount int                     `json:"totalCount"`
-	Search     string                  `json:"search,omitempty"`
+	Success    bool               `json:"success"`
+	Instances  []ListInstanceItem `json:"instances"`
+	TotalCount int                `json:"totalCount"`
+	Search     string             `json:"search,omitempty"`
 }
 
 // ListInstanceItem represents a single instance in the list output.
@@ -221,4 +223,8 @@ type StateImportOutput struct {
 	InstancesCount int    `json:"instancesCount,omitempty"`
 	FilesExtracted int    `json:"filesExtracted,omitempty"`
 	Message        string `json:"message"`
+	Encrypted      bool   `json:"encrypted,omitempty"`
+	// FileExportedAt is when an encrypted input file was exported, in RFC 3339 form.
+	FileExportedAt string   `json:"fileExportedAt,omitempty"`
+	Warnings       []string `json:"warnings,omitempty"`
 }

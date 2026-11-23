@@ -269,6 +269,41 @@ func (s *ExporterTestSuite) Test_ExecuteInstancesExport_with_filter() {
 	s.Equal("inst-002", parsed[0].InstanceID)
 }
 
+func (s *ExporterTestSuite) Test_exports_an_instance_named_twice_once() {
+	s.seedInstance(state.InstanceState{InstanceID: "inst-001", InstanceName: "orders", Status: core.InstanceStatusDeployed})
+
+	instances, err := NewContainerStateExporter(s.container).
+		ExportInstances(context.Background(), []string{"inst-001", "orders", "inst-001"})
+
+	s.Require().NoError(err)
+	s.Require().Len(instances, 1)
+	s.Equal("inst-001", instances[0].InstanceID)
+}
+
+func (s *ExporterTestSuite) Test_refuses_to_export_instances_stored_in_a_cycle() {
+	s.seedInstance(state.InstanceState{InstanceID: "a", InstanceName: "a", Status: core.InstanceStatusDeployed})
+	s.seedInstance(state.InstanceState{InstanceID: "b", InstanceName: "b", Status: core.InstanceStatusDeployed})
+	s.seedInstance(state.InstanceState{InstanceID: "c", InstanceName: "c", Status: core.InstanceStatusDeployed})
+	ctx := context.Background()
+	s.Require().NoError(s.container.Children().Attach(ctx, "a", "b", "b"))
+	s.Require().NoError(s.container.Children().Attach(ctx, "b", "a", "a"))
+
+	for _, filters := range [][]string{nil, {"a", "b", "c"}} {
+		_, err := NewContainerStateExporter(s.container).ExportInstances(ctx, filters)
+
+		s.Require().Error(err)
+		var exportErr *ExportError
+		s.Require().ErrorAs(err, &exportErr)
+		s.Equal(ErrCodeExportFailed, exportErr.Code)
+		s.Equal(
+			"these instances are children of each other in a cycle in the state, "+
+				"so none of them can be exported: a, b",
+			exportErr.Message,
+			"filters %v", filters,
+		)
+	}
+}
+
 func TestExporterTestSuite(t *testing.T) {
 	suite.Run(t, new(ExporterTestSuite))
 }

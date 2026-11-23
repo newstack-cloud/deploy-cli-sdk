@@ -2,11 +2,11 @@ package stateio
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/newstack-cloud/bluelink/libs/blueprint-state/memfile"
-	"github.com/newstack-cloud/bluelink/libs/blueprint-state/postgres"
 	"github.com/newstack-cloud/bluelink/libs/blueprint/core"
 	"github.com/spf13/afero"
 )
@@ -30,6 +30,9 @@ type ExportParams struct {
 	// Exporter is an optional StateExporter for export.
 	// If not provided, a default exporter will be created based on EngineConfig.
 	Exporter StateExporter
+	// FileEncryption is the key the output file is encrypted with.
+	// When nil, the file is written as plaintext JSON.
+	FileEncryption *StateEncryptionKeyConfig
 }
 
 // ExportResult contains the result of an export operation.
@@ -38,6 +41,11 @@ type ExportResult struct {
 	InstancesCount int    `json:"instancesCount,omitempty"`
 	FilePath       string `json:"filePath,omitempty"`
 	Message        string `json:"message"`
+	// Encrypted is true when the output file was encrypted.
+	Encrypted bool `json:"encrypted,omitempty"`
+	// Warnings holds anything the caller should be told about the exported file,
+	// such as it holding state in plaintext that is encrypted at rest.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // Export performs a state export operation based on the provided parameters.
@@ -47,22 +55,33 @@ func Export(params ExportParams) (*ExportResult, error) {
 		params.FileSystem = afero.NewOsFs()
 	}
 
+	ctx := context.Background()
 	exporter := params.Exporter
-	var err error
+	var warnings []string
 	if exporter == nil {
-		exporter, err = createDefaultExporter(params)
+		backend, err := openDefaultBackend(
+			ctx, params.EngineConfig, params.FileSystem, params.Logger, backendAccessRead,
+		)
 		if err != nil {
 			return nil, err
 		}
+		defer backend.close()
+
+		exporter = NewContainerStateExporter(backend.container)
+		warnings = exportWarnings(backend, params.FileEncryption)
 	}
 
-	ctx := context.Background()
 	result, err := ExecuteInstancesExport(ctx, exporter, params.InstanceFilters)
 	if err != nil {
 		return nil, err
 	}
 
-	err = writeOutputData(params, result.Data)
+	output, err := prepareOutputData(ctx, params.FileEncryption, result.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = writeOutputData(params, output)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +91,45 @@ func Export(params ExportParams) (*ExportResult, error) {
 		InstancesCount: result.InstancesCount,
 		FilePath:       params.FilePath,
 		Message:        fmt.Sprintf("Successfully exported %d instances to %s", result.InstancesCount, params.FilePath),
+		Encrypted:      params.FileEncryption != nil,
+		Warnings:       warnings,
 	}, nil
+}
+
+func prepareOutputData(
+	ctx context.Context,
+	fileEncryption *StateEncryptionKeyConfig,
+	data []byte,
+) ([]byte, error) {
+	if fileEncryption == nil {
+		return data, nil
+	}
+
+	sealed, err := sealExportFile(ctx, fileEncryption, data, time.Now())
+	if err != nil {
+		return nil, &ExportError{
+			Code:    ErrCodeFileEncryptionFailed,
+			Message: "the output file could not be encrypted",
+			Err:     err,
+		}
+	}
+
+	return sealed, nil
+}
+
+// Resource specs, changesets and link data can hold resolved secrets, so taking state
+// out of an encrypted store into a plaintext file is called out rather than left for
+// someone to notice later.
+func exportWarnings(backend *stateBackend, fileEncryption *StateEncryptionKeyConfig) []string {
+	if !backend.encrypted || fileEncryption != nil {
+		return nil
+	}
+
+	return []string{
+		"State is encrypted at rest but the export file is not; it can contain resolved " +
+			"secrets, so encrypt the export or store it securely and remove it once it is " +
+			"no longer needed",
+	}
 }
 
 func writeOutputData(params ExportParams, data []byte) error {
@@ -80,74 +137,12 @@ func writeOutputData(params ExportParams, data []byte) error {
 		return UploadRemoteFile(context.Background(), params.FilePath, data, params.RemoteOptions)
 	}
 
-	return afero.WriteFile(params.FileSystem, params.FilePath, data, 0644)
-}
-
-func createDefaultExporter(params ExportParams) (StateExporter, error) {
-	logger := params.Logger
-	if logger == nil {
-		logger = core.NewNopLogger()
+	// Readable by the owner only, since a plaintext export can hold resolved secrets. The
+	// mode given to WriteFile only applies to a new file, so an existing one is changed
+	// before anything is written to it.
+	err := params.FileSystem.Chmod(params.FilePath, 0600)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-
-	if params.EngineConfig == nil {
-		return nil, fmt.Errorf("engine config is required for export")
-	}
-
-	return createExporterFromEngineConfig(params.EngineConfig, params.FileSystem, logger)
-}
-
-func createExporterFromEngineConfig(
-	config *EngineConfig,
-	fileSystem afero.Fs,
-	logger core.Logger,
-) (StateExporter, error) {
-	switch config.State.StorageEngine {
-	case StorageEnginePostgres:
-		return createPostgresExporter(&config.State, logger)
-	case StorageEngineMemfile, "":
-		return createMemfileExporter(config.State.MemFileStateDir, fileSystem, logger)
-	default:
-		return nil, fmt.Errorf(
-			"unsupported storage engine %q, only \"memfile\" and \"postgres\" are supported",
-			config.State.StorageEngine,
-		)
-	}
-}
-
-func createMemfileExporter(
-	stateDir string,
-	fileSystem afero.Fs,
-	logger core.Logger,
-) (StateExporter, error) {
-	container, err := memfile.LoadStateContainer(
-		stateDir,
-		fileSystem,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load memfile state container: %w", err)
-	}
-
-	return NewContainerStateExporter(container), nil
-}
-
-func createPostgresExporter(
-	config *StateConfig,
-	logger core.Logger,
-) (StateExporter, error) {
-	ctx := context.Background()
-	connURL := BuildPostgresDatabaseURL(config)
-
-	pool, err := pgxpool.New(ctx, connURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create postgres connection pool: %w", err)
-	}
-
-	container, err := postgres.LoadStateContainer(ctx, pool, logger)
-	if err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("failed to load postgres state container: %w", err)
-	}
-
-	return NewContainerStateExporter(container), nil
+	return afero.WriteFile(params.FileSystem, params.FilePath, data, 0600)
 }

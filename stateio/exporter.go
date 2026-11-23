@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/newstack-cloud/bluelink/libs/blueprint/state"
@@ -16,7 +17,8 @@ import (
 type StateExporter interface {
 	// ExportInstances exports instances by their IDs or names.
 	// If instanceFilters is empty, exports all instances.
-	// Returns the full instance state including child blueprints.
+	// Returns the full instance state including child blueprints. Each instance is
+	// returned once: one nested under another returned instance is only returned there.
 	ExportInstances(ctx context.Context, instanceFilters []string) ([]state.InstanceState, error)
 }
 
@@ -33,24 +35,70 @@ func NewContainerStateExporter(container state.Container) *ContainerStateExporte
 
 // ExportInstances retrieves instances using the container's batch get operation.
 // If instanceFilters is empty, all instances are exported.
+//
+// An instance nested under another exported instance is exported only there, and an
+// instance the filters name more than once is exported once.
 func (e *ContainerStateExporter) ExportInstances(
 	ctx context.Context,
 	instanceFilters []string,
 ) ([]state.InstanceState, error) {
 	if len(instanceFilters) == 0 {
-		return e.exportAllInstances(ctx)
+		instances, err := e.exportAllInstances(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return topLevelInstances(instances)
 	}
 
 	instances, err := e.container.Instances().GetBatch(ctx, instanceFilters)
 	if err != nil {
 		return nil, createInstanceNotFoundError(err)
 	}
-	return instances, nil
+	return topLevelInstances(instances)
+}
+
+// Drops every instance nested under another one in the result, and repeats of one the
+// filters name twice. An export of everything lists children alongside their parents, and
+// postgres GetBatch in blueprint-state v0.12.0 returns a requested instance that is also
+// another's descendant without its children, which it wires onto the nested copy only.
+//
+// Instances in a stored cycle are all nested under each other, so none would be kept.
+// That is refused rather than exported as nothing.
+func topLevelInstances(instances []state.InstanceState) ([]state.InstanceState, error) {
+	nested := map[string]bool{}
+	for i := range instances {
+		for _, child := range instances[i].ChildBlueprints {
+			addInstanceIDs(child, nested)
+		}
+	}
+
+	included := map[string]bool{}
+	topLevel := make([]state.InstanceState, 0, len(instances))
+	for i := range instances {
+		if !nested[instances[i].InstanceID] && !included[instances[i].InstanceID] {
+			addInstanceIDs(&instances[i], included)
+			topLevel = append(topLevel, instances[i])
+		}
+	}
+
+	var inCycle []string
+	for i := range instances {
+		if !included[instances[i].InstanceID] && !slices.Contains(inCycle, instances[i].InstanceID) {
+			inCycle = append(inCycle, instances[i].InstanceID)
+		}
+	}
+	if len(inCycle) > 0 {
+		return nil, &ExportError{
+			Code: ErrCodeExportFailed,
+			Message: "these instances are children of each other in a cycle in the state, " +
+				"so none of them can be exported: " + strings.Join(inCycle, ", "),
+		}
+	}
+	return topLevel, nil
 }
 
 func createInstanceNotFoundError(err error) *ExportError {
-	var notFoundErr *state.InstancesNotFoundError
-	if errors.As(err, &notFoundErr) {
+	if notFoundErr, ok := errors.AsType[*state.InstancesNotFoundError](err); ok {
 		return &ExportError{
 			Code:    ErrCodeInstanceNotFound,
 			Message: formatMissingInstancesMessage(notFoundErr.MissingIDsOrNames),
@@ -144,7 +192,7 @@ func ExecuteInstancesExport(
 	}
 
 	return &ExportInstancesResult{
-		InstancesCount: len(instances),
+		InstancesCount: countInstances(instances),
 		Data:           data,
 	}, nil
 }

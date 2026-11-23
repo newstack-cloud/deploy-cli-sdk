@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -47,6 +48,52 @@ func (s *S3RemoteIntegrationSuite) Test_returns_not_found_error_for_missing_s3_f
 	importErr, ok := err.(*ImportError)
 	s.True(ok)
 	s.Equal(ErrCodeFileNotFound, importErr.Code)
+}
+
+func (s *S3RemoteIntegrationSuite) Test_round_trips_an_encrypted_export_file_through_s3() {
+	fs := afero.NewMemMapFs()
+	key := &StateEncryptionKeyConfig{Provider: "passphrase", Passphrase: "correct horse"}
+	filePath := "s3://test-bucket/encrypted-export.json"
+	source := memfileEngineConfig(s.T(), fs, "/source/state")
+	_, err := Import(ImportParams{
+		EngineConfig: source,
+		FileSystem:   fs,
+		FileData:     s.expectedInstancesJSON,
+	})
+	s.Require().NoError(err)
+
+	exportResult, err := Export(ExportParams{
+		FilePath:       filePath,
+		EngineConfig:   source,
+		FileSystem:     fs,
+		FileEncryption: key,
+		RemoteOptions:  &RemoteUploadOptions{S3Endpoint: "http://localhost:4580", S3UsePathStyle: true},
+	})
+	s.Require().NoError(err)
+	s.True(exportResult.Encrypted)
+
+	importResult, err := Import(ImportParams{
+		FilePath:       filePath,
+		EngineConfig:   memfileEngineConfig(s.T(), fs, "/target/state"),
+		FileSystem:     fs,
+		FileEncryption: key,
+		RemoteOptions:  &RemoteDownloadOptions{S3Endpoint: "http://localhost:4580", S3UsePathStyle: true},
+	})
+	s.Require().NoError(err)
+	s.Equal(exportResult.InstancesCount, importResult.InstancesCount)
+}
+
+func memfileEngineConfig(t *testing.T, fs afero.Fs, stateDir string) *EngineConfig {
+	t.Helper()
+	if err := fs.MkdirAll(stateDir, 0700); err != nil {
+		t.Fatalf("failed to create state directory: %v", err)
+	}
+	return &EngineConfig{
+		State: StateConfig{
+			StorageEngine:   StorageEngineMemfile,
+			MemFileStateDir: stateDir,
+		},
+	}
 }
 
 // GCS Integration Tests

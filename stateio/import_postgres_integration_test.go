@@ -3,6 +3,7 @@ package stateio
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,12 +18,17 @@ import (
 
 // Test UUIDs for postgres integration tests
 const (
-	testInstanceID1       = "a1b2c3d4-e5f6-7890-abcd-ef1234567801"
-	testInstanceID2       = "a1b2c3d4-e5f6-7890-abcd-ef1234567802"
-	testParentInstanceID  = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
-	testChildInstanceID   = "b2c3d4e5-f6a7-8901-bcde-f12345678902"
-	testLookupInstanceID  = "c3d4e5f6-a7b8-9012-cdef-123456789001"
-	testOverwriteInstID   = "d4e5f6a7-b8c9-0123-def0-123456789001"
+	testInstanceID1      = "a1b2c3d4-e5f6-7890-abcd-ef1234567801"
+	testInstanceID2      = "a1b2c3d4-e5f6-7890-abcd-ef1234567802"
+	testParentInstanceID = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+	testChildInstanceID  = "b2c3d4e5-f6a7-8901-bcde-f12345678902"
+	testLookupInstanceID = "c3d4e5f6-a7b8-9012-cdef-123456789001"
+	testOverwriteInstID  = "d4e5f6a7-b8c9-0123-def0-123456789001"
+	testRenameInstID     = "d4e5f6a7-b8c9-0123-def0-123456789011"
+	testNameOwnerInstID  = "d4e5f6a7-b8c9-0123-def0-123456789021"
+	testNameClaimInstID  = "d4e5f6a7-b8c9-0123-def0-123456789022"
+	testNameBystanderID  = "d4e5f6a7-b8c9-0123-def0-123456789023"
+	testNoMetadataInstID = "d4e5f6a7-b8c9-0123-def0-123456789031"
 )
 
 type PostgresImportIntegrationSuite struct {
@@ -109,8 +115,8 @@ func (s *PostgresImportIntegrationSuite) Test_imports_instances_to_postgres() {
 	s.Equal("Postgres Test Instance 2", inst2.InstanceName)
 
 	// Cleanup test instances
-	_, _ = container.Instances().Remove(ctx, testInstanceID1)
-	_, _ = container.Instances().Remove(ctx, testInstanceID2)
+	s.removeInstance(container, testInstanceID1)
+	s.removeInstance(container, testInstanceID2)
 }
 
 func (s *PostgresImportIntegrationSuite) Test_imports_instances_with_nested_children_to_postgres() {
@@ -133,7 +139,7 @@ func (s *PostgresImportIntegrationSuite) Test_imports_instances_with_nested_chil
 
 	s.Require().NoError(err)
 	s.True(result.Success)
-	s.Equal(1, result.InstancesCount)
+	s.Equal(2, result.InstancesCount)
 
 	// Verify parent instance with nested child is persisted
 	ctx := context.Background()
@@ -150,7 +156,7 @@ func (s *PostgresImportIntegrationSuite) Test_imports_instances_with_nested_chil
 	s.Equal("Postgres Child Instance", parent.ChildBlueprints["child"].InstanceName)
 
 	// Cleanup
-	_, _ = container.Instances().Remove(ctx, testParentInstanceID)
+	s.removeInstance(container, testParentInstanceID)
 }
 
 func (s *PostgresImportIntegrationSuite) Test_imports_can_lookup_instance_by_name_in_postgres() {
@@ -178,13 +184,13 @@ func (s *PostgresImportIntegrationSuite) Test_imports_can_lookup_instance_by_nam
 	s.Equal(testLookupInstanceID, instanceID)
 
 	// Cleanup
-	_, _ = container.Instances().Remove(ctx, testLookupInstanceID)
+	s.removeInstance(container, testLookupInstanceID)
 }
 
 func (s *PostgresImportIntegrationSuite) Test_import_overwrites_existing_instance_in_postgres() {
 	// First import
 	originalInstances := []state.InstanceState{
-		newTestInstance(testOverwriteInstID, "Original Postgres Name", core.InstanceStatusDeploying),
+		newTestInstance(testOverwriteInstID, "Original Postgres Name", core.InstanceStatusDeployFailed),
 	}
 	originalJSON, err := json.Marshal(originalInstances)
 	s.Require().NoError(err)
@@ -199,7 +205,7 @@ func (s *PostgresImportIntegrationSuite) Test_import_overwrites_existing_instanc
 
 	// Second import with updated data
 	updatedInstances := []state.InstanceState{
-		newTestInstance(testOverwriteInstID, "Updated Postgres Name", core.InstanceStatusDeployed),
+		newTestInstance(testOverwriteInstID, "Original Postgres Name", core.InstanceStatusDeployed),
 	}
 	updatedJSON, err := json.Marshal(updatedInstances)
 	s.Require().NoError(err)
@@ -220,11 +226,100 @@ func (s *PostgresImportIntegrationSuite) Test_import_overwrites_existing_instanc
 
 	inst, err := container.Instances().Get(ctx, testOverwriteInstID)
 	s.Require().NoError(err)
-	s.Equal("Updated Postgres Name", inst.InstanceName)
+	s.Equal("Original Postgres Name", inst.InstanceName)
 	s.Equal(core.InstanceStatusDeployed, inst.Status)
 
 	// Cleanup
-	_, _ = container.Instances().Remove(ctx, testOverwriteInstID)
+	s.removeInstance(container, testOverwriteInstID)
+}
+
+// An instance a test already removed is not found, which is the outcome cleanup wants.
+func (s *PostgresImportIntegrationSuite) removeInstance(container state.Container, instanceID string) {
+	_, err := container.Instances().Remove(context.Background(), instanceID)
+	if err != nil && !state.IsInstanceNotFound(err) {
+		s.Require().NoError(err, "failed to clean up instance %s", instanceID)
+	}
+}
+
+func (s *PostgresImportIntegrationSuite) importJSON(instances ...state.InstanceState) error {
+	data, err := json.Marshal(instances)
+	s.Require().NoError(err)
+	_, err = Import(ImportParams{EngineConfig: s.engineConfig, FileData: data, Logger: core.NewNopLogger()})
+	return err
+}
+
+func (s *PostgresImportIntegrationSuite) assertImportErrorCode(err error, expected ImportErrorCode) *ImportError {
+	s.Require().Error(err)
+	var importErr *ImportError
+	s.Require().True(errors.As(err, &importErr), "expected an ImportError, got %v", err)
+	s.Equal(expected, importErr.Code)
+	return importErr
+}
+
+func (s *PostgresImportIntegrationSuite) Test_import_rejects_renaming_an_existing_instance_in_postgres() {
+	original := newTestInstance(testRenameInstID, "Postgres Rename Original", core.InstanceStatusDeployed)
+	s.Require().NoError(s.importJSON(original))
+
+	err := s.importJSON(newTestInstance(testRenameInstID, "Postgres Rename Attempt", core.InstanceStatusUpdated))
+
+	importErr := s.assertImportErrorCode(err, ErrCodeInstanceNameImmutable)
+	s.Equal(
+		"nothing was imported\ninstances cannot be renamed:\n"+
+			"  - "+testRenameInstID+` is named "Postgres Rename Original", not "Postgres Rename Attempt"`,
+		importErr.Message,
+	)
+
+	ctx := context.Background()
+	container, err := postgres.LoadStateContainer(ctx, s.connPool, core.NewNopLogger())
+	s.Require().NoError(err)
+	stored, err := container.Instances().Get(ctx, testRenameInstID)
+	s.Require().NoError(err)
+	s.Equal("Postgres Rename Original", stored.InstanceName)
+	s.Equal(core.InstanceStatusDeployed, stored.Status)
+	s.removeInstance(container, testRenameInstID)
+}
+
+func (s *PostgresImportIntegrationSuite) Test_import_rejects_a_name_conflict_and_writes_nothing_in_postgres() {
+	owner := newTestInstance(testNameOwnerInstID, "Postgres Taken Name", core.InstanceStatusDeployed)
+	s.Require().NoError(s.importJSON(owner))
+
+	err := s.importJSON(
+		newTestInstance(testNameBystanderID, "Postgres Bystander", core.InstanceStatusDeployed),
+		newTestInstance(testNameClaimInstID, "Postgres Taken Name", core.InstanceStatusDeployed),
+	)
+
+	importErr := s.assertImportErrorCode(err, ErrCodeInstanceNameConflict)
+	s.Equal(
+		"nothing was imported\ninstance names already in use:\n"+
+			`  - "Postgres Taken Name" is already used by instance `+testNameOwnerInstID+", not "+testNameClaimInstID,
+		importErr.Message,
+	)
+
+	ctx := context.Background()
+	container, err := postgres.LoadStateContainer(ctx, s.connPool, core.NewNopLogger())
+	s.Require().NoError(err)
+	_, err = container.Instances().Get(ctx, testNameBystanderID)
+	s.True(state.IsInstanceNotFound(err), "expected nothing from the rejected import to be written")
+	s.removeInstance(container, testNameOwnerInstID)
+}
+
+func (s *PostgresImportIntegrationSuite) Test_imports_instances_without_metadata_or_exports_into_postgres() {
+	// As memfile and objectstore export an instance that has neither.
+	data := []byte(fmt.Sprintf(
+		`[{"id": %q, "name": "Postgres No Metadata", "status": 2, "metadata": null, "exports": null}]`,
+		testNoMetadataInstID,
+	))
+
+	_, err := Import(ImportParams{EngineConfig: s.engineConfig, FileData: data, Logger: core.NewNopLogger()})
+
+	s.Require().NoError(err)
+	ctx := context.Background()
+	container, err := postgres.LoadStateContainer(ctx, s.connPool, core.NewNopLogger())
+	s.Require().NoError(err)
+	stored, err := container.Instances().Get(ctx, testNoMetadataInstID)
+	s.Require().NoError(err)
+	s.Equal("Postgres No Metadata", stored.InstanceName)
+	s.removeInstance(container, testNoMetadataInstID)
 }
 
 func newTestInstance(id, name string, status core.InstanceStatus) state.InstanceState {

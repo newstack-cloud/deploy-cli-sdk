@@ -74,8 +74,10 @@ if [[ -n "$INTEGRATION" ]]; then
   # Always re-syncs so dep bumps that add migrations don't leave the local copy stale.
   MIGRATIONS_DIR="$SDK_DIR/stateio/postgres/migrations"
   echo "Syncing postgres migrations from blueprint-state module..."
+  # The module's Dir is the replacement directory when go.mod replaces it
+  # with a local path, so unreleased migrations are picked up too.
   go mod download github.com/newstack-cloud/bluelink/libs/blueprint-state
-  BLUEPRINT_STATE_DIR="$(go env GOMODCACHE)/$(go list -m -f '{{.Path}}@{{.Version}}' github.com/newstack-cloud/bluelink/libs/blueprint-state)"
+  BLUEPRINT_STATE_DIR="$(go list -m -f '{{.Dir}}' github.com/newstack-cloud/bluelink/libs/blueprint-state)"
   rm -rf "$MIGRATIONS_DIR"
   mkdir -p "$MIGRATIONS_DIR"
   cp "$BLUEPRINT_STATE_DIR/postgres/migrations/"*.sql "$MIGRATIONS_DIR/"

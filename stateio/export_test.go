@@ -72,7 +72,7 @@ func (s *StateExportTestSuite) Test_exports_all_instances_to_json() {
 	s.True(result.Success)
 	s.Equal(2, result.InstancesCount)
 	s.Equal("/test/export.json", result.FilePath)
-	s.Contains(result.Message, "Successfully exported 2 instances")
+	s.Equal("Successfully exported 2 instances to /test/export.json", result.Message)
 
 	// Verify the output file was created and contains valid JSON
 	data, err := afero.ReadFile(s.fs, "/test/export.json")
@@ -97,7 +97,7 @@ func (s *StateExportTestSuite) Test_exports_empty_state() {
 	s.Require().NoError(err)
 	s.True(result.Success)
 	s.Equal(0, result.InstancesCount)
-	s.Contains(result.Message, "Successfully exported 0 instances")
+	s.Equal("Successfully exported 0 instances to /test/export.json", result.Message)
 
 	// Verify the output file contains an empty array
 	data, err := afero.ReadFile(s.fs, "/test/export.json")
@@ -220,7 +220,7 @@ func (s *StateExportTestSuite) Test_exports_instances_with_nested_children() {
 
 	s.Require().NoError(err)
 	s.True(result.Success)
-	s.Equal(1, result.InstancesCount)
+	s.Equal(2, result.InstancesCount)
 
 	// Verify nested children are included
 	data, err := afero.ReadFile(s.fs, "/test/export.json")
@@ -279,9 +279,7 @@ func (s *StateExportTestSuite) Test_export_fails_for_multiple_nonexistent_instan
 	var exportErr *ExportError
 	s.ErrorAs(err, &exportErr)
 	s.Equal(ErrCodeInstanceNotFound, exportErr.Code)
-	// Should contain both missing IDs in the error
-	s.Contains(exportErr.Message, "missing-1")
-	s.Contains(exportErr.Message, "missing-2")
+	s.Equal(`instances not found: "missing-1", "missing-2"`, exportErr.Message)
 }
 
 func (s *StateExportTestSuite) Test_export_requires_engine_config() {
@@ -290,7 +288,26 @@ func (s *StateExportTestSuite) Test_export_requires_engine_config() {
 	})
 
 	s.Require().Error(err)
-	s.Contains(err.Error(), "engine config is required")
+	s.Equal("engine config is required for export", err.Error())
+}
+
+func (s *StateExportTestSuite) Test_restricts_an_existing_output_file_to_its_owner() {
+	s.seedInstances([]state.InstanceState{
+		{InstanceID: "inst-001", InstanceName: "orders", Status: core.InstanceStatusDeployed},
+	})
+	s.Require().NoError(afero.WriteFile(s.fs, "/test/export.json", []byte("old"), 0644))
+
+	_, err := Export(ExportParams{
+		FilePath:     "/test/export.json",
+		EngineConfig: s.engineConfig,
+		FileSystem:   s.fs,
+		Logger:       core.NewNopLogger(),
+	})
+
+	s.Require().NoError(err)
+	info, err := s.fs.Stat("/test/export.json")
+	s.Require().NoError(err)
+	s.Equal(os.FileMode(0600), info.Mode().Perm())
 }
 
 func (s *StateExportTestSuite) Test_export_to_real_filesystem() {
@@ -419,6 +436,78 @@ func (s *StateExportTestSuite) Test_exported_data_can_be_reimported() {
 	s.Equal("Instance One", inst1.InstanceName)
 	s.Require().NotNil(inst1.ResourceIDs)
 	s.Equal("res-001", inst1.ResourceIDs["resource1"])
+}
+
+func (s *StateExportTestSuite) Test_export_and_import_report_the_same_count_including_children() {
+	childInstance := state.InstanceState{
+		InstanceID:   "child-001",
+		InstanceName: "Child Instance",
+		Status:       core.InstanceStatusDeployed,
+	}
+	s.seedInstances([]state.InstanceState{
+		{
+			InstanceID:   "parent-001",
+			InstanceName: "Parent Instance",
+			Status:       core.InstanceStatusDeployed,
+			ChildBlueprints: map[string]*state.InstanceState{
+				"child": &childInstance,
+			},
+		},
+		{
+			InstanceID:   "inst-002",
+			InstanceName: "Instance Two",
+			Status:       core.InstanceStatusDeployed,
+		},
+	})
+
+	exportPath := "/test/export.json"
+	exportResult, err := Export(ExportParams{
+		FilePath:     exportPath,
+		EngineConfig: s.engineConfig,
+		FileSystem:   s.fs,
+		Logger:       core.NewNopLogger(),
+	})
+	s.Require().NoError(err)
+
+	freshStateDir := "/test/fresh-state"
+	s.Require().NoError(s.fs.MkdirAll(freshStateDir, 0755))
+	exportedData, err := afero.ReadFile(s.fs, exportPath)
+	s.Require().NoError(err)
+
+	importResult, err := Import(ImportParams{
+		FilePath: exportPath,
+		EngineConfig: &EngineConfig{
+			State: StateConfig{
+				StorageEngine:   StorageEngineMemfile,
+				MemFileStateDir: freshStateDir,
+			},
+		},
+		FileSystem: s.fs,
+		FileData:   exportedData,
+		Logger:     core.NewNopLogger(),
+	})
+	s.Require().NoError(err)
+
+	s.Equal(3, exportResult.InstancesCount)
+	s.Equal(3, importResult.InstancesCount)
+}
+
+func (s *StateExportTestSuite) Test_writes_an_export_file_only_its_owner_can_read() {
+	s.seedInstances([]state.InstanceState{
+		{InstanceID: "inst-001", InstanceName: "Instance One", Status: core.InstanceStatusDeployed},
+	})
+
+	_, err := Export(ExportParams{
+		FilePath:     "/test/export.json",
+		EngineConfig: s.engineConfig,
+		FileSystem:   s.fs,
+		Logger:       core.NewNopLogger(),
+	})
+	s.Require().NoError(err)
+
+	info, err := s.fs.Stat("/test/export.json")
+	s.Require().NoError(err)
+	s.Equal(os.FileMode(0600), info.Mode().Perm())
 }
 
 func TestStateExportTestSuite(t *testing.T) {

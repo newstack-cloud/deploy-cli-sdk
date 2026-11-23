@@ -144,7 +144,7 @@ func (s *StateImportTestSuite) Test_import_requires_engine_config() {
 
 	_, err := Import(params)
 	s.Require().Error(err)
-	s.Contains(err.Error(), "engine config is required")
+	s.Equal("engine config is required for import", err.Error())
 }
 
 func (s *StateImportTestSuite) Test_imports_instances_with_nested_children() {
@@ -176,7 +176,7 @@ func (s *StateImportTestSuite) Test_imports_instances_with_nested_children() {
 
 	s.Require().NoError(err)
 	s.True(result.Success)
-	s.Equal(1, result.InstancesCount)
+	s.Equal(2, result.InstancesCount)
 
 	// Verify parent instance is persisted with nested child
 	container, err := memfile.LoadStateContainer(s.stateDir, s.fs, core.NewNopLogger())
@@ -199,7 +199,7 @@ func (s *StateImportTestSuite) Test_import_overwrites_existing_instance() {
 		{
 			InstanceID:   "inst-001",
 			InstanceName: "Original Name",
-			Status:       core.InstanceStatusDeploying,
+			Status:       core.InstanceStatusDeployFailed,
 		},
 	}
 	originalJSON, err := json.Marshal(originalInstances)
@@ -218,7 +218,7 @@ func (s *StateImportTestSuite) Test_import_overwrites_existing_instance() {
 	updatedInstances := []state.InstanceState{
 		{
 			InstanceID:   "inst-001",
-			InstanceName: "Updated Name",
+			InstanceName: "Original Name",
 			Status:       core.InstanceStatusDeployed,
 		},
 	}
@@ -243,8 +243,37 @@ func (s *StateImportTestSuite) Test_import_overwrites_existing_instance() {
 	ctx := context.Background()
 	inst, err := container.Instances().Get(ctx, "inst-001")
 	s.Require().NoError(err)
-	s.Equal("Updated Name", inst.InstanceName)
+	s.Equal("Original Name", inst.InstanceName)
 	s.Equal(core.InstanceStatusDeployed, inst.Status)
+}
+
+func (s *StateImportTestSuite) Test_import_rejects_renaming_an_existing_instance() {
+	importJSON := func(name string) error {
+		data, err := json.Marshal([]state.InstanceState{
+			{InstanceID: "inst-001", InstanceName: name, Status: core.InstanceStatusDeployed},
+		})
+		s.Require().NoError(err)
+		_, err = Import(ImportParams{
+			EngineConfig: s.engineConfig,
+			FileSystem:   s.fs,
+			FileData:     data,
+			Logger:       core.NewNopLogger(),
+		})
+		return err
+	}
+	s.Require().NoError(importJSON("Original Name"))
+
+	err := importJSON("Renamed")
+
+	s.Require().Error(err)
+	var importErr *ImportError
+	s.Require().True(errors.As(err, &importErr), "expected an ImportError, got %v", err)
+	s.Equal(ErrCodeInstanceNameImmutable, importErr.Code)
+	s.Equal(
+		"nothing was imported\ninstances cannot be renamed:\n"+
+			`  - inst-001 is named "Original Name", not "Renamed"`,
+		importErr.Message,
+	)
 }
 
 func (s *StateImportTestSuite) Test_import_can_lookup_instance_by_name() {
