@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.9.0...v0.10.0) (2026-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ui:** consts.FileSource* are now consts.FileLocation*; SelectFileConfig.SupportedSources is SupportedLocations; SelectFileSourceMsg is SelectFileLocationMsg with a Location field; SelectFileMsg.Source is SelectFileMsg.Location; SelectFileModel.SelectedSource() is SelectedLocation(). Code using the old names switches to the new ones. The error for a state file path that isn't s3://, gcs:// or azureblob:// now reads "unsupported location for path <path>: only s3://, gcs:// and azureblob:// are supported".
+
+### refactor
+
+* **ui:** call the file picker's choices locations, since it also picks where to save ([3bb6397](https://github.com/newstack-cloud/deploy-cli-sdk/commit/3bb6397854e0ae3e1d04b2330aff9fe596617715))
+
+
+### Features
+
+* encrypted files and objectstore state in the state import and export commands ([af5dab2](https://github.com/newstack-cloud/deploy-cli-sdk/commit/af5dab246c2488e7803e872d2c719e4197f5dca1))
+* **stateio:** import and export objectstore and encrypted state ([94684b8](https://github.com/newstack-cloud/deploy-cli-sdk/commit/94684b84329b52c30f6a93af089dc7f6debcea84))
+
+
+### Bug Fixes
+
+* **tui:** resolve instance names before deploying and send the config when accepting drift ([a1496cc](https://github.com/newstack-cloud/deploy-cli-sdk/commit/a1496cc16fdafe8998440126ff5a39889537bd90))
+
 ## [0.9.0](https://github.com/newstack-cloud/deploy-cli-sdk/compare/v0.8.1...v0.9.0) (2026-10-12)
 
 
