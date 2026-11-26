@@ -2,7 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	"github.com/newstack-cloud/bluelink/libs/deploy-engine-client/types"
@@ -19,15 +21,20 @@ import (
 // change staging and deployment; without it the engine invokes plugins with an
 // empty deploy target.
 //
-// Returns (nil, nil) when no deploy config file is configured, so callers can
-// pass the result straight through to a payload's Config field.
+// Returns (nil, nil) when no deploy config file is configured, or when the
+// configured path is the default and no file exists there, so callers can
+// pass the result straight through to a payload's Config field. A path the
+// user set must exist.
 func LoadOperationConfig(confProvider *Provider) (*types.BlueprintOperationConfig, error) {
-	path, _ := confProvider.GetString("deployConfigFile")
+	path, isDefault := confProvider.GetString("deployConfigFile")
 	if path == "" {
 		return nil, nil
 	}
 
 	data, err := os.ReadFile(path)
+	if isDefault && errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("reading deploy config file %s: %w", path, err)
 	}
